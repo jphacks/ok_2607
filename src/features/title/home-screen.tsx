@@ -4,12 +4,16 @@ export function HomeScreen({
   tasks,
   stats,
   error,
+  inProgressQuestId,
   onQuest,
+  onResumeQuest,
 }: {
   tasks: Task[];
   stats: StatsResponse | null;
   error: string;
+  inProgressQuestId?: string | null;
   onQuest: () => void;
+  onResumeQuest?: (questId: string) => void;
 }) {
   const current = tasks.find((task) => task.status === "in_quest");
   const completed = tasks.filter((task) => task.status === "done").slice(0, 3);
@@ -43,6 +47,14 @@ export function HomeScreen({
           <>
             <p className="text-xs text-[#a5d4be]">クエストに挑戦中</p>
             <p className="mt-2 break-words text-sm leading-6">{current.title}</p>
+            {inProgressQuestId && onResumeQuest && (
+              <button
+                className="secondary-button mt-3 w-full text-xs"
+                onClick={() => onResumeQuest(inProgressQuestId)}
+              >
+                ▶ 進行中のクエスト画面を開く
+              </button>
+            )}
           </>
         ) : (
           <p className="text-xs leading-6 text-[#a4a8bc]">まだクエストを選んでいません</p>
@@ -53,11 +65,20 @@ export function HomeScreen({
           {error}
         </p>
       )}
-      <button className="gold-button w-full text-left" onClick={onQuest}>
+      <button
+        className="gold-button w-full text-left"
+        onClick={() => {
+          if (current && inProgressQuestId && onResumeQuest) {
+            onResumeQuest(inProgressQuestId);
+          } else {
+            onQuest();
+          }
+        }}
+      >
         <span className="mr-3" aria-hidden="true">
           ⚔
         </span>
-        今日の冒険を始める
+        {current && inProgressQuestId ? "進行中の冒険を再開する" : "今日の冒険を始める"}
       </button>
       <h2 className="mb-3 mt-9 text-base">クリアした冒険</h2>
       {completed.length > 0 ? (

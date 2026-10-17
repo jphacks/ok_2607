@@ -3,6 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuestApp } from "@/features/quest/quest-app";
 import type { Quest, Task } from "@/lib/schemas";
 
+const mockPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
 const existing: Task = {
   id: "10000000-0000-4000-8000-000000000001",
   title: "以前のタスク",
@@ -19,6 +26,7 @@ let rejectCreation: boolean;
 let inProgressQuest: Quest | null;
 
 beforeEach(() => {
+  mockPush.mockClear();
   storedTasks = [];
   rejectCreation = false;
   inProgressQuest = null;
@@ -59,6 +67,21 @@ beforeEach(() => {
           candidates: inProgressQuest ? [] : storedTasks.slice(0, 3),
           inProgressQuest,
         });
+      if (url === "/api/quests" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        const newQuest: Quest = {
+          id: "10000000-0000-4000-8000-000000000099",
+          taskId: body.selectedTaskId,
+          status: "in_progress",
+          isUrgent: false,
+          xpEarned: 0,
+          startedAt: "2026-10-17T00:00:00Z",
+          completedAt: null,
+        };
+        inProgressQuest = newQuest;
+        return Response.json({ quest: newQuest }, { status: 201 });
+      }
+
       if (url === "/api/stats") return Response.json({ totalXp: 0, completedQuests: 0 });
       throw new Error(`想定外のリクエスト: ${url}`);
     }),
@@ -148,5 +171,61 @@ describe("タスク登録と3択の画面遷移", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.getByRole("listitem")).toHaveTextContent("消してはいけない下書き");
     expect(screen.getByRole("listitem")).toHaveTextContent("期限 11/1");
+  });
+
+  it("クエストを開始すると画面04(/quests/[id]/checkpoints)へ画面遷移する", async () => {
+    storedTasks = [existing];
+    render(<QuestApp />);
+    const radio = await screen.findByRole("radio", { name: new RegExp(existing.title) });
+    fireEvent.click(radio);
+    const startButton = screen.getByRole("button", { name: "このクエストに挑戦する" });
+    fireEvent.click(startButton);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        "/quests/10000000-0000-4000-8000-000000000099/checkpoints",
+      );
+    });
+  });
+
+  it("進行中クエストがあるとき「進行中のクエスト画面を開く」ボタンで画面05へ遷移する", async () => {
+    storedTasks = [{ ...existing, status: "in_quest" }];
+    inProgressQuest = {
+      id: "10000000-0000-4000-8000-000000000003",
+      taskId: existing.id,
+      status: "in_progress",
+      isUrgent: false,
+      xpEarned: 0,
+      startedAt: existing.createdAt,
+      completedAt: null,
+    };
+    render(<QuestApp />);
+
+    const resumeBtn = await screen.findByRole("button", { name: "進行中のクエスト画面を開く" });
+    fireEvent.click(resumeBtn);
+
+    expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
+  });
+
+  it("ホーム画面で進行中のクエストがある場合、再開ボタンで画面05へ遷移する", async () => {
+    storedTasks = [{ ...existing, status: "in_quest" }];
+    inProgressQuest = {
+      id: "10000000-0000-4000-8000-000000000003",
+      taskId: existing.id,
+      status: "in_progress",
+      isUrgent: false,
+      xpEarned: 0,
+      startedAt: existing.createdAt,
+      completedAt: null,
+    };
+    render(<QuestApp />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "ホームで確認する" }));
+    const homeResumeBtn = await screen.findByRole("button", {
+      name: "進行中の冒険を再開する",
+    });
+    fireEvent.click(homeResumeBtn);
+
+    expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
   });
 });
