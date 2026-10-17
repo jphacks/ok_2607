@@ -9,6 +9,7 @@ export function QuestChoices({
   onHome,
   onRetry,
   onStart,
+  onResumeQuest,
 }: {
   choices: QuestCandidatesResponse | null;
   pending: boolean;
@@ -17,6 +18,7 @@ export function QuestChoices({
   onHome: () => void;
   onRetry: () => void;
   onStart: (task: Task) => Promise<void>;
+  onResumeQuest?: (questId: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -73,9 +75,19 @@ export function QuestChoices({
           <p className="mb-6 mt-3 text-sm leading-7 text-[#a4a8bc]">
             進行中のクエストがあります。新しい冒険を選ぶ前に、今のクエストを進めましょう。
           </p>
-          <button className="gold-button w-full" onClick={onHome}>
-            ホームで確認する
-          </button>
+          <div className="space-y-3">
+            {onResumeQuest && (
+              <button
+                className="gold-button w-full"
+                onClick={() => onResumeQuest(choices.inProgressQuest!.id)}
+              >
+                進行中のクエスト画面を開く
+              </button>
+            )}
+            <button className="secondary-button w-full" onClick={onHome}>
+              ホームで確認する
+            </button>
+          </div>
         </div>
       ) : choices.candidates.length === 0 ? (
         <div className="pixel-panel p-6">

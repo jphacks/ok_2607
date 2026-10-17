@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { z } from "zod";
 import { HomeScreen } from "@/features/title/home-screen";
 import { TaskList } from "@/features/task/task-list";
@@ -46,6 +47,7 @@ async function requestJson<S extends z.ZodType>(
 }
 
 export function QuestApp() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("quest");
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [taskError, setTaskError] = useState("");
@@ -127,7 +129,7 @@ export function QuestApp() {
 
   async function startQuest(task: Task) {
     if (!choices) return;
-    await requestJson("/api/quests", StartQuestResponse, {
+    const result = await requestJson("/api/quests", StartQuestResponse, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -142,9 +144,15 @@ export function QuestApp() {
     );
     setChoices(null);
     needsChoices.current = true;
-    setTab("home");
     void loadTasks();
     void loadStats();
+
+    // クエスト開始後、AI チェックポイント生成画面（04）へ直接遷移
+    router.push(`/quests/${result.quest.id}/checkpoints`);
+  }
+
+  function handleResumeQuest(questId: string) {
+    router.push(`/quests/${questId}`);
   }
 
   function addTask() {
@@ -174,6 +182,7 @@ export function QuestApp() {
             onHome={() => switchTab("home")}
             onRetry={() => void loadChoices()}
             onStart={startQuest}
+            onResumeQuest={handleResumeQuest}
           />
         )}
         {tab === "tasks" &&
@@ -204,7 +213,9 @@ export function QuestApp() {
             tasks={tasks ?? []}
             stats={stats}
             error={statsError || taskError}
+            inProgressQuestId={choices?.inProgressQuest?.id ?? null}
             onQuest={() => switchTab("quest")}
+            onResumeQuest={handleResumeQuest}
           />
         )}
       </main>
