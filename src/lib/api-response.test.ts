@@ -18,20 +18,23 @@ describe("parseJson", () => {
     expect(result).toEqual({ ok: true, data: { title: "本を読む" } });
   });
 
-  it("JSON として壊れていれば 400 invalid_json", async () => {
-    const result = await parseJson(jsonRequest("{"), Body);
+  it("不正な JSON は 400 invalid_json を返す", async () => {
+    const result = await parseJson(jsonRequest("{not json"), Body);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.response.status).toBe(400);
-      expect(await result.response.json()).toMatchObject({ error: { code: "invalid_json" } });
+      expect(await result.response.json()).toEqual({
+        error: { code: "invalid_json", message: "JSON を解析できません" },
+      });
     }
   });
 
-  it("スキーマに合わなければ 400 validation_error", async () => {
+  it("スキーマ不一致は 400 validation_error を返す", async () => {
     const result = await parseJson(jsonRequest('{"title":""}'), Body);
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(await result.response.json()).toMatchObject({ error: { code: "validation_error" } });
+      expect(result.response.status).toBe(400);
+      expect((await result.response.json()).error.code).toBe("validation_error");
     }
   });
 });
