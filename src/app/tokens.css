@@ -1,0 +1,35 @@
+/*
+ * デザイントークン（色）。値は PR #6 の画面から抜き出したもの。
+ * 担当: @ki-mutaku。使い方とルールは docs/design.md。
+ * Tailwind のユーティリティとして使える（例: bg-panel、text-muted、border-gold）。
+ * コンポーネントに 16 進数の色を直接書かず、ここに無い色が必要ならここに足す。
+ */
+@theme {
+  /* 背景・面 */
+  --color-surface: #0b0d17; /* 画面の背景 */
+  --color-panel: #22273e; /* パネル・カード */
+  --color-panel-active: #292e47; /* 選択中のパネル */
+  --color-field: #111321; /* 入力欄 */
+
+  /* 文字 */
+  --color-text: #ededf4;
+  --color-muted: #a4a8bc; /* 補足・説明文 */
+  --color-placeholder: #9699ac;
+
+  /* 線 */
+  --color-line: #77748b; /* 入力欄の枠 */
+  --color-line-dim: #494360; /* 区切り線 */
+  --color-frame: #4b4552; /* パネルの外枠 */
+
+  /* ゴールド（主要な操作・強調） */
+  --color-gold: #f2c66d; /* 主ボタンの背景 */
+  --color-gold-hover: #ffda86;
+  --color-gold-accent: #f3ca70; /* 選択中の枠・強調文字 */
+  --color-gold-border: #f1d18c; /* パネルの枠 */
+  --color-gold-text: #e6c875; /* 副ボタンの文字 */
+  --color-gold-ink: #352b24; /* 主ボタンの文字 */
+
+  /* 状態 */
+  --color-success: #a5d4be; /* 成功・フォーカスリング */
+  --color-danger: #ffb5a9; /* エラー・警告 */
+}

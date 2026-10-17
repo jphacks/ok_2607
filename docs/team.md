@@ -3,22 +3,23 @@
 | メンバー          | 役割 | 担当範囲                                                                                                                           |
 | ----------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | @lovemeasure      | PM   | 全体の進行、レビュー（任意・マージ後でも可）、共通部分（`src/lib/`、`supabase/`、`docs/`、設定ファイル）、タスク登録、経験値の集計 |
-| @ki-mutaku        | 開発 | タイトル画面、3択タスク選択、レコメンドアルゴリズム                                                                                |
+| @ki-mutaku        | 開発 | タイトル画面、3択タスク選択、レコメンドアルゴリズム、共通 UI（`docs/design.md`）                                                   |
 | @miyagunimikihiro | 開発 | AI チェックポイント生成、チェックポイント画面、クエスト完了                                                                        |
 
 タスク登録と経験値の集計は、手が空いた人が引き取ってよい（その場合はこの表と `.github/CODEOWNERS` を更新する）。
 
 ## ディレクトリと担当
 
-| パス                                                                 | 担当                                   |
-| -------------------------------------------------------------------- | -------------------------------------- |
-| `src/features/title/`                                                | @ki-mutaku                             |
-| `src/features/quest/`                                                | @ki-mutaku                             |
-| `src/app/api/quests/candidates/`、`src/app/api/quests/route.ts`      | @ki-mutaku                             |
-| `src/features/checkpoint/`                                           | @miyagunimikihiro                      |
-| `src/app/api/quests/[id]/`、`src/app/api/checkpoints/`               | @miyagunimikihiro                      |
-| `src/features/task/`、`src/app/api/tasks/`、`src/app/api/stats/`     | @lovemeasure                           |
-| `src/lib/`、`src/app/layout.tsx`、`supabase/`、`docs/`、設定ファイル | @lovemeasure（共通。変更は PR で共有） |
+| パス                                                                                | 担当                                    |
+| ----------------------------------------------------------------------------------- | --------------------------------------- |
+| `src/features/title/`                                                               | @ki-mutaku                              |
+| `src/features/quest/`                                                               | @ki-mutaku                              |
+| `src/app/api/quests/candidates/`、`src/app/api/quests/route.ts`                     | @ki-mutaku                              |
+| `src/features/checkpoint/`                                                          | @miyagunimikihiro                       |
+| `src/app/api/quests/[id]/`、`src/app/api/checkpoints/`                              | @miyagunimikihiro                       |
+| `src/features/task/`、`src/app/api/tasks/`、`src/app/api/stats/`                    | @lovemeasure                            |
+| `src/components/ui/`、`src/app/tokens.css`、`src/app/globals.css`、`docs/design.md` | @ki-mutaku（共通 UI。変更は PR で共有） |
+| `src/lib/`、`src/app/layout.tsx`、`supabase/`、`docs/`、設定ファイル                | @lovemeasure（共通。変更は PR で共有）  |
 
 ## 依存関係
 
