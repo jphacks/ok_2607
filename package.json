@@ -18,6 +18,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:new": "supabase migration new",
+    "figma:fetch": "node scripts/fetch-figma-images.mjs",
     "prepare": "husky"
   },
   "dependencies": {

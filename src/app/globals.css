@@ -1,8 +1,10 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=DotGothic16&display=swap");
 
 :root {
   --background: #0b0d17;
   --foreground: #ededf4;
+  --font-dotgothic: "DotGothic16", monospace, sans-serif;
 }
 
 @theme inline {
@@ -10,13 +12,14 @@
   --color-foreground: var(--foreground);
   --font-sans: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   --font-mono: "Courier New", monospace;
+  --font-dotgothic: var(--font-dotgothic);
 }
 
 body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  font-family: var(--font-dotgothic), Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
 }
 
 button {
