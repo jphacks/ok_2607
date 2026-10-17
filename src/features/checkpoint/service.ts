@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Checkpoint } from "@/lib/schemas";
+import type { Checkpoint, QuestDetailResponse } from "@/lib/schemas";
 import type { CheckpointPlan } from "./generate";
-import { mapDbCheckpointToSchema } from "./types";
+import {
+  mapDbCheckpointToSchema,
+  mapDbQuestToSchema,
+  mapDbTaskToSchema,
+  sortCheckpointsInTreeOrder,
+} from "./types";
 
 export interface QuestTaskDetail {
   quest: {
@@ -135,4 +140,50 @@ export async function saveCheckpointPlanToDb(
   }
 
   return createdCheckpoints;
+}
+
+/**
+ * クエスト詳細、紐づくタスク、およびチェックポイント一覧を取得する。
+ */
+export async function getQuestDetail(
+  supabase: SupabaseClient,
+  questId: string,
+): Promise<QuestDetailResponse | null> {
+  const { data: questRow, error: questError } = await supabase
+    .from("quests")
+    .select("id, task_id, status, is_urgent, xp_earned, started_at, completed_at")
+    .eq("id", questId)
+    .maybeSingle();
+
+  if (questError || !questRow) {
+    return null;
+  }
+
+  const { data: taskRow, error: taskError } = await supabase
+    .from("tasks")
+    .select("id, title, due_at, weight, status, shown_count, skipped_count, created_at, updated_at")
+    .eq("id", questRow.task_id)
+    .maybeSingle();
+
+  if (taskError || !taskRow) {
+    return null;
+  }
+
+  const { data: checkpointRows, error: checkpointError } = await supabase
+    .from("checkpoints")
+    .select("id, quest_id, parent_id, title, description, position, is_done, done_at")
+    .eq("quest_id", questId);
+
+  if (checkpointError) {
+    throw new Error(`チェックポイント一覧の取得に失敗しました: ${checkpointError.message}`);
+  }
+
+  const rawCheckpoints = (checkpointRows ?? []).map(mapDbCheckpointToSchema);
+  const checkpoints = sortCheckpointsInTreeOrder(rawCheckpoints);
+
+  return {
+    quest: mapDbQuestToSchema(questRow),
+    task: mapDbTaskToSchema(taskRow),
+    checkpoints,
+  };
 }

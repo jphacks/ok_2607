@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 import type { CheckpointPlan } from "./generate";
-import { getQuestWithTask, saveCheckpointPlanToDb } from "./service";
+import { getQuestDetail, getQuestWithTask, saveCheckpointPlanToDb } from "./service";
 
 describe("checkpoint service", () => {
   describe("getQuestWithTask", () => {
@@ -196,6 +196,106 @@ describe("checkpoint service", () => {
       await expect(
         saveCheckpointPlanToDb(mockSupabase, "quest-1", { milestones: [] }),
       ).rejects.toThrow("既存チェックポイントの削除に失敗しました");
+    });
+  });
+
+  describe("getQuestDetail", () => {
+    it("クエスト、タスク、チェックポイント一覧を階層順で取得できる", async () => {
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === "quests") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "quest-1",
+                  task_id: "task-1",
+                  status: "in_progress",
+                  is_urgent: false,
+                  xp_earned: 0,
+                  started_at: "2026-10-17T00:00:00Z",
+                  completed_at: null,
+                },
+                error: null,
+              }),
+            };
+          }
+          if (table === "tasks") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "task-1",
+                  title: "本を読む",
+                  due_at: null,
+                  weight: 1.0,
+                  status: "in_quest",
+                  shown_count: 1,
+                  skipped_count: 0,
+                  created_at: "2026-10-17T00:00:00Z",
+                  updated_at: "2026-10-17T00:00:00Z",
+                },
+                error: null,
+              }),
+            };
+          }
+          if (table === "checkpoints") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: "child-1",
+                    quest_id: "quest-1",
+                    parent_id: "parent-1",
+                    title: "ステップ1",
+                    description: null,
+                    position: 1,
+                    is_done: false,
+                    done_at: null,
+                  },
+                  {
+                    id: "parent-1",
+                    quest_id: "quest-1",
+                    parent_id: null,
+                    title: "全体像1",
+                    description: null,
+                    position: 1,
+                    is_done: false,
+                    done_at: null,
+                  },
+                ],
+                error: null,
+              }),
+            };
+          }
+          return {};
+        }),
+      } as unknown as SupabaseClient;
+
+      const result = await getQuestDetail(mockSupabase, "quest-1");
+      expect(result).not.toBeNull();
+      expect(result?.quest.id).toBe("quest-1");
+      expect(result?.task.id).toBe("task-1");
+      expect(result?.checkpoints).toHaveLength(2);
+      // 親が最初に来て、その後に子が来る
+      expect(result?.checkpoints[0].id).toBe("parent-1");
+      expect(result?.checkpoints[1].id).toBe("child-1");
+    });
+
+    it("クエストが存在しない場合は null を返す", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      } as unknown as SupabaseClient;
+
+      const result = await getQuestDetail(mockSupabase, "non-existent");
+      expect(result).toBeNull();
     });
   });
 });
