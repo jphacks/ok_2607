@@ -15,6 +15,7 @@ import {
   QuestCandidatesResponse,
   StatsResponse,
   type Task,
+  type Quest,
   type CreateTaskRequest,
 } from "@/lib/schemas";
 
@@ -59,6 +60,8 @@ export function QuestApp() {
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [taskError, setTaskError] = useState("");
   const [choices, setChoices] = useState<QuestCandidatesResponse | null>(null);
+  // 候補の再抽選・無効化では、既存クエストの再開情報を失わない。
+  const [inProgressQuest, setInProgressQuest] = useState<Quest | null>(null);
   const [choiceError, setChoiceError] = useState("");
   const [choicePending, setChoicePending] = useState(true);
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -89,6 +92,7 @@ export function QuestApp() {
       });
       if (version === choiceVersion.current) {
         setChoices(result);
+        setInProgressQuest(result.inProgressQuest);
         needsChoices.current = false;
       }
     } catch (cause) {
@@ -156,6 +160,7 @@ export function QuestApp() {
     const response = await requestApi(`/api/tasks/${id}`, { method: "DELETE" });
     if (response.status !== 204) throw new Error("タスクの削除結果を確認できませんでした。");
     setTasks((previous) => previous?.filter((task) => task.id !== id) ?? null);
+    setInProgressQuest((previous) => (previous?.taskId === id ? null : previous));
     invalidateChoices();
     setStats(null);
   }
@@ -170,6 +175,7 @@ export function QuestApp() {
         shownTaskIds: choices.candidates.map((candidate) => candidate.id),
       }),
     });
+    setInProgressQuest(result.quest);
     setTasks(
       (previous) =>
         previous?.map((item) => (item.id === task.id ? { ...item, status: "in_quest" } : item)) ??
@@ -248,7 +254,7 @@ export function QuestApp() {
             tasks={tasks ?? []}
             stats={stats}
             error={statsError || taskError}
-            inProgressQuestId={choices?.inProgressQuest?.id ?? null}
+            inProgressQuestId={inProgressQuest?.id ?? null}
             onQuest={() => switchTab("quest")}
             onResumeQuest={handleResumeQuest}
           />

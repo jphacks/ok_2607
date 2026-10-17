@@ -115,6 +115,48 @@ afterEach(() => {
 });
 
 describe("タスク登録と3択の画面遷移", () => {
+  it.each(["編集", "別タスク削除"])(
+    "%s後もホームから進行中クエストを直接再開できる",
+    async (operation) => {
+      storedTasks = [
+        { ...existing, status: "in_quest" },
+        { ...existing, id: "10000000-0000-4000-8000-000000000002", title: "別のタスク" },
+      ];
+      inProgressQuest = {
+        id: "10000000-0000-4000-8000-000000000003",
+        taskId: existing.id,
+        status: "in_progress",
+        isUrgent: false,
+        xpEarned: 0,
+        startedAt: existing.createdAt,
+        completedAt: null,
+      };
+      render(<QuestApp />);
+      await screen.findByRole("button", { name: "ホームで確認する" });
+      fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+      if (operation === "編集") {
+        fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
+        const row = screen.getByText(existing.title).closest("li");
+        if (!row) throw new Error("編集するタスクセルが見つかりません");
+        fireEvent.click(within(row).getByRole("button", { name: "編集" }));
+        fireEvent.change(screen.getByRole("textbox", { name: /タスク名/ }), {
+          target: { value: "挑戦中タスクの編集" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+      } else {
+        fireEvent.click(screen.getByLabelText("別のタスクのメニュー"));
+        const row = screen.getByText("別のタスク").closest("li");
+        if (!row) throw new Error("削除するタスクセルが見つかりません");
+        fireEvent.click(within(row).getByRole("button", { name: "削除" }));
+        fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+      }
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "ホーム" }));
+      fireEvent.click(await screen.findByRole("button", { name: "進行中の冒険を再開する" }));
+      expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
+    },
+  );
+
   it("メニューから編集でき、タイトルだけの変更では元の期限時刻を変えない", async () => {
     storedTasks = [{ ...existing, dueAt: "2026-11-01T09:15:00Z" }];
     render(<QuestApp />);
