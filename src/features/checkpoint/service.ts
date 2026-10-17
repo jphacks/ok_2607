@@ -187,3 +187,32 @@ export async function getQuestDetail(
     checkpoints,
   };
 }
+
+/**
+ * チェックポイントの達成状態（isDone / doneAt）を更新する。
+ */
+export async function updateCheckpointStatus(
+  supabase: SupabaseClient,
+  checkpointId: string,
+  isDone: boolean,
+): Promise<Checkpoint | null> {
+  const { data: updatedRow, error } = await supabase
+    .from("checkpoints")
+    .update({
+      is_done: isDone,
+      done_at: isDone ? new Date().toISOString() : null,
+    })
+    .eq("id", checkpointId)
+    .select("id, quest_id, parent_id, title, description, position, is_done, done_at")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`チェックポイントの更新に失敗しました: ${error.message}`);
+  }
+
+  if (!updatedRow) {
+    return null;
+  }
+
+  return mapDbCheckpointToSchema(updatedRow);
+}

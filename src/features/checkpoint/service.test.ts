@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 import type { CheckpointPlan } from "./generate";
-import { getQuestDetail, getQuestWithTask, saveCheckpointPlanToDb } from "./service";
+import {
+  getQuestDetail,
+  getQuestWithTask,
+  saveCheckpointPlanToDb,
+  updateCheckpointStatus,
+} from "./service";
 
 describe("checkpoint service", () => {
   describe("getQuestWithTask", () => {
@@ -296,6 +301,66 @@ describe("checkpoint service", () => {
 
       const result = await getQuestDetail(mockSupabase, "non-existent");
       expect(result).toBeNull();
+    });
+  });
+
+  describe("updateCheckpointStatus", () => {
+    it("isDone: true でチェックポイントを更新できる", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          update: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          select: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: {
+              id: "cp-1",
+              quest_id: "q-1",
+              parent_id: null,
+              title: "全体像",
+              description: null,
+              position: 1,
+              is_done: true,
+              done_at: "2026-10-17T06:00:00Z",
+            },
+            error: null,
+          }),
+        }),
+      } as unknown as SupabaseClient;
+
+      const result = await updateCheckpointStatus(mockSupabase, "cp-1", true);
+
+      expect(result).not.toBeNull();
+      expect(result?.isDone).toBe(true);
+      expect(result?.doneAt).toBe("2026-10-17T06:00:00Z");
+    });
+
+    it("チェックポイントが存在しない場合は null を返す", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          update: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          select: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      } as unknown as SupabaseClient;
+
+      const result = await updateCheckpointStatus(mockSupabase, "non-existent", true);
+      expect(result).toBeNull();
+    });
+
+    it("DB 更新でエラーが発生した場合は例外をスローする", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          update: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          select: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ error: new Error("DB update error") }),
+        }),
+      } as unknown as SupabaseClient;
+
+      await expect(updateCheckpointStatus(mockSupabase, "cp-1", true)).rejects.toThrow(
+        "チェックポイントの更新に失敗しました",
+      );
     });
   });
 });
