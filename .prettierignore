@@ -1,0 +1,6 @@
+.next
+node_modules
+coverage
+package-lock.json
+supabase/.temp
+supabase/.branches
