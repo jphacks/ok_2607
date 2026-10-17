@@ -74,6 +74,7 @@ npm run db:reset       # ローカル DB の作り直し
 - API のキーは camelCase、DB の列は snake_case。変換はサーバー側で行う
 - DB スキーマは `npm run db:new <名前>` で作った新しいマイグレーションファイルで変える。**適用済みのマイグレーションファイルは編集しない**
 - 新しいテーブルを作ったら RLS を有効にする（`alter table ... enable row level security;`）
+- DB 関数（RPC）は `security definer` にしない（RLS を迂回するため）。`set search_path = ''` を付け、実行権限は service_role だけに与える（既定で anon からは実行できない設定にしてある。anon に `grant` しない）
 
 ### セキュリティ
 
