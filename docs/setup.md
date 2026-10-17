@@ -58,8 +58,10 @@ https://aistudio.google.com/apikey でキーを発行し、`GEMINI_API_KEY` に�
 npm run dev
 ```
 
-- http://localhost:3000 でタイトル画面（仮）が表示される
-- `curl -i http://localhost:3000/api/tasks` が `501`（未実装）または実装済みなら `200` を返す
+- http://localhost:3000 で3択のクエスト画面が表示される。タスクがなければ「新しいタスクを追加」から登録する。
+- `curl -i http://localhost:3000/api/tasks` が `200` とタスク一覧を返す。
+- 「タスク」タブでタスク名と任意の期限を登録し、再読み込みしても保存されていることを確認する。
+- ローカルDBがすでにある場合は `npx supabase migration up --local` で追加マイグレーションを適用する。リモートDBへの適用は担当者が行う。
 
 ### 6. チェックが通ることを確認する
 

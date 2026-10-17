@@ -5,6 +5,8 @@
 - キー名は camelCase（DB の snake_case は Route Handler 内で変換する）
 - ログインは無い（単一ユーザー前提）
 
+実装済み: タスク一覧・登録、3択候補、クエスト開始、経験値集計。タスク編集・削除とチェックポイント関連は引き続き別実装。
+
 ## エラー形式
 
 ```json
@@ -44,6 +46,8 @@
 
 クエリ `status`（任意）: `active` / `in_quest` / `done` / `discarded`。省略時は `discarded` 以外。
 
+並び順は `createdAt` 降順、同時刻ならID降順。登録直後も再読み込み後も新しいタスクから表示する。
+
 ```json
 // 200
 { "tasks": [Task] }
@@ -59,6 +63,8 @@
 ```
 
 `dueAt` は省略・`null` 可。
+
+入力はタスク名と任意の期限だけ。画面で日付だけを指定した場合は、端末のタイムゾーンで当日の終わりをISO 8601へ変換する。
 
 ### PATCH /api/tasks/{id}
 
@@ -78,13 +84,20 @@
 ### GET /api/quests/candidates
 
 ```json
-// 200
-{ "isUrgent": false, "candidates": [Task, Task, Task] }
+// 200（新しいクエストを選べる場合）
+{ "isUrgent": false, "candidates": [Task, Task, Task], "inProgressQuest": null }
+// 200（進行中のクエストがある場合）
+{ "isUrgent": false, "candidates": [], "inProgressQuest": Quest }
 ```
 
 - `isUrgent: true` のとき `candidates` は締切が近い 1 件だけ
-- `active` なタスクが 3 件未満ならその件数だけ返す（0 件なら空配列）
+- `active` かつ（期限なし、または期限が現在時刻以降）のタスクだけが候補。対象が3件未満ならその件数だけ返す（0件なら空配列）
 - 提示したタスクの `shownCount` を増やす
+- 期限切れ（期限が現在時刻より前）のタスクは通常・緊急とも候補から除外する。期限が現在時刻ちょうどから24時間後までなら、最も早い1件を緊急候補とする
+- 通常は重みに比例した重複なし抽選。全件の重みが0なら等確率
+- 提示回数はDB内で原子的に加算する。抽選中に候補の状態が変わった場合は `409 conflict`
+- 抽選前に進行中クエストを確認する。存在する場合は `inProgressQuest` を返し、`candidates` は空、`isUrgent` は `false`。抽選・`record_quest_candidates`・提示回数加算は行わない
+- 画面は進行中の案内と「ホームで確認する」を表示し、新規開始・再抽選ボタンは表示しない
 
 ### POST /api/quests
 
@@ -98,6 +111,10 @@
 - 選ばれたタスクの重みを上げ、`status` を `in_quest` にする
 - 選ばれなかったタスクの重みを下げ、`skippedCount` を増やす
 - `selection_logs` に記録する
+- 重みの更新式は、選択したタスクが `+1`、未選択タスクが `×0.8`
+- `shownTaskIds` は重複不可で、`selectedTaskId` を含める。不正な入力は `400 validation_error`
+- 全件が `active` であることをロック後に検証する。進行中クエストがある場合や状態変更との競合は `409 conflict`
+- タスク更新・クエスト作成・ログ保存は `start_quest` RPC の1トランザクション。同時開始も直列化する
 
 ### GET /api/quests/{id}
 
@@ -148,6 +165,8 @@ AI 生成結果は全体像（1〜5 件）および各アクションステッ�
 // 200
 { "totalXp": 120, "completedQuests": 4 }
 ```
+
+`completed` のクエストだけから `xpEarned` と件数を集計する。未完了の経験値は含めない。
 
 ## 型
 

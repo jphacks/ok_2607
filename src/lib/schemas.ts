@@ -80,10 +80,21 @@ export type UpdateCheckpointRequest = z.infer<typeof UpdateCheckpointRequest>;
 
 // ---- レスポンス ----
 
+export const TasksResponse = z.object({ tasks: z.array(Task) });
+export type TasksResponse = z.infer<typeof TasksResponse>;
+
+export const CreateTaskResponse = z.object({ task: Task });
+export type CreateTaskResponse = z.infer<typeof CreateTaskResponse>;
+
+export const StartQuestResponse = z.object({ quest: Quest });
+export type StartQuestResponse = z.infer<typeof StartQuestResponse>;
+
 export const QuestCandidatesResponse = z.object({
   // true のとき candidates は締切が近い 1 件だけ（緊急クエスト）
   isUrgent: z.boolean(),
   candidates: z.array(Task).max(3),
+  // 進行中なら候補は返さず、既存クエストを案内する。
+  inProgressQuest: Quest.nullable(),
 });
 export type QuestCandidatesResponse = z.infer<typeof QuestCandidatesResponse>;
 
