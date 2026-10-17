@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { apiError, notImplemented, parseJson } from "@/lib/api-response";
+import { apiError, parseJson } from "@/lib/api-response";
 
 const Body = z.object({ title: z.string().min(1) });
 
@@ -36,16 +36,10 @@ describe("parseJson", () => {
   });
 });
 
-describe("apiError / notImplemented", () => {
+describe("apiError", () => {
   it("決まった形のエラーを返す", async () => {
     const res = apiError(404, "not_found", "見つかりません");
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: { code: "not_found", message: "見つかりません" } });
-  });
-
-  it("未実装は 501 で担当者を含む", async () => {
-    const res = notImplemented("@tutayadx");
-    expect(res.status).toBe(501);
-    expect((await res.json()).error.message).toContain("@tutayadx");
   });
 });

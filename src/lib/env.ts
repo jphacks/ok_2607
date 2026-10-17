@@ -12,6 +12,15 @@ const ServerEnv = z.object({
 });
 export type ServerEnv = z.infer<typeof ServerEnv>;
 
+const SupabaseEnv = ServerEnv.pick({ SUPABASE_URL: true, SUPABASE_SERVICE_ROLE_KEY: true });
+
+export function supabaseEnv(): z.infer<typeof SupabaseEnv> {
+  const result = SupabaseEnv.safeParse(process.env);
+  if (!result.success) {
+    throw new Error("Supabase の環境変数が不足しています（.env.example を参照）");
+  }
+  return result.data;
+}
 let cached: ServerEnv | undefined;
 
 export function serverEnv(): ServerEnv {

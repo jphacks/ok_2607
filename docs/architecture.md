@@ -29,10 +29,10 @@
 ```
 src/
 ├── app/                  # ルーティング（ページと Route Handlers）。処理は薄く保つ
-│   ├── page.tsx          # タイトル画面
+│   ├── page.tsx          # 3択を初期表示する3タブ画面
 │   └── api/              # Route Handlers（docs/api.md）
 ├── features/             # 機能ごとのコンポーネント・ロジック・テスト
-│   ├── title/            # タイトル画面            @tutayadx
+│   ├── title/            # ホーム画面              @tutayadx
 │   ├── quest/            # 3択・レコメンド         @tutayadx
 │   ├── checkpoint/       # チェックポイント        @miyagunimikihiro
 │   └── task/             # タスク登録              @lovemeasure
@@ -50,6 +50,15 @@ docs/                     # 開発ドキュメント
 - 例: レコメンドの抽選は `src/features/quest/recommend.ts` に純粋関数として書き、`recommend.test.ts` でテストする
 - テストは対象と同じディレクトリに `*.test.ts(x)` で置く
 - 2 つ以上の機能で使うものだけ `src/lib/` に置く
+
+### 3画面の構成
+
+- `src/features/quest/quest-app.tsx` がクエストを初期表示し、3タブの状態・API取得・候補キャッシュを管理する。
+- タスクリストと作成モーダルは `src/features/task/task-list.tsx`、ホームは `src/features/title/home-screen.tsx`、候補選択は `src/features/quest/quest-choices.tsx`。
+- クライアントは `src/lib/schemas.ts` のレスポンススキーマで応答を検証する。タスクはDBに保存し、ブラウザ内のダミーデータやローカルストレージには置き換えない。
+- `src/features/task/server.ts` がDBの列を検証・変換し、`src/features/quest/recommend.ts` は時計・乱数を差し替えられる純粋関数として抽選する。
+- `20261017061631_quest_selection_transactions.sql` のRPCが提示回数の加算とクエスト開始を扱う。実行権限は `service_role` のみ。既存DBには新しいマイグレーションの適用が必要。
+- Supabase用の環境変数はAI用とは独立して検証する。タスク登録・3択だけならGeminiのキーは不要。
 
 ## データモデル
 
