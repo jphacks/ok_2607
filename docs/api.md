@@ -127,7 +127,14 @@
 
 ### POST /api/quests/{id}/checkpoints/generate
 
-リクエスト本文なし。既存のチェックポイントがあれば作り直す。
+リクエスト本文なし。既存のチェックポイントがある場合は DB トランザクション（RPC `replace_quest_checkpoints`）により原子的に作り直す（再生成途中での失敗時に元データ損失を防ぐ）。
+AI 生成結果は全体像（1〜5 件）および各アクションステップ（1〜5 件）の 2 段階で構成される。
+
+- 400: `validation_error`（id が不正な UUID）
+- 404: `not_found`（指定されたクエストが見つからない）
+- 409: `conflict`（クエストが進行中 `in_progress` ではない）
+- 502: `ai_error`（Gemini API 呼び出し失敗、またはスキーマ検証失敗）
+- 500: `internal_error`（DB エラー等）
 
 ```json
 // 200
