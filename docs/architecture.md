@@ -32,8 +32,8 @@ src/
 │   ├── page.tsx          # 3択を初期表示する3タブ画面
 │   └── api/              # Route Handlers（docs/api.md）
 ├── features/             # 機能ごとのコンポーネント・ロジック・テスト
-│   ├── title/            # ホーム画面              @tutayadx
-│   ├── quest/            # 3択・レコメンド         @tutayadx
+│   ├── title/            # ホーム画面              @ki-mutaku
+│   ├── quest/            # 3択・レコメンド         @ki-mutaku
 │   ├── checkpoint/       # チェックポイント        @miyagunimikihiro
 │   └── task/             # タスク登録              @lovemeasure
 └── lib/                  # 共通（スキーマ、API ヘルパー、DB・AI クライアント）

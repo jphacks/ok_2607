@@ -1,3 +1,5 @@
+// GET 3択の候補取得（締切が近いタスクがあれば緊急クエスト1択）
+// 担当: @ki-mutaku / 仕様: docs/api.md
 import { apiError, ok } from "@/lib/api-response";
 import { getQuestCandidates, QuestSelectionError } from "@/features/quest/server";
 
