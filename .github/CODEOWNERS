@@ -5,10 +5,10 @@
 *                                      @lovemeasure
 
 # タイトル画面・3択タスク・レコメンドアルゴリズム
-/src/features/title/                   @tutayadx
-/src/features/quest/                   @tutayadx
-/src/app/api/quests/candidates/        @tutayadx
-/src/app/api/quests/route.ts           @tutayadx
+/src/features/title/                   @ki-mutaku
+/src/features/quest/                   @ki-mutaku
+/src/app/api/quests/candidates/        @ki-mutaku
+/src/app/api/quests/route.ts           @ki-mutaku
 
 # AI チェックポイント生成
 /src/features/checkpoint/              @miyagunimikihiro

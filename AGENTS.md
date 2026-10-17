@@ -33,7 +33,7 @@ npm run db:reset       # ローカル DB の作り直し
 | 担当               | 範囲                                                                                                          |
 | ------------------ | ------------------------------------------------------------------------------------------------------------- |
 | @lovemeasure（PM） | 共通部分（`src/lib/`、`supabase/`、`docs/`、設定ファイル）、タスク登録、経験値の集計                          |
-| @tutayadx          | タイトル画面、3択タスク選択、レコメンドアルゴリズム（`src/features/title/`、`src/features/quest/`）           |
+| @ki-mutaku         | タイトル画面、3択タスク選択、レコメンドアルゴリズム（`src/features/title/`、`src/features/quest/`）           |
 | @miyagunimikihiro  | AI チェックポイント生成（`src/features/checkpoint/`、`src/app/api/quests/[id]/`、`src/app/api/checkpoints/`） |
 
 - 依頼者の担当範囲の中で作業する。他の人の担当範囲を変更する必要があれば、変更する前に依頼者に確認する

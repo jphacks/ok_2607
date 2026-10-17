@@ -44,8 +44,8 @@ describe("apiError / notImplemented", () => {
   });
 
   it("未実装は 501 で担当者を含む", async () => {
-    const res = notImplemented("@tutayadx");
+    const res = notImplemented("@ki-mutaku");
     expect(res.status).toBe(501);
-    expect((await res.json()).error.message).toContain("@tutayadx");
+    expect((await res.json()).error.message).toContain("@ki-mutaku");
   });
 });

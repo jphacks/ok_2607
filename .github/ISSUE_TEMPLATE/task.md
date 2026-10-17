@@ -14,7 +14,7 @@ labels: task
 
 ## 担当
 
-<!-- @tutayadx / @miyagunimikihiro / @lovemeasure -->
+<!-- @ki-mutaku / @miyagunimikihiro / @lovemeasure -->
 
 ## 補足
 
