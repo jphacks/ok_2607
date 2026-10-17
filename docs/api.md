@@ -152,7 +152,19 @@ AI 生成結果は全体像（1〜5 件）および各アクションステッ�
 
 ### POST /api/quests/{id}/complete
 
-リクエスト本文なし。クエストを `completed`、タスクを `done` にし、経験値を付与する。
+リクエスト本文なし。ストアドプロシージャ `complete_quest` により、クエストを `completed`、元タスクを `done` に原子的に更新し、経験値を付与して合計経験値を集計する。
+経験値の計算ロジック:
+
+- 基本経験値: 20 XP
+- 達成済みチェックポイント（`isDone: true`）1 件につき: +10 XP
+- 緊急クエスト（`isUrgent: true`）の場合: 1.5 倍（四捨五入）
+
+エラーレスポンス:
+
+- 400: `validation_error`（id が不正な UUID）
+- 404: `not_found`（指定されたクエストが見つからない）
+- 409: `conflict`（クエストが進行中 `in_progress` ではない、またはすでに完了・中止済み）
+- 500: `internal_error`（DB エラー等）
 
 ```json
 // 200

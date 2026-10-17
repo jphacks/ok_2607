@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 import type { CheckpointPlan } from "./generate";
 import {
+  completeQuest,
   getQuestDetail,
   getQuestWithTask,
   saveCheckpointPlanToDb,
@@ -321,6 +322,266 @@ describe("checkpoint service", () => {
 
       await expect(updateCheckpointStatus(mockSupabase, "cp-1", true)).rejects.toThrow(
         "チェックポイントの更新に失敗しました",
+      );
+    });
+  });
+
+  describe("completeQuest", () => {
+    it("進行中のクエストを正常に完了し、計算された経験値と合計経験値を返す", async () => {
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === "quests") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "quest-1",
+                  status: "in_progress",
+                  is_urgent: false,
+                },
+                error: null,
+              }),
+            };
+          }
+          if (table === "checkpoints") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  { id: "cp-1", is_done: true },
+                  { id: "cp-2", is_done: true },
+                  { id: "cp-3", is_done: false },
+                ],
+                error: null,
+              }),
+            };
+          }
+          return {};
+        }),
+        rpc: vi.fn().mockResolvedValue({
+          data: {
+            quest: {
+              id: "quest-1",
+              task_id: "task-1",
+              status: "completed",
+              is_urgent: false,
+              xp_earned: 40, // 基本20 + 2完了*10
+              started_at: "2026-10-17T00:00:00Z",
+              completed_at: "2026-10-17T01:00:00Z",
+            },
+            total_xp: 140,
+          },
+          error: null,
+        }),
+      } as unknown as SupabaseClient;
+
+      const result = await completeQuest(mockSupabase, "quest-1");
+
+      expect(result.type).toBe("success");
+      if (result.type === "success") {
+        expect(result.data.xpGained).toBe(40);
+        expect(result.data.totalXp).toBe(140);
+        expect(result.data.quest.status).toBe("completed");
+        expect(result.data.quest.xpEarned).toBe(40);
+      }
+      expect(mockSupabase.rpc).toHaveBeenCalledWith("complete_quest", {
+        p_quest_id: "quest-1",
+        p_xp_earned: 40,
+      });
+    });
+
+    it("緊急クエストの場合、経験値が1.5倍で計算される", async () => {
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === "quests") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "quest-urgent",
+                  status: "in_progress",
+                  is_urgent: true,
+                },
+                error: null,
+              }),
+            };
+          }
+          if (table === "checkpoints") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockResolvedValue({
+                data: [{ id: "cp-1", is_done: true }],
+                error: null,
+              }),
+            };
+          }
+          return {};
+        }),
+        rpc: vi.fn().mockResolvedValue({
+          data: {
+            quest: {
+              id: "quest-urgent",
+              task_id: "task-1",
+              status: "completed",
+              is_urgent: true,
+              xp_earned: 45, // (20 + 10) * 1.5 = 45
+              started_at: "2026-10-17T00:00:00Z",
+              completed_at: "2026-10-17T01:00:00Z",
+            },
+            total_xp: 45,
+          },
+          error: null,
+        }),
+      } as unknown as SupabaseClient;
+
+      const result = await completeQuest(mockSupabase, "quest-urgent");
+
+      expect(result.type).toBe("success");
+      if (result.type === "success") {
+        expect(result.data.xpGained).toBe(45);
+      }
+      expect(mockSupabase.rpc).toHaveBeenCalledWith("complete_quest", {
+        p_quest_id: "quest-urgent",
+        p_xp_earned: 45,
+      });
+    });
+
+    it("クエストが存在しない場合は not_found を返す", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      } as unknown as SupabaseClient;
+
+      const result = await completeQuest(mockSupabase, "non-existent");
+      expect(result.type).toBe("not_found");
+    });
+
+    it("クエストが進行中ではない場合（completed等）、conflict を返す", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: { id: "quest-1", status: "completed", is_urgent: false },
+            error: null,
+          }),
+        }),
+      } as unknown as SupabaseClient;
+
+      const result = await completeQuest(mockSupabase, "quest-1");
+      expect(result.type).toBe("conflict");
+      if (result.type === "conflict") {
+        expect(result.message).toContain("進行中ではありません");
+      }
+    });
+
+    it("RPC が null を返した場合（競合発生等）、conflict を返す", async () => {
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === "quests") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: "quest-1", status: "in_progress", is_urgent: false },
+                error: null,
+              }),
+            };
+          }
+          if (table === "checkpoints") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            };
+          }
+          return {};
+        }),
+        rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+      } as unknown as SupabaseClient;
+
+      const result = await completeQuest(mockSupabase, "quest-1");
+      expect(result.type).toBe("conflict");
+    });
+
+    it("クエスト取得で DB エラーが発生した場合は例外をスローする", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: null,
+            error: new Error("DB error"),
+          }),
+        }),
+      } as unknown as SupabaseClient;
+
+      await expect(completeQuest(mockSupabase, "quest-1")).rejects.toThrow(
+        "クエストの取得に失敗しました",
+      );
+    });
+
+    it("チェックポイント取得で DB エラーが発生した場合は例外をスローする", async () => {
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === "quests") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: "quest-1", status: "in_progress", is_urgent: false },
+                error: null,
+              }),
+            };
+          }
+          if (table === "checkpoints") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockResolvedValue({
+                data: null,
+                error: new Error("Checkpoints query error"),
+              }),
+            };
+          }
+          return {};
+        }),
+      } as unknown as SupabaseClient;
+
+      await expect(completeQuest(mockSupabase, "quest-1")).rejects.toThrow(
+        "チェックポイント一覧の取得に失敗しました",
+      );
+    });
+
+    it("complete_quest RPC でエラーが発生した場合は例外をスローする", async () => {
+      const mockSupabase = {
+        from: vi.fn((table: string) => {
+          if (table === "quests") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: "quest-1", status: "in_progress", is_urgent: false },
+                error: null,
+              }),
+            };
+          }
+          if (table === "checkpoints") {
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            };
+          }
+          return {};
+        }),
+        rpc: vi.fn().mockResolvedValue({ data: null, error: new Error("RPC error") }),
+      } as unknown as SupabaseClient;
+
+      await expect(completeQuest(mockSupabase, "quest-1")).rejects.toThrow(
+        "クエストの完了処理に失敗しました",
       );
     });
   });
