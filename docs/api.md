@@ -28,8 +28,8 @@
 | POST     | `/api/tasks`                            | タスク登録                     | @lovemeasure      |
 | PATCH    | `/api/tasks/{id}`                       | タスク編集                     | @lovemeasure      |
 | DELETE   | `/api/tasks/{id}`                       | タスク削除                     | @lovemeasure      |
-| GET      | `/api/quests/candidates`                | 3択の候補取得                  | @tutayadx         |
-| POST     | `/api/quests`                           | クエスト開始                   | @tutayadx         |
+| GET      | `/api/quests/candidates`                | 3択の候補取得                  | @ki-mutaku        |
+| POST     | `/api/quests`                           | クエスト開始                   | @ki-mutaku        |
 | GET      | `/api/quests/{id}`                      | クエスト詳細（追加）           | @miyagunimikihiro |
 | POST     | `/api/quests/{id}/checkpoints/generate` | AI チェックポイント生成        | @miyagunimikihiro |
 | PATCH    | `/api/checkpoints/{id}`                 | チェックポイント達成状態の更新 | @miyagunimikihiro |
