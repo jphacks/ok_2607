@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuestApp } from "@/features/quest/quest-app";
 import type { Quest, Task } from "@/lib/schemas";
@@ -25,6 +25,7 @@ let storedTasks: Task[];
 let rejectCreation: boolean;
 let rejectDeletion: boolean;
 let inProgressQuest: Quest | null;
+let pendingCandidateResponse: Promise<Response> | null;
 
 beforeEach(() => {
   mockPush.mockClear();
@@ -32,6 +33,7 @@ beforeEach(() => {
   rejectCreation = false;
   rejectDeletion = false;
   inProgressQuest = null;
+  pendingCandidateResponse = null;
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
   // jsdom に未実装のネイティブダイアログAPIだけを補う。
   Object.defineProperties(HTMLDialogElement.prototype, {
@@ -79,12 +81,14 @@ beforeEach(() => {
         return new Response(null, { status: 204 });
       }
       if (url === "/api/tasks") return Response.json({ tasks: storedTasks });
-      if (url === "/api/quests/candidates")
+      if (url === "/api/quests/candidates") {
+        if (pendingCandidateResponse) return pendingCandidateResponse;
         return Response.json({
           isUrgent: false,
           candidates: inProgressQuest ? [] : storedTasks.slice(0, 3),
           inProgressQuest,
         });
+      }
       if (url === "/api/quests" && init?.method === "POST") {
         const body = JSON.parse(String(init.body));
         const newQuest: Quest = {
@@ -115,9 +119,14 @@ afterEach(() => {
 });
 
 describe("タスク登録と3択の画面遷移", () => {
-  it.each(["編集", "別タスク削除"])(
-    "%s後もホームから進行中クエストを直接再開できる",
-    async (operation) => {
+  it.each([
+    { operation: "編集", delayed: false },
+    { operation: "別タスク削除", delayed: false },
+    { operation: "編集", delayed: true },
+    { operation: "別タスク削除", delayed: true },
+  ])(
+    "$operation（初回取得遅延: $delayed）後もホームから進行中クエストを直接再開できる",
+    async ({ operation, delayed }) => {
       storedTasks = [
         { ...existing, status: "in_quest" },
         { ...existing, id: "10000000-0000-4000-8000-000000000002", title: "別のタスク" },
@@ -131,9 +140,12 @@ describe("タスク登録と3択の画面遷移", () => {
         startedAt: existing.createdAt,
         completedAt: null,
       };
+      const responseGate = delayed ? Promise.withResolvers<Response>() : null;
+      if (responseGate) pendingCandidateResponse = responseGate.promise;
       render(<QuestApp />);
-      await screen.findByRole("button", { name: "ホームで確認する" });
+      if (!delayed) await screen.findByRole("button", { name: "ホームで確認する" });
       fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+      await screen.findByText(existing.title);
       if (operation === "編集") {
         fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
         const row = screen.getByText(existing.title).closest("li");
@@ -152,6 +164,12 @@ describe("タスク登録と3択の画面遷移", () => {
       }
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       fireEvent.click(screen.getByRole("button", { name: "ホーム" }));
+      if (responseGate) {
+        pendingCandidateResponse = null;
+        await act(async () => {
+          responseGate.resolve(Response.json({ isUrgent: false, candidates: [], inProgressQuest }));
+        });
+      }
       fireEvent.click(await screen.findByRole("button", { name: "進行中の冒険を再開する" }));
       expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
     },

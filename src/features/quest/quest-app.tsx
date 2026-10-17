@@ -68,6 +68,7 @@ export function QuestApp() {
   const [statsError, setStatsError] = useState("");
   const [openForm, setOpenForm] = useState(false);
   const choiceVersion = useRef(0);
+  const inProgressVersion = useRef(0);
   const needsChoices = useRef(false);
 
   const loadTasks = useCallback(async (signal?: AbortSignal) => {
@@ -83,6 +84,7 @@ export function QuestApp() {
 
   const loadChoices = useCallback(async (signal?: AbortSignal) => {
     const version = ++choiceVersion.current;
+    const progressVersion = ++inProgressVersion.current;
     setChoicePending(true);
     setChoiceError("");
     try {
@@ -90,9 +92,12 @@ export function QuestApp() {
         signal,
         cache: "no-store",
       });
+      // 候補を無効化しても、未取得の再開情報は最新の進行状態として反映する。
+      if (progressVersion === inProgressVersion.current) {
+        setInProgressQuest(result.inProgressQuest);
+      }
       if (version === choiceVersion.current) {
         setChoices(result);
-        setInProgressQuest(result.inProgressQuest);
         needsChoices.current = false;
       }
     } catch (cause) {
@@ -159,6 +164,13 @@ export function QuestApp() {
   async function deleteTask(id: string) {
     const response = await requestApi(`/api/tasks/${id}`, { method: "DELETE" });
     if (response.status !== 204) throw new Error("タスクの削除結果を確認できませんでした。");
+    // 初回の候補取得前でも、進行中タスクの削除前に始まった応答は破棄する。
+    if (
+      inProgressQuest?.taskId === id ||
+      tasks?.some((task) => task.id === id && task.status === "in_quest")
+    ) {
+      inProgressVersion.current += 1;
+    }
     setTasks((previous) => previous?.filter((task) => task.id !== id) ?? null);
     setInProgressQuest((previous) => (previous?.taskId === id ? null : previous));
     invalidateChoices();
@@ -175,6 +187,7 @@ export function QuestApp() {
         shownTaskIds: choices.candidates.map((candidate) => candidate.id),
       }),
     });
+    inProgressVersion.current += 1;
     setInProgressQuest(result.quest);
     setTasks(
       (previous) =>
