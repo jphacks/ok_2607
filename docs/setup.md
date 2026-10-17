@@ -94,6 +94,42 @@ AI に環境構築を任せるときは、次の順で進めること。
 
 禁止事項: リモートの Supabase プロジェクトに対する `supabase db push` / `db reset --linked`、`.env.local` の内容をログやコミットに含めること。
 
+## AI ツールの設定
+
+メンバーは Claude Code・Codex・Antigravity などを使い分けている。ルールの正は `AGENTS.md` で、どのツールでも最初にそれが読み込まれていることを確認する。各ツールでは、`AGENTS.md` の禁止事項（リモート Supabase の破壊、`main` への直接 push、強制 push、`--no-verify`、無視ファイルの強制追加）を、ツール側でもよくある書き方に限って止める。コマンドの先頭一致でしか判定できないため、`git push origin x --force` のように順番を変えた書き方は止まらない。あくまで補助で、本当の防御は `main` のブランチ保護と AGENTS.md のルール。
+
+### Claude Code
+
+- `CLAUDE.md` 経由で `AGENTS.md` が読み込まれる。追加の設定は不要
+- `.claude/settings.json` で、よく使うチェック・git の読み取り系コマンドを許可し、禁止事項のコマンドを拒否している
+- 自分だけの許可設定は `.claude/settings.local.json` に書く（コミットしない）
+- `/ship` で PR からマージまで進められる
+
+### Codex
+
+- `AGENTS.md` を自動で読む
+- `.codex/rules/project.rules` に禁止コマンドを書いている。プロジェクトの `.codex/` が trusted のときだけ読み込まれるので、初回に Codex がこのリポジトリを信頼するか聞いてきたら許可する
+- ルールの動作確認: `codex execpolicy check --rules .codex/rules/project.rules -- git push --force`（`"decision":"forbidden"` になればよい）
+- AI レビューは `docs/ai-review.md` の「仕組み」にあるとおり、`codex exec` など別のプロセスで行う
+
+### Antigravity
+
+- `AGENTS.md` を自動で読む（2026 年 3 月以降の版）。読まれていないようなら Antigravity を更新する
+- `GEMINI.md` は作らない（`AGENTS.md` より優先されるため）
+- ターミナルの許可・拒否はリポジトリに置けないので、各自で設定する。設定のターミナルコマンド実行（Terminal Command Auto Execution）の **Deny list** に次を追加する（設定画面の名前は版によって違うことがある）
+  - `supabase db push`、`npx supabase db push`
+  - `supabase db reset --linked`、`npx supabase db reset --linked`
+  - `supabase link`、`npx supabase link`
+  - `git push --force`、`git push -f`、`git push origin main`
+    - 単純な文字列の前方一致で判定される場合、`git push --force` を入れると `/ship` が使う `git push --force-with-lease` まで止まることがある。止まったら `git push --force` を外し、`git push -f` だけにする
+  - `git commit --no-verify`、`git commit -n`
+  - `git add -f`、`git add --force`
+- AI レビューは、別のエージェント（新しい会話）に `docs/ai-review.md` と差分を渡して行う
+
+### その他のツール
+
+`AGENTS.md` を自動で読まないツールでは、会話の最初に「`AGENTS.md` を読んでから作業して」と伝える。
+
 ## トラブルシューティング
 
 - **`環境変数が不足しています` エラー**: `.env.local` の値が空。手順 2〜4 を確認し、`npm run dev` を再起動する

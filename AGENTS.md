@@ -1,6 +1,8 @@
 # AGENTS.md
 
-このリポジトリで作業する AI エージェント（Claude Code、Codex、Cursor など）向けの指示。人間のメンバーも同じルールに従う。
+このリポジトリで作業する AI エージェント（Claude Code、Codex、Antigravity、Cursor など）向けの指示。人間のメンバーも同じルールに従う。
+
+メンバーはそれぞれ違う AI ツールを使っている。ルールはツールに依存しない形でこのファイルに書き、ツール固有の設定ファイルはこのファイルを補うだけにする（「AI ツールごとの設定」）。
 
 ## プロジェクト
 
@@ -13,6 +15,7 @@ JPHACKS 2026 のチーム開発。3択から 1 つ選ぶだけで「やること
 - 環境構築: `docs/setup.md`
 - 開発の約束: `docs/working-agreement.md`
 - AI レビュー: `docs/ai-review.md`
+- デザインと共通 UI: `docs/design.md`（画面を触るときは必ず読む）
 
 作業を始める前に、触る機能に関係するドキュメントを読むこと。
 
@@ -48,14 +51,24 @@ npm run db:reset       # ローカル DB の作り直し
 
 ## 担当範囲
 
-| 担当               | 範囲                                                                                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------------------- |
-| @lovemeasure（PM） | 共通部分（`src/lib/`、`supabase/`、`docs/`、設定ファイル）、タスク登録、経験値の集計                          |
-| @ki-mutaku         | タイトル画面、3択タスク選択、レコメンドアルゴリズム（`src/features/title/`、`src/features/quest/`）           |
-| @miyagunimikihiro  | AI チェックポイント生成（`src/features/checkpoint/`、`src/app/api/quests/[id]/`、`src/app/api/checkpoints/`） |
+担当者とディレクトリの対応は `docs/team.md` が正（ここには書かない）。作業前に、依頼者の担当範囲を確認すること。
 
 - 依頼者の担当範囲の中で作業する。他の人の担当範囲を変更する必要があれば、変更する前に依頼者に確認する
 - 共通部分（`src/lib/`、`supabase/migrations/`、`docs/api.md`）の変更は、PR の説明に影響範囲を書く
+
+## 共通ファイルと PR の大きさ
+
+複数人が同時に触るファイルを機能の PR に混ぜると、コンフリクトと担当範囲の侵食が起きる。
+
+**共通ファイル**: `src/lib/`（特に `schemas.ts`）、`docs/api.md`、`supabase/migrations/`、`src/app/layout.tsx`、`src/app/globals.css`、`src/app/tokens.css`、`src/components/ui/`、`package.json`
+
+- 共通ファイルを変える必要が出たら、機能の実装を進める前に、その変更だけの小さな PR を先に出してマージする。機能の PR はその後で作る
+- 1 PR は 1 つの機能、かつ依頼者の担当範囲だけにする
+- 次のどれかに当てはまったら、作業を止めて依頼者に相談する（勝手に進めない）
+  - 変更するファイルが 15 を超えそう
+  - 他の人の担当範囲のファイルを変えたくなった
+  - 共通ファイルを機能の PR の中で変えたくなった
+- 作業は必ず最新の `origin/main` から切ったブランチで始める（`git fetch origin && git switch -c <ブランチ> origin/main`）。手元の `main` は古いことがあるので使わない
 
 ## 必ず守るルール
 
@@ -66,6 +79,12 @@ npm run db:reset       # ローカル DB の作り直し
 - `main` に直接コミット・push しない。ブランチ名は `<種類>/<内容>`、コミットは `<種類>: <内容>`（種類: `feat` / `fix` / `docs` / `test` / `refactor` / `chore`）
 - `git commit --no-verify` で pre-commit フックを飛ばさない
 - MVP の範囲（`docs/product.md` のユーザーストーリー）を超える機能は勝手に作らない。ログイン機能は作らない
+
+### 画面と UI
+
+- 画面を作る・直す前に `docs/design.md` を読む
+- 色は `src/app/tokens.css` のトークン（`bg-panel`、`text-muted` など）を使い、16 進数を直接書かない
+- ボタン・パネル・入力欄などの汎用部品は `src/components/ui/` のものを使う。無ければ `src/features/` の中に作らず、共通ファイルとして先に追加する（共通 UI の担当は `docs/team.md` 参照）
 
 ### API とデータ
 
@@ -99,3 +118,18 @@ npm run db:reset       # ローカル DB の作り直し
 - 出力は JSON スキーマ（`responseSchema`）を指定して構造化し、保存する前に zod で検証する。検証に失敗したら `502 ai_error` を返す
 - モデル名はハードコードせず `geminiModel()`（環境変数 `GEMINI_MODEL`）を使う
 - テストでは Gemini を呼ばない。呼び出し部分を関数の引数で差し替えられるようにしてモックする
+
+## AI ツールごとの設定
+
+ルールの正はこのファイル。各ツールの設定は、ここにある禁止事項のうち、よくある書き方をツール側でも止めるための補助（コマンドの先頭一致でしか判定できない）。新しいツールを使い始めたら、このファイルを読み込む設定と `docs/setup.md` の「AI ツールの設定」を確認する。
+
+| ツール      | このファイルの読み込み                                     | リポジトリにある設定                                                                     |
+| ----------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Claude Code | `CLAUDE.md` から `@AGENTS.md` で読み込む                   | `.claude/settings.json`（許可・禁止コマンド）、`/ship`、`code-reviewer` サブエージェント |
+| Codex       | `AGENTS.md` を自動で読む                                   | `.codex/rules/project.rules`（禁止コマンド。プロジェクトを trusted にすると有効）        |
+| Antigravity | `AGENTS.md` を自動で読む（2026 年 3 月以降の版）           | なし。ターミナルの Deny list は各自の設定で行う（`docs/setup.md`）                       |
+| その他      | 読まないツールでは、最初に「`AGENTS.md` を読んで」と伝える | なし                                                                                     |
+
+- ツール固有の設定ファイル（`.claude/`、`.codex/`、`.agents/` など）にルールを書き足さない。ルールはこのファイルに書く
+- `GEMINI.md` は作らない（Antigravity では `AGENTS.md` より優先され、ルールが分裂するため）
+- 個人の設定（`.claude/settings.local.json` など）はコミットしない

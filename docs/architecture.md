@@ -34,6 +34,7 @@ src/
 │   ├── quests/[id]/page.tsx             # クエスト進行画面（05）
 │   ├── quests/[id]/clear/page.tsx       # クエストクリア画面（06）
 │   └── api/              # Route Handlers（docs/api.md）
+├── components/ui/        # 共通 UI 部品（docs/design.md） @ki-mutaku
 ├── features/             # 機能ごとのコンポーネント・ロジック・テスト
 │   ├── title/            # ホーム画面              @ki-mutaku
 │   ├── quest/            # 3択・レコメンド         @ki-mutaku
@@ -53,6 +54,7 @@ docs/                     # 開発ドキュメント
 - 例: レコメンドの抽選は `src/features/quest/recommend.ts` に純粋関数として書き、`recommend.test.ts` でテストする
 - テストは対象と同じディレクトリに `*.test.ts(x)` で置く
 - 2 つ以上の機能で使うものだけ `src/lib/` に置く
+- 2 つ以上の画面で使う見た目の部品は `src/components/ui/` に置く。色は `src/app/tokens.css` のトークンを使う（`docs/design.md`）
 
 ### 3画面の構成
 

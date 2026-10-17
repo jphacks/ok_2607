@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=DotGothic16&display=swap");
+@import "./tokens.css";
 
 :root {
   --background: #0b0d17;
