@@ -20,11 +20,12 @@ function task(id: number, overrides: Partial<Task> = {}): Task {
 }
 
 describe("recommendTasks", () => {
-  it("24時間ちょうどの締切を緊急の1択にする", () => {
+  it("24時間ちょうどの締切を重み0でも先頭に確保し、残り2件を抽選する", () => {
     const urgent = task(2, { dueAt: "2026-10-18T12:00:00.000Z", weight: 0 });
-    expect(recommendTasks([task(1), urgent], { now, random: () => 0 })).toEqual({
+    const tasks = [task(1), urgent, task(3), task(4)];
+    expect(recommendTasks(tasks, { now, random: () => 0.99 })).toEqual({
       isUrgent: true,
-      candidates: [urgent],
+      candidates: [urgent, tasks[3], tasks[2]],
     });
   });
 
@@ -33,6 +34,28 @@ describe("recommendTasks", () => {
     expect(recommendTasks([normal], { now })).toEqual({
       isUrgent: false,
       candidates: [normal],
+    });
+  });
+
+  it("24時間より先の最短締切も重み0でも必ず先頭に確保する", () => {
+    const future = task(2, { dueAt: "2026-10-20T12:00:00.000Z", weight: 0 });
+    const tasks = [task(1, { weight: 100 }), future, task(3), task(4)];
+    const original = structuredClone(tasks);
+    expect(recommendTasks(tasks, { now, random: () => 0 })).toEqual({
+      isUrgent: false,
+      candidates: [future, tasks[0], tasks[2]],
+    });
+    expect(tasks).toEqual(original);
+  });
+
+  it("最短締切以外の期限付きタスクも残りの抽選枠に含める", () => {
+    const earliest = task(3, { dueAt: "2026-10-17T13:00:00.000Z", weight: 0 });
+    const later = task(2, { dueAt: "2026-10-19T12:00:00.000Z", weight: 10 });
+    const middle = task(4, { dueAt: "2026-10-18T14:00:00.000Z", weight: 0 });
+    const tasks = [task(1), later, earliest, middle, task(5)];
+    expect(recommendTasks(tasks, { now, random: () => 0.5 })).toEqual({
+      isUrgent: true,
+      candidates: [earliest, later, tasks[4]],
     });
   });
 
@@ -51,13 +74,13 @@ describe("recommendTasks", () => {
     });
   });
 
-  it("期限切れが残っていても、期限なし・24時間超の候補を通常抽選できる", () => {
+  it("期限切れを除外し、3件未満でも将来の締切を先頭に全候補を返す", () => {
     const overdue = task(1, { dueAt: "2026-10-17T11:59:59.999Z", weight: 100 });
     const noDeadline = task(2);
     const future = task(3, { dueAt: "2026-10-18T12:00:00.001Z" });
     expect(recommendTasks([overdue, noDeadline, future], { now, random: () => 0 })).toEqual({
       isUrgent: false,
-      candidates: [noDeadline, future],
+      candidates: [future, noDeadline],
     });
   });
 
@@ -82,12 +105,13 @@ describe("recommendTasks", () => {
 
   it("3件未満なら全件を重複なく返し、入力を変更しない", () => {
     const tasks = [task(1), task(2)];
+    const original = structuredClone(tasks);
     const result = recommendTasks(tasks, { now, random: () => 0 });
-    expect(result.candidates.map((candidate) => candidate.id)).toEqual([tasks[0].id, tasks[1].id]);
-    expect(tasks).toHaveLength(2);
+    expect(result.candidates).toEqual(original);
+    expect(tasks).toEqual(original);
   });
 
-  it("重みに対応する抽選区間から最大3件を重複なく選ぶ", () => {
+  it("締切がなければ全候補から重みに対応する抽選区間で最大3件を重複なく選ぶ", () => {
     const tasks = [task(1), task(2, { weight: 3 }), task(3), task(4)];
     const result = recommendTasks(tasks, { now, random: () => 0.3 });
     expect(result.candidates.map((candidate) => candidate.id)).toEqual([

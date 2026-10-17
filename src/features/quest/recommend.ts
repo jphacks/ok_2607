@@ -5,7 +5,7 @@ type RecommendationOptions = {
   random?: () => number;
 };
 
-/** 緊急の最短期限を優先し、それ以外は重みに比例して重複なく抽選する。 */
+/** 最短期限を先頭に確保し、残りは重みに比例して重複なく抽選する。 */
 export function recommendTasks(
   tasks: readonly Task[],
   { now = new Date(), random = Math.random }: RecommendationOptions = {},
@@ -13,7 +13,7 @@ export function recommendTasks(
   const active: Task[] = [];
   const nowMs = now.getTime();
   const cutoff = nowMs + 24 * 60 * 60 * 1000;
-  let urgent: Task | undefined;
+  let earliestDeadlineIndex = -1;
   let earliestDeadline = Infinity;
 
   for (const task of tasks) {
@@ -21,17 +21,15 @@ export function recommendTasks(
     if (task.dueAt !== null) {
       const deadline = Date.parse(task.dueAt);
       if (deadline < nowMs) continue;
-      if (deadline <= cutoff && deadline < earliestDeadline) {
-        urgent = task;
+      if (deadline < earliestDeadline) {
+        earliestDeadlineIndex = active.length;
         earliestDeadline = deadline;
       }
     }
     active.push(task);
   }
 
-  if (urgent) return { isUrgent: true, candidates: [urgent] };
-
-  const candidates: Task[] = [];
+  const candidates = earliestDeadlineIndex < 0 ? [] : active.splice(earliestDeadlineIndex, 1);
   while (candidates.length < 3 && active.length > 0) {
     const totalWeight = active.reduce((total, task) => total + task.weight, 0);
     let index: number;
@@ -53,5 +51,5 @@ export function recommendTasks(
     active.splice(index, 1);
   }
 
-  return { isUrgent: false, candidates };
+  return { isUrgent: earliestDeadline <= cutoff, candidates };
 }

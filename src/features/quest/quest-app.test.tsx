@@ -23,12 +23,14 @@ const existing: Task = {
 };
 let storedTasks: Task[];
 let rejectCreation: boolean;
+let rejectDeletion: boolean;
 let inProgressQuest: Quest | null;
 
 beforeEach(() => {
   mockPush.mockClear();
   storedTasks = [];
   rejectCreation = false;
+  rejectDeletion = false;
   inProgressQuest = null;
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
   // jsdom に未実装のネイティブダイアログAPIだけを補う。
@@ -59,6 +61,22 @@ beforeEach(() => {
         const task = { ...existing, ...input, id: "10000000-0000-4000-8000-000000000002" };
         storedTasks = [task, ...storedTasks];
         return Response.json({ task }, { status: 201 });
+      }
+      if (url.startsWith("/api/tasks/") && init?.method === "PATCH") {
+        const id = url.split("/").at(-1);
+        const input: { title: string; dueAt: string | null } = JSON.parse(String(init.body));
+        storedTasks = storedTasks.map((task) => (task.id === id ? { ...task, ...input } : task));
+        return Response.json({ task: storedTasks.find((task) => task.id === id) });
+      }
+      if (url.startsWith("/api/tasks/") && init?.method === "DELETE") {
+        if (rejectDeletion)
+          return Response.json(
+            { error: { code: "internal_error", message: "削除できませんでした" } },
+            { status: 500 },
+          );
+        const id = url.split("/").at(-1);
+        storedTasks = storedTasks.filter((task) => task.id !== id);
+        return new Response(null, { status: 204 });
       }
       if (url === "/api/tasks") return Response.json({ tasks: storedTasks });
       if (url === "/api/quests/candidates")
@@ -97,6 +115,49 @@ afterEach(() => {
 });
 
 describe("タスク登録と3択の画面遷移", () => {
+  it("メニューから編集でき、タイトルだけの変更では元の期限時刻を変えない", async () => {
+    storedTasks = [{ ...existing, dueAt: "2026-11-01T09:15:00Z" }];
+    render(<QuestApp />);
+    await screen.findByRole("radio");
+    fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+    fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
+    fireEvent.click(screen.getByRole("button", { name: "編集" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /タスク名/ }), {
+      target: { value: "編集したタスク" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("listitem")).toHaveTextContent("編集したタスク");
+    expect(Date.parse(storedTasks[0].dueAt ?? "")).toBe(Date.parse("2026-11-01T09:15:00Z"));
+    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    expect(await screen.findByRole("radio", { name: /編集したタスク/ })).toBeVisible();
+  });
+
+  it("削除をキャンセル・再試行でき、保存に成功するまでセルを消さない", async () => {
+    storedTasks = [existing];
+    rejectDeletion = true;
+    render(<QuestApp />);
+    await screen.findByRole("radio");
+    fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+    fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
+    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(screen.getByRole("listitem")).toHaveTextContent(existing.title);
+    fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
+    fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+    await screen.findByRole("alert");
+    expect(storedTasks).toEqual([existing]);
+    expect(screen.getByRole("listitem")).toHaveTextContent(existing.title);
+    rejectDeletion = false;
+    fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(storedTasks).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    expect(await screen.findByRole("button", { name: "＋ 新しいタスクを追加" })).toBeVisible();
+  });
+
   it("進行中は開始・再抽選を表示せずホームで現在のタスクを確認できる", async () => {
     storedTasks = [{ ...existing, status: "in_quest" }];
     inProgressQuest = {

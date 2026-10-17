@@ -9,6 +9,7 @@ import { QuestChoices } from "@/features/quest/quest-choices";
 import {
   ApiError,
   CreateTaskResponse,
+  UpdateTaskResponse,
   StartQuestResponse,
   TasksResponse,
   QuestCandidatesResponse,
@@ -24,11 +25,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: "quest", label: "クエスト", icon: "⚑" },
 ];
 
-async function requestJson<S extends z.ZodType>(
-  url: string,
-  schema: S,
-  init?: RequestInit,
-): Promise<z.infer<S>> {
+async function requestApi(url: string, init?: RequestInit): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(url, init);
@@ -36,11 +33,21 @@ async function requestJson<S extends z.ZodType>(
     if (cause instanceof Error && cause.name === "AbortError") throw cause;
     throw new Error("通信に失敗しました。接続を確認して、もう一度お試しください。");
   }
-  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
     const error = ApiError.safeParse(body);
     throw new Error(error.success ? error.data.error.message : "データを取得できませんでした。");
   }
+  return response;
+}
+
+async function requestJson<S extends z.ZodType>(
+  url: string,
+  schema: S,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
+  const response = await requestApi(url, init);
+  const body: unknown = await response.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) throw new Error("サーバーからの応答を読み取れませんでした。");
   return parsed.data;
@@ -127,6 +134,32 @@ export function QuestApp() {
     void loadChoices();
   }
 
+  function invalidateChoices() {
+    choiceVersion.current += 1;
+    needsChoices.current = true;
+    setChoices(null);
+    setChoicePending(false);
+    setChoiceError("");
+  }
+
+  async function updateTask(id: string, input: CreateTaskRequest) {
+    const result = await requestJson(`/api/tasks/${id}`, UpdateTaskResponse, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    setTasks((previous) => previous?.map((task) => (task.id === id ? result.task : task)) ?? null);
+    invalidateChoices();
+  }
+
+  async function deleteTask(id: string) {
+    const response = await requestApi(`/api/tasks/${id}`, { method: "DELETE" });
+    if (response.status !== 204) throw new Error("タスクの削除結果を確認できませんでした。");
+    setTasks((previous) => previous?.filter((task) => task.id !== id) ?? null);
+    invalidateChoices();
+    setStats(null);
+  }
+
   async function startQuest(task: Task) {
     if (!choices) return;
     const result = await requestJson("/api/quests", StartQuestResponse, {
@@ -202,6 +235,8 @@ export function QuestApp() {
               openForm={openForm}
               onFormChange={setOpenForm}
               onCreate={createTask}
+              onUpdate={updateTask}
+              onDelete={deleteTask}
             />
           ) : (
             <p role="status" className="text-sm text-[#a4a8bc]">

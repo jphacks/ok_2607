@@ -50,7 +50,7 @@ export function QuestChoices({
             {choices?.inProgressQuest
               ? "まずは挑戦中のクエストに集中しよう"
               : choices?.isUrgent
-                ? "期限が迫っています。この冒険から始めよう"
+                ? "締切の近い冒険も含めて、挑戦するタスクを選択"
                 : "3つの運命から、挑戦するタスクを選択"}
           </p>
         </div>
@@ -117,14 +117,22 @@ export function QuestChoices({
                       aria-hidden="true"
                       className="w-6 shrink-0 pt-1 text-center text-[26px] leading-none text-[#f3ca70]"
                     >
-                      {choices.isUrgent ? "♨" : index === 0 ? "⚔" : index === 1 ? "✦" : "✧"}
+                      {choices.isUrgent && index === 0
+                        ? "♨"
+                        : index === 0
+                          ? "⚔"
+                          : index === 1
+                            ? "✦"
+                            : "✧"}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="break-words text-sm leading-6">{task.title}</p>
                       <p className="mt-1 text-xs text-[#a4a8bc]">
-                        {choices.isUrgent
+                        {choices.isUrgent && index === 0
                           ? "緊急クエスト ・ 締切間近"
-                          : "あなたが選ぶ、今日のクエスト"}
+                          : task.dueAt
+                            ? "期限ありクエスト"
+                            : "あなたが選ぶ、今日のクエスト"}
                       </p>
                       <p className="mt-2 text-xs text-[#a5d4be]">
                         {task.dueAt
