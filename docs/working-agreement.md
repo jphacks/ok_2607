@@ -45,6 +45,7 @@ Then:  3 件のタスクが表示され、1 件だけ選べる
 ## ブランチとコミット
 
 - `main` に直接 push しない。ブランチを切って PR を出す
+- ブランチは必ず最新の `main` から切る。マージ前の他のブランチから派生させない（Squash マージ後にコンフリクトするため）
 - ブランチ名: `<種類>/<内容>`（例: `feat/quest-candidates`、`fix/checkpoint-order`、`docs/setup`）
 - コミットメッセージ: `<種類>: <内容>`（例: `feat: 3択の候補取得 API を実装`）。種類は `feat` / `fix` / `docs` / `test` / `refactor` / `chore`
 - マージは Squash and merge。マージ後のブランチは削除する
