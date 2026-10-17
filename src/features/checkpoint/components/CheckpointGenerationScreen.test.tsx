@@ -113,4 +113,64 @@ describe("CheckpointGenerationScreen", () => {
 
     expect(screen.getByText("UIプロトタイプが完成している")).toBeInTheDocument();
   });
+
+  it("自動生成時に isFallback: true が返された場合、基本ステップ作成の案内バナーが表示される", async () => {
+    const mockFallbackCheckpoints = [
+      {
+        id: "cp-fb-1",
+        questId: "quest-1",
+        parentId: null,
+        title: "準備と整理",
+        description: "作業環境や必要な情報を整える",
+        position: 0,
+        isDone: false,
+        doneAt: null,
+      },
+    ];
+
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        checkpoints: mockFallbackCheckpoints,
+        isFallback: true,
+      }),
+    } as Response);
+
+    render(<CheckpointGenerationScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
+
+    // 最初はローディング表示
+    expect(screen.getByText("魔道士がクエストを分解中...")).toBeInTheDocument();
+
+    // fetch 完了後にバナーとチェックポイントが表示される
+    expect(await screen.findByTestId("fallback-banner")).toBeInTheDocument();
+    expect(screen.getByText("基本ステップを作成しました")).toBeInTheDocument();
+    expect(screen.getByText("準備と整理")).toBeInTheDocument();
+    expect(screen.getByText(/基本ステップはタップして自由に編集できます/)).toBeInTheDocument();
+
+    // クエスト開始ボタンが押せること
+    const startButton = screen.getByRole("button", { name: "クエストを開始する" });
+    expect(startButton).not.toBeDisabled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("自動生成でエラーが発生した場合、エラーメッセージと再試行ボタンが表示されクエスト開始は無効", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({
+        error: { code: "internal_error", message: "DB障害が発生しました" },
+      }),
+    } as Response);
+
+    render(<CheckpointGenerationScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
+
+    expect(await screen.findByText("生成に失敗しました")).toBeInTheDocument();
+    expect(screen.getByText("DB障害が発生しました")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行する" })).toBeInTheDocument();
+
+    const startButton = screen.getByRole("button", { name: "クエストを開始する" });
+    expect(startButton).toBeDisabled();
+
+    fetchSpy.mockRestore();
+  });
 });

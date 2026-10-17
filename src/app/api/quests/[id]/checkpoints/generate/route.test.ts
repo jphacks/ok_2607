@@ -97,7 +97,7 @@ describe("POST /api/quests/[id]/checkpoints/generate", () => {
     expect(body.error.code).toBe("conflict");
   });
 
-  it("AI 生成が失敗した場合は 502 ai_error を返す", async () => {
+  it("AI 生成が失敗した場合はフォールバックプランを保存して 200 と isFallback: true を返す", async () => {
     const validUuid = "11111111-1111-4111-a111-111111111111";
     vi.mocked(getQuestWithTask).mockResolvedValueOnce({
       quest: {
@@ -120,6 +120,20 @@ describe("POST /api/quests/[id]/checkpoints/generate", () => {
       new AiGenerationError("Gemini API error"),
     );
 
+    const mockFallbackCheckpoints = [
+      {
+        id: "cp-fb-1",
+        questId: validUuid,
+        parentId: null,
+        title: "準備と整理",
+        description: null,
+        position: 0,
+        isDone: false,
+        doneAt: null,
+      },
+    ];
+    vi.mocked(saveCheckpointPlanToDb).mockResolvedValueOnce(mockFallbackCheckpoints);
+
     const request = new Request(
       `http://localhost:3000/api/quests/${validUuid}/checkpoints/generate`,
       {
@@ -130,9 +144,21 @@ describe("POST /api/quests/[id]/checkpoints/generate", () => {
       params: Promise.resolve({ id: validUuid }),
     });
 
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.error.code).toBe("ai_error");
+    expect(body.checkpoints).toEqual(mockFallbackCheckpoints);
+    expect(body.isFallback).toBe(true);
+    expect(saveCheckpointPlanToDb).toHaveBeenCalledWith(
+      undefined,
+      validUuid,
+      expect.objectContaining({
+        milestones: expect.arrayContaining([
+          expect.objectContaining({
+            title: "準備と整理",
+          }),
+        ]),
+      }),
+    );
   });
 
   it("正常に生成および保存された場合は 200 とチェックポイント配列を返す", async () => {
@@ -203,6 +229,7 @@ describe("POST /api/quests/[id]/checkpoints/generate", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.checkpoints).toEqual(mockSavedCheckpoints);
+    expect(body.isFallback).toBe(false);
   });
 
   it("クエスト取得で DB エラーが発生した場合は 500 internal_error を返す", async () => {

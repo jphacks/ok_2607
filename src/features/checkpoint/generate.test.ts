@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { AiGenerationError, generateCheckpointPlan, type GenerateContentClient } from "./generate";
+import {
+  AiGenerationError,
+  CheckpointPlanSchema,
+  createFallbackCheckpointPlan,
+  generateCheckpointPlan,
+  type GenerateContentClient,
+} from "./generate";
 
 vi.mock("@/lib/gemini", () => ({
   gemini: vi.fn(),
@@ -167,5 +173,29 @@ describe("generateCheckpointPlan", () => {
         client: mockClient,
       }),
     ).rejects.toThrow(AiGenerationError);
+  });
+});
+
+describe("createFallbackCheckpointPlan", () => {
+  it("有効な CheckpointPlanSchema を満たすフォールバックプランを生成する", () => {
+    const plan = createFallbackCheckpointPlan("レポートの参考文献を3本探す");
+    const result = CheckpointPlanSchema.safeParse(plan);
+
+    expect(result.success).toBe(true);
+    expect(plan.milestones.length).toBeGreaterThanOrEqual(1);
+    expect(plan.milestones.length).toBeLessThanOrEqual(5);
+
+    // タスク名がステップに含まれていること
+    const allTitles = plan.milestones.flatMap((m) => [m.title, ...m.steps.map((s) => s.title)]);
+    expect(allTitles.some((t) => t.includes("レポートの参考文献を3本探す"))).toBe(true);
+  });
+
+  it("タスク名が空白または空文字の場合でも安全にフォールバックプランを生成できる", () => {
+    const plan = createFallbackCheckpointPlan("   ");
+    const result = CheckpointPlanSchema.safeParse(plan);
+
+    expect(result.success).toBe(true);
+    const allTitles = plan.milestones.flatMap((m) => [m.title, ...m.steps.map((s) => s.title)]);
+    expect(allTitles.some((t) => t.includes("タスク"))).toBe(true);
   });
 });

@@ -27,6 +27,7 @@ export function CheckpointGenerationScreen({
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>(initialCheckpoints);
   const [isLoading, setIsLoading] = useState(initialCheckpoints.length === 0);
   const [error, setError] = useState<string | null>(null);
+  const [isFallback, setIsFallback] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
 
@@ -53,6 +54,9 @@ export function CheckpointGenerationScreen({
         }
         if (isMounted) {
           setCheckpoints(data.checkpoints || []);
+          if (data.isFallback) {
+            setIsFallback(true);
+          }
         }
       } catch (err) {
         if (isMounted) {
@@ -134,8 +138,23 @@ export function CheckpointGenerationScreen({
             </div>
           </div>
 
+          {/* フォールバック時の案内バナー */}
+          {!isLoading && !error && isFallback && (
+            <div
+              data-testid="fallback-banner"
+              className="mt-4 rounded border border-gold-border/40 bg-panel p-3 text-xs text-gold-accent"
+            >
+              <p className="flex items-center gap-1.5 font-bold">
+                <span>✦</span> 基本ステップを作成しました
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                AIに接続できなかったため定型プランを用意しました。各ステップをタップして自由に編集できます。
+              </p>
+            </div>
+          )}
+
           {/* チェックポイントリスト */}
-          <div className="mt-5 space-y-3">
+          <div className="mt-4 space-y-3">
             {isLoading && (
               <div className="flex flex-col items-center justify-center space-y-3 py-12 text-[#f2c36b]">
                 <div className="h-6 w-6 animate-spin border-2 border-[#f2c36b] border-t-transparent" />
@@ -206,7 +225,10 @@ export function CheckpointGenerationScreen({
           {/* 編集可能ガイダンス */}
           {!isLoading && !error && (
             <p className="mt-4 flex items-center justify-center gap-1 text-center text-xs text-[#a8b3cf]">
-              <span className="text-[#f2c36b]">✧</span> AIが提案したチェックポイントは編集できます
+              <span className="text-[#f2c36b]">✧</span>{" "}
+              {isFallback
+                ? "基本ステップはタップして自由に編集できます"
+                : "AIが提案したチェックポイントは編集できます"}
             </p>
           )}
         </div>
