@@ -32,6 +32,7 @@ src/
 │   ├── page.tsx          # 3択を初期表示する3タブ画面
 │   ├── quests/[id]/checkpoints/page.tsx # AI チェックポイント生成・確認画面（04）
 │   ├── quests/[id]/page.tsx             # クエスト進行画面（05）
+│   ├── quests/[id]/clear/page.tsx       # クエストクリア画面（06）
 │   └── api/              # Route Handlers（docs/api.md）
 ├── features/             # 機能ごとのコンポーネント・ロジック・テスト
 │   ├── title/            # ホーム画面              @ki-mutaku
