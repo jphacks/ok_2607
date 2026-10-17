@@ -1,13 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Checkpoint, QuestDetailResponse } from "@/lib/schemas";
+import type { Checkpoint, CompleteQuestResponse, QuestDetailResponse } from "@/lib/schemas";
 import type { CheckpointPlan } from "./generate";
 import {
   type DbCheckpointRow,
+  type DbQuestRow,
   mapDbCheckpointToSchema,
   mapDbQuestToSchema,
   mapDbTaskToSchema,
   sortCheckpointsInTreeOrder,
 } from "./types";
+import { calculateQuestXp } from "./xp";
 
 export interface QuestTaskDetail {
   quest: {
@@ -181,4 +183,85 @@ export async function updateCheckpointStatus(
   }
 
   return mapDbCheckpointToSchema(updatedRow);
+}
+
+export type CompleteQuestResult =
+  | { type: "success"; data: CompleteQuestResponse }
+  | { type: "not_found" }
+  | { type: "conflict"; message: string };
+
+/**
+ * クエストを完了状態にし、紐づくタスクを完了（done）にし、経験値を獲得する。
+ * ストアドプロシージャ `complete_quest` を呼び出してトランザクション内で原子的に実行する。
+ */
+export async function completeQuest(
+  supabase: SupabaseClient,
+  questId: string,
+): Promise<CompleteQuestResult> {
+  // 1. クエストの存在とステータスを確認
+  const { data: questRow, error: questError } = await supabase
+    .from("quests")
+    .select("id, status, is_urgent")
+    .eq("id", questId)
+    .maybeSingle();
+
+  if (questError) {
+    throw new Error(`クエストの取得に失敗しました: ${questError.message}`);
+  }
+  if (!questRow) {
+    return { type: "not_found" };
+  }
+  if (questRow.status !== "in_progress") {
+    return {
+      type: "conflict",
+      message: `クエストは進行中ではありません（現在のステータス: ${questRow.status}）`,
+    };
+  }
+
+  // 2. 完了しているチェックポイント数を取得
+  const { data: checkpointRows, error: checkpointError } = await supabase
+    .from("checkpoints")
+    .select("id, is_done")
+    .eq("quest_id", questId);
+
+  if (checkpointError) {
+    throw new Error(`チェックポイント一覧の取得に失敗しました: ${checkpointError.message}`);
+  }
+
+  const completedCheckpoints = (checkpointRows ?? []).filter((cp) => cp.is_done).length;
+
+  // 3. 経験値を計算
+  const xpEarned = calculateQuestXp({
+    isUrgent: questRow.is_urgent,
+    completedCheckpointsCount: completedCheckpoints,
+  });
+
+  // 4. ストアドプロシージャ complete_quest を呼び出して原子的更新
+  const { data: rpcData, error: rpcError } = await supabase.rpc("complete_quest", {
+    p_quest_id: questId,
+    p_xp_earned: xpEarned,
+  });
+
+  if (rpcError) {
+    throw new Error(`クエストの完了処理に失敗しました: ${rpcError.message}`);
+  }
+
+  if (!rpcData) {
+    return {
+      type: "conflict",
+      message: "クエストの完了に失敗しました（すでに完了または中止されている可能性があります）",
+    };
+  }
+
+  const rawQuest = rpcData.quest as DbQuestRow;
+  const totalXp = Number(rpcData.total_xp ?? 0);
+
+  return {
+    type: "success",
+    data: {
+      quest: mapDbQuestToSchema(rawQuest),
+      xpGained: xpEarned,
+      totalXp,
+    },
+  };
 }
