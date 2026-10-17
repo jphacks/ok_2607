@@ -100,6 +100,13 @@ export const StatsResponse = z.object({
 });
 export type StatsResponse = z.infer<typeof StatsResponse>;
 
+export const CompleteQuestResponse = z.object({
+  quest: Quest,
+  xpGained: z.number().int(),
+  totalXp: z.number().int(),
+});
+export type CompleteQuestResponse = z.infer<typeof CompleteQuestResponse>;
+
 export const ApiError = z.object({
   error: z.object({
     code: z.string(),
