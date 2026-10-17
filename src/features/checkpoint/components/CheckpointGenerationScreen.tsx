@@ -94,6 +94,10 @@ export function CheckpointGenerationScreen({
     setEditingId(null);
 
     // サーバーに更新を通知（オプショナル。失敗しても画面上は保持）
+    if (questId === "demo" || id.startsWith("demo-")) {
+      return;
+    }
+
     try {
       await fetch(`/api/checkpoints/${id}`, {
         method: "PATCH",

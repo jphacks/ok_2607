@@ -37,6 +37,7 @@ export function QuestProgressScreen({
 
   const completedCount = parentCheckpoints.filter((cp) => cp.isDone).length;
   const totalCount = parentCheckpoints.length;
+  const isAllCompleted = totalCount > 0 && completedCount === totalCount;
 
   // チェックポイントの完了状態トグル
   const handleToggleCheckpoint = async (id: string, currentStatus: boolean) => {
@@ -46,6 +47,11 @@ export function QuestProgressScreen({
     setCheckpoints((prev) => prev.map((cp) => (cp.id === id ? { ...cp, isDone: nextStatus } : cp)));
     setError(null);
 
+    // デモ用チェックポイント（または demo クエスト）の場合は API 呼び出しを行わずローカル更新のみ
+    if (questId === "demo" || id.startsWith("demo-")) {
+      return;
+    }
+
     try {
       const res = await fetch(`/api/checkpoints/${id}`, {
         method: "PATCH",
@@ -54,11 +60,12 @@ export function QuestProgressScreen({
       });
 
       if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
         // 失敗時はロールバック
         setCheckpoints((prev) =>
           prev.map((cp) => (cp.id === id ? { ...cp, isDone: currentStatus } : cp)),
         );
-        setError("チェックポイントの更新に失敗しました。");
+        setError(errorData?.error?.message || "チェックポイントの更新に失敗しました。");
       }
     } catch {
       // ネットワークエラー時もロールバック
@@ -73,6 +80,12 @@ export function QuestProgressScreen({
   const handleComplete = async () => {
     if (onCompleteQuest) {
       onCompleteQuest();
+      return;
+    }
+
+    // デモクエストの場合は API 呼び出しを行わずにクリア画面へ遷移
+    if (questId === "demo") {
+      router.push("/quests/demo/clear");
       return;
     }
 
@@ -161,7 +174,7 @@ export function QuestProgressScreen({
 
         {/* 下部アクションボタン & 装飾バー */}
         <div className="mt-6 pb-2">
-          <PixelButton onClick={handleComplete} disabled={isCompleting}>
+          <PixelButton onClick={handleComplete} disabled={isCompleting || !isAllCompleted}>
             {isCompleting ? "完了処理中..." : "クエストを完了する"}
           </PixelButton>
 

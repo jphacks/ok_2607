@@ -113,20 +113,76 @@ describe("QuestProgressScreen", () => {
     );
   });
 
-  it("「クエストを完了する」ボタンを押すと onCompleteQuest または router.push が呼ばれる", async () => {
+  it("未完了のチェックポイントがある場合、「クエストを完了する」ボタンは非活性になる", () => {
     const handleComplete = vi.fn();
     render(
       <QuestProgressScreen
         questId="quest-1"
         taskTitle="Webアプリを完成させる"
-        initialCheckpoints={mockCheckpoints}
+        initialCheckpoints={mockCheckpoints} // 2/3 完了
         onCompleteQuest={handleComplete}
       />,
     );
 
     const button = screen.getByRole("button", { name: "クエストを完了する" });
-    fireEvent.click(button);
+    expect(button).toBeDisabled();
 
+    fireEvent.click(button);
+    expect(handleComplete).not.toHaveBeenCalled();
+  });
+
+  it("すべてのチェックポイントが完了しているときのみ「クエストを完了する」ボタンが活性化され、押下できる", async () => {
+    const handleComplete = vi.fn();
+    const allCompletedCheckpoints: Checkpoint[] = mockCheckpoints.map((cp) => ({
+      ...cp,
+      isDone: true,
+    }));
+
+    render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={allCompletedCheckpoints}
+        onCompleteQuest={handleComplete}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "クエストを完了する" });
+    expect(button).not.toBeDisabled();
+
+    fireEvent.click(button);
     expect(handleComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("questId が demo の場合は API を呼ばずにローカルでトグルされる", async () => {
+    const demoCheckpoints: Checkpoint[] = [
+      {
+        id: "demo-cp-1",
+        questId: "demo",
+        parentId: null,
+        title: "デモ項目",
+        description: null,
+        position: 0,
+        isDone: false,
+        doneAt: null,
+      },
+    ];
+
+    render(
+      <QuestProgressScreen
+        questId="demo"
+        taskTitle="デモタスク"
+        initialCheckpoints={demoCheckpoints}
+      />,
+    );
+
+    const card = screen.getByText("デモ項目");
+    fireEvent.click(card);
+
+    await waitFor(() => {
+      expect(screen.getByText("1")).toBeInTheDocument();
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });
