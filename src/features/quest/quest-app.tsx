@@ -171,6 +171,7 @@ export function QuestApp() {
             pending={choicePending}
             error={choiceError}
             onAddTask={addTask}
+            onHome={() => switchTab("home")}
             onRetry={() => void loadChoices()}
             onStart={startQuest}
           />

@@ -5,11 +5,22 @@ import { getQuestCandidates, questFromRow, startQuest } from "@/features/quest/s
 import { POST } from "@/app/api/quests/route";
 import { GET } from "@/app/api/quests/candidates/route";
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn(), listTasks: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  rpc: vi.fn(),
+  listTasks: vi.fn(),
+  questLookup: vi.fn(),
+}));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/server", () => ({
-  supabaseServer: () => ({ rpc: mocks.rpc }),
+  supabaseServer: () => ({
+    rpc: mocks.rpc,
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: mocks.questLookup }),
+      }),
+    }),
+  }),
 }));
 vi.mock("@/features/task/server", async (importOriginal) => {
   const original = await importOriginal<typeof TaskServer>();
@@ -51,12 +62,45 @@ function request(body: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.questLookup.mockResolvedValue({ data: null, error: null });
 });
 
 describe("クエスト候補の保存と応答", () => {
+  it("進行中なら既存クエストを返し、候補の抽選・提示回数更新を行わない", async () => {
+    mocks.questLookup.mockResolvedValue({ data: questRow, error: null });
+    mocks.listTasks.mockResolvedValue([firstTask]);
+
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      isUrgent: false,
+      candidates: [],
+      inProgressQuest: { id: questId, taskId: firstId, status: "in_progress" },
+    });
+    expect(mocks.listTasks).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it("進行状態の取得に失敗した場合も候補を提示せず500を返す", async () => {
+    mocks.questLookup.mockResolvedValue({ data: null, error: { code: "XX000" } });
+    mocks.listTasks.mockResolvedValue([firstTask]);
+
+    const response = await GET();
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ error: { code: "internal_error" } });
+    expect(mocks.listTasks).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
   it("0件ならDB更新をせず正常な空の候補を返す", async () => {
     mocks.listTasks.mockResolvedValue([]);
-    expect(await getQuestCandidates({ now })).toEqual({ isUrgent: false, candidates: [] });
+    expect(await getQuestCandidates({ now })).toEqual({
+      isUrgent: false,
+      candidates: [],
+      inProgressQuest: null,
+    });
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 

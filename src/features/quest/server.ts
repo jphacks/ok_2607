@@ -52,10 +52,25 @@ function throwDatabaseError(error: { code: string }): never {
 export async function getQuestCandidates(
   options?: Parameters<typeof recommendTasks>[1],
 ): Promise<QuestCandidatesResponse> {
-  const result = recommendTasks(await listTasks("active"), options);
-  if (result.candidates.length === 0) return result;
+  const client = supabaseServer();
+  const { data: inProgress, error: lookupError } = await client
+    .from("quests")
+    .select("*")
+    .eq("status", "in_progress")
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (inProgress) {
+    return {
+      isUrgent: false,
+      candidates: [],
+      inProgressQuest: questFromRow(inProgress),
+    };
+  }
 
-  const { data, error } = await supabaseServer().rpc("record_quest_candidates", {
+  const result = recommendTasks(await listTasks("active"), options);
+  if (result.candidates.length === 0) return { ...result, inProgressQuest: null };
+
+  const { data, error } = await client.rpc("record_quest_candidates", {
     p_task_ids: result.candidates.map((task) => task.id),
   });
   if (error) throwDatabaseError(error);
@@ -64,6 +79,7 @@ export async function getQuestCandidates(
   const byId = new Map(updated.map((task) => [task.id, task]));
   return {
     isUrgent: result.isUrgent,
+    inProgressQuest: null,
     candidates: result.candidates.map((task) => {
       const saved = byId.get(task.id);
       if (!saved) throw new Error("提示回数を更新したタスクが見つかりません");

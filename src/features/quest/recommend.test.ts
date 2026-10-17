@@ -36,19 +36,41 @@ describe("recommendTasks", () => {
     });
   });
 
-  it("期限切れを含めて最も古い締切のactiveタスクだけを出す", () => {
-    const overdue = task(3, { dueAt: "2026-10-15T00:00:00.000Z" });
+  it("期限切れと非activeを除外し、現在時刻ちょうどの締切は緊急候補に含める", () => {
+    const dueNow = task(2, { dueAt: now.toISOString() });
     const tasks = [
-      task(1, { dueAt: "2026-10-14T00:00:00.000Z", status: "done" }),
-      task(2, { dueAt: "2026-10-17T12:00:00.000Z" }),
-      overdue,
-      task(4, { dueAt: "2026-10-14T00:00:00.000Z", status: "in_quest" }),
-      task(5, { dueAt: "2026-10-14T00:00:00.000Z", status: "discarded" }),
+      task(1, { dueAt: now.toISOString(), status: "done" }),
+      dueNow,
+      task(3, { dueAt: "2026-10-17T11:59:59.999Z" }),
+      task(4, { dueAt: now.toISOString(), status: "in_quest" }),
+      task(5, { dueAt: now.toISOString(), status: "discarded" }),
     ];
     expect(recommendTasks(tasks, { now, random: () => 0.99 })).toEqual({
       isUrgent: true,
-      candidates: [overdue],
+      candidates: [dueNow],
     });
+  });
+
+  it("期限切れが残っていても、期限なし・24時間超の候補を通常抽選できる", () => {
+    const overdue = task(1, { dueAt: "2026-10-17T11:59:59.999Z", weight: 100 });
+    const noDeadline = task(2);
+    const future = task(3, { dueAt: "2026-10-18T12:00:00.001Z" });
+    expect(recommendTasks([overdue, noDeadline, future], { now, random: () => 0 })).toEqual({
+      isUrgent: false,
+      candidates: [noDeadline, future],
+    });
+  });
+
+  it("期限切れのタスクしかなければ通常候補も緊急候補も返さない", () => {
+    expect(
+      recommendTasks(
+        [
+          task(1, { dueAt: "2026-10-17T11:59:59.999Z" }),
+          task(2, { dueAt: "2026-10-16T12:00:00.000Z" }),
+        ],
+        { now },
+      ),
+    ).toEqual({ isUrgent: false, candidates: [] });
   });
 
   it("activeタスクが0件なら空配列を返す", () => {

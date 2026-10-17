@@ -84,16 +84,20 @@
 ### GET /api/quests/candidates
 
 ```json
-// 200
-{ "isUrgent": false, "candidates": [Task, Task, Task] }
+// 200（新しいクエストを選べる場合）
+{ "isUrgent": false, "candidates": [Task, Task, Task], "inProgressQuest": null }
+// 200（進行中のクエストがある場合）
+{ "isUrgent": false, "candidates": [], "inProgressQuest": Quest }
 ```
 
 - `isUrgent: true` のとき `candidates` は締切が近い 1 件だけ
-- `active` なタスクが 3 件未満ならその件数だけ返す（0 件なら空配列）
+- `active` かつ（期限なし、または期限が現在時刻以降）のタスクだけが候補。対象が3件未満ならその件数だけ返す（0件なら空配列）
 - 提示したタスクの `shownCount` を増やす
-- 期限切れを含め、24時間以内の締切があれば最も早い1件を優先する
+- 期限切れ（期限が現在時刻より前）のタスクは通常・緊急とも候補から除外する。期限が現在時刻ちょうどから24時間後までなら、最も早い1件を緊急候補とする
 - 通常は重みに比例した重複なし抽選。全件の重みが0なら等確率
 - 提示回数はDB内で原子的に加算する。抽選中に候補の状態が変わった場合は `409 conflict`
+- 抽選前に進行中クエストを確認する。存在する場合は `inProgressQuest` を返し、`candidates` は空、`isUrgent` は `false`。抽選・`record_quest_candidates`・提示回数加算は行わない
+- 画面は進行中の案内と「ホームで確認する」を表示し、新規開始・再抽選ボタンは表示しない
 
 ### POST /api/quests
 

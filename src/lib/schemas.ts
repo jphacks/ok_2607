@@ -93,6 +93,8 @@ export const QuestCandidatesResponse = z.object({
   // true のとき candidates は締切が近い 1 件だけ（緊急クエスト）
   isUrgent: z.boolean(),
   candidates: z.array(Task).max(3),
+  // 進行中なら候補は返さず、既存クエストを案内する。
+  inProgressQuest: Quest.nullable(),
 });
 export type QuestCandidatesResponse = z.infer<typeof QuestCandidatesResponse>;
 

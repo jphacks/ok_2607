@@ -6,6 +6,7 @@ export function QuestChoices({
   pending,
   error,
   onAddTask,
+  onHome,
   onRetry,
   onStart,
 }: {
@@ -13,6 +14,7 @@ export function QuestChoices({
   pending: boolean;
   error: string;
   onAddTask: () => void;
+  onHome: () => void;
   onRetry: () => void;
   onStart: (task: Task) => Promise<void>;
 }) {
@@ -39,11 +41,15 @@ export function QuestChoices({
     <section aria-labelledby="quest-heading" aria-busy={pending}>
       <div className="screen-heading">
         <div>
-          <h1 id="quest-heading">今日の冒険を選べ</h1>
+          <h1 id="quest-heading">
+            {choices?.inProgressQuest ? "進行中の冒険" : "今日の冒険を選べ"}
+          </h1>
           <p>
-            {choices?.isUrgent
-              ? "期限が迫っています。この冒険から始めよう"
-              : "3つの運命から、挑戦するタスクを選択"}
+            {choices?.inProgressQuest
+              ? "まずは挑戦中のクエストに集中しよう"
+              : choices?.isUrgent
+                ? "期限が迫っています。この冒険から始めよう"
+                : "3つの運命から、挑戦するタスクを選択"}
           </p>
         </div>
         <span className="pixel-slime" aria-hidden="true" />
@@ -61,6 +67,16 @@ export function QuestChoices({
         <p role="status" className="pixel-panel p-6 text-sm text-[#a4a8bc]">
           冒険の候補を読み込んでいます…
         </p>
+      ) : choices.inProgressQuest ? (
+        <div className="pixel-panel p-6">
+          <h2 className="text-base text-[#f3ca70]">クエストに挑戦中</h2>
+          <p className="mb-6 mt-3 text-sm leading-7 text-[#a4a8bc]">
+            進行中のクエストがあります。新しい冒険を選ぶ前に、今のクエストを進めましょう。
+          </p>
+          <button className="gold-button w-full" onClick={onHome}>
+            ホームで確認する
+          </button>
+        </div>
       ) : choices.candidates.length === 0 ? (
         <div className="pixel-panel p-6">
           <h2 className="text-base text-[#f3ca70]">冒険の種を登録しよう</h2>

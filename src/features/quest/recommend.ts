@@ -9,19 +9,24 @@ type RecommendationOptions = {
 export function recommendTasks(
   tasks: readonly Task[],
   { now = new Date(), random = Math.random }: RecommendationOptions = {},
-): QuestCandidatesResponse {
-  const active = tasks.filter((task) => task.status === "active");
-  const cutoff = now.getTime() + 24 * 60 * 60 * 1000;
+): Pick<QuestCandidatesResponse, "isUrgent" | "candidates"> {
+  const active: Task[] = [];
+  const nowMs = now.getTime();
+  const cutoff = nowMs + 24 * 60 * 60 * 1000;
   let urgent: Task | undefined;
   let earliestDeadline = Infinity;
 
-  for (const task of active) {
-    if (task.dueAt === null) continue;
-    const deadline = Date.parse(task.dueAt);
-    if (deadline <= cutoff && deadline < earliestDeadline) {
-      urgent = task;
-      earliestDeadline = deadline;
+  for (const task of tasks) {
+    if (task.status !== "active") continue;
+    if (task.dueAt !== null) {
+      const deadline = Date.parse(task.dueAt);
+      if (deadline < nowMs) continue;
+      if (deadline <= cutoff && deadline < earliestDeadline) {
+        urgent = task;
+        earliestDeadline = deadline;
+      }
     }
+    active.push(task);
   }
 
   if (urgent) return { isUrgent: true, candidates: [urgent] };

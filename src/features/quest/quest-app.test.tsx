@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuestApp } from "@/features/quest/quest-app";
-import type { Task } from "@/lib/schemas";
+import type { Quest, Task } from "@/lib/schemas";
 
 const existing: Task = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -16,10 +16,12 @@ const existing: Task = {
 };
 let storedTasks: Task[];
 let rejectCreation: boolean;
+let inProgressQuest: Quest | null;
 
 beforeEach(() => {
   storedTasks = [];
   rejectCreation = false;
+  inProgressQuest = null;
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
   // jsdom に未実装のネイティブダイアログAPIだけを補う。
   Object.defineProperties(HTMLDialogElement.prototype, {
@@ -52,7 +54,11 @@ beforeEach(() => {
       }
       if (url === "/api/tasks") return Response.json({ tasks: storedTasks });
       if (url === "/api/quests/candidates")
-        return Response.json({ isUrgent: false, candidates: storedTasks.slice(0, 3) });
+        return Response.json({
+          isUrgent: false,
+          candidates: inProgressQuest ? [] : storedTasks.slice(0, 3),
+          inProgressQuest,
+        });
       if (url === "/api/stats") return Response.json({ totalXp: 0, completedQuests: 0 });
       throw new Error(`想定外のリクエスト: ${url}`);
     }),
@@ -68,6 +74,31 @@ afterEach(() => {
 });
 
 describe("タスク登録と3択の画面遷移", () => {
+  it("進行中は開始・再抽選を表示せずホームで現在のタスクを確認できる", async () => {
+    storedTasks = [{ ...existing, status: "in_quest" }];
+    inProgressQuest = {
+      id: "10000000-0000-4000-8000-000000000003",
+      taskId: existing.id,
+      status: "in_progress",
+      isUrgent: false,
+      xpEarned: 0,
+      startedAt: existing.createdAt,
+      completedAt: null,
+    };
+    render(<QuestApp />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "ホームで確認する" }));
+
+    expect(screen.getByRole("button", { name: "ホーム" })).toHaveAttribute("aria-current", "page");
+    expect(await screen.findByText(existing.title)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "このクエストに挑戦する" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /再抽選する/ })).not.toBeInTheDocument();
+  });
+
   it("初回はクエストを表示し、空の状態からタスク名・期限だけの作成画面に進める", async () => {
     render(<QuestApp />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("今日の冒険を選べ");
