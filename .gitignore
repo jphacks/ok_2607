@@ -42,3 +42,6 @@ next-env.d.ts
 
 # env の雛形はコミットする
 !.env.example
+
+# AI ツールの個人設定
+.claude/settings.local.json

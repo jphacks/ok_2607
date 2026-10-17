@@ -1,0 +1,56 @@
+# Codex 用のコマンドルール。ルールの正は AGENTS.md で、ここは AGENTS.md の禁止事項を Codex でも止めるためのもの。
+# プロジェクトの .codex/ を trusted にすると読み込まれる。確認: codex execpolicy check --rules .codex/rules/project.rules -- <コマンド>
+
+# リモートの Supabase を壊すコマンド
+prefix_rule(
+    pattern = ["supabase", "db", "push"],
+    decision = "forbidden",
+    justification = "AGENTS.md: リモートの Supabase への db push は禁止",
+)
+prefix_rule(
+    pattern = ["npx", "supabase", "db", "push"],
+    decision = "forbidden",
+    justification = "AGENTS.md: リモートの Supabase への db push は禁止",
+)
+prefix_rule(
+    pattern = ["supabase", "db", "reset", "--linked"],
+    decision = "forbidden",
+    justification = "AGENTS.md: リモートの Supabase の reset は禁止",
+)
+prefix_rule(
+    pattern = ["npx", "supabase", "db", "reset", "--linked"],
+    decision = "forbidden",
+    justification = "AGENTS.md: リモートの Supabase の reset は禁止",
+)
+prefix_rule(
+    pattern = ["supabase", "link"],
+    decision = "forbidden",
+    justification = "AGENTS.md: リモートの Supabase に接続しない",
+)
+prefix_rule(
+    pattern = ["npx", "supabase", "link"],
+    decision = "forbidden",
+    justification = "AGENTS.md: リモートの Supabase に接続しない",
+)
+
+# git: main への直接 push、強制 push、フックの省略、無視ファイルの強制追加
+prefix_rule(
+    pattern = ["git", "push", ["--force", "-f"]],
+    decision = "forbidden",
+    justification = "強制 push は --force-with-lease を使う",
+)
+prefix_rule(
+    pattern = ["git", "push", "origin", "main"],
+    decision = "forbidden",
+    justification = "AGENTS.md: main に直接 push しない",
+)
+prefix_rule(
+    pattern = ["git", "commit", ["--no-verify", "-n"]],
+    decision = "forbidden",
+    justification = "AGENTS.md: pre-commit フックを飛ばさない",
+)
+prefix_rule(
+    pattern = ["git", "add", ["-f", "--force"]],
+    decision = "forbidden",
+    justification = ".env.local などの無視ファイルをコミットしない",
+)

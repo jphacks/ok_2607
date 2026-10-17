@@ -10,6 +10,11 @@
 /src/app/api/quests/candidates/        @ki-mutaku
 /src/app/api/quests/route.ts           @ki-mutaku
 
+# 共通 UI（docs/design.md）
+/src/components/ui/                    @ki-mutaku
+/src/app/tokens.css                    @ki-mutaku
+/src/app/globals.css                   @ki-mutaku
+
 # AI チェックポイント生成
 /src/features/checkpoint/              @miyagunimikihiro
 /src/app/api/quests/[[]id]/            @miyagunimikihiro
