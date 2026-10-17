@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Checkpoint, QuestDetailResponse } from "@/lib/schemas";
 import type { CheckpointPlan } from "./generate";
 import {
+  type DbCheckpointRow,
   mapDbCheckpointToSchema,
   mapDbQuestToSchema,
   mapDbTaskToSchema,
@@ -39,7 +40,10 @@ export async function getQuestWithTask(
     .eq("id", questId)
     .maybeSingle();
 
-  if (questError || !questRow) {
+  if (questError) {
+    throw new Error(`クエストの取得に失敗しました: ${questError.message}`);
+  }
+  if (!questRow) {
     return null;
   }
 
@@ -49,7 +53,10 @@ export async function getQuestWithTask(
     .eq("id", questRow.task_id)
     .maybeSingle();
 
-  if (taskError || !taskRow) {
+  if (taskError) {
+    throw new Error(`タスクの取得に失敗しました: ${taskError.message}`);
+  }
+  if (!taskRow) {
     return null;
   }
 
@@ -73,73 +80,26 @@ export async function getQuestWithTask(
 }
 
 /**
- * 生成したプランを DB に保存する（既存のチェックポイントを置換）。
+ * 生成したプランを DB に保存する（既存のチェックポイントを原子的に置換）。
+ * PostgreSQL の replace_quest_checkpoints RPC を呼ぶことで 1 つのトランザクションとして実行され、
+ * 途中失敗時にロールバックされて既存データ損失を防ぐ。
  */
 export async function saveCheckpointPlanToDb(
   supabase: SupabaseClient,
   questId: string,
   plan: CheckpointPlan,
 ): Promise<Checkpoint[]> {
-  // 既存のチェックポイントを削除（cascade により子も削除される）
-  const { error: deleteError } = await supabase
-    .from("checkpoints")
-    .delete()
-    .eq("quest_id", questId);
+  const { data: rows, error } = await supabase.rpc("replace_quest_checkpoints", {
+    p_quest_id: questId,
+    p_milestones: plan.milestones,
+  });
 
-  if (deleteError) {
-    throw new Error(`既存チェックポイントの削除に失敗しました: ${deleteError.message}`);
+  if (error) {
+    throw new Error(`チェックポイントの原子的置換に失敗しました: ${error.message}`);
   }
 
-  const createdCheckpoints: Checkpoint[] = [];
-
-  for (let i = 0; i < plan.milestones.length; i++) {
-    const milestone = plan.milestones[i];
-
-    // 親（全体像）のチェックポイントを登録
-    const { data: parentData, error: parentError } = await supabase
-      .from("checkpoints")
-      .insert({
-        quest_id: questId,
-        parent_id: null,
-        title: milestone.title,
-        description: milestone.description ?? null,
-        position: i + 1,
-        is_done: false,
-      })
-      .select()
-      .single();
-
-    if (parentError || !parentData) {
-      throw new Error(`親チェックポイントの保存に失敗しました: ${parentError?.message}`);
-    }
-
-    createdCheckpoints.push(mapDbCheckpointToSchema(parentData));
-
-    // 子（具体的な行動）のチェックポイントを登録
-    if (milestone.steps.length > 0) {
-      const stepRows = milestone.steps.map((step, stepIndex) => ({
-        quest_id: questId,
-        parent_id: parentData.id,
-        title: step.title,
-        description: step.description ?? null,
-        position: stepIndex + 1,
-        is_done: false,
-      }));
-
-      const { data: stepsData, error: stepsError } = await supabase
-        .from("checkpoints")
-        .insert(stepRows)
-        .select();
-
-      if (stepsError || !stepsData) {
-        throw new Error(`子チェックポイントの保存に失敗しました: ${stepsError?.message}`);
-      }
-
-      createdCheckpoints.push(...stepsData.map(mapDbCheckpointToSchema));
-    }
-  }
-
-  return createdCheckpoints;
+  const rawCheckpoints = ((rows as DbCheckpointRow[]) ?? []).map(mapDbCheckpointToSchema);
+  return sortCheckpointsInTreeOrder(rawCheckpoints);
 }
 
 /**
@@ -155,7 +115,10 @@ export async function getQuestDetail(
     .eq("id", questId)
     .maybeSingle();
 
-  if (questError || !questRow) {
+  if (questError) {
+    throw new Error(`クエストの取得に失敗しました: ${questError.message}`);
+  }
+  if (!questRow) {
     return null;
   }
 
@@ -165,7 +128,10 @@ export async function getQuestDetail(
     .eq("id", questRow.task_id)
     .maybeSingle();
 
-  if (taskError || !taskRow) {
+  if (taskError) {
+    throw new Error(`タスクの取得に失敗しました: ${taskError.message}`);
+  }
+  if (!taskRow) {
     return null;
   }
 

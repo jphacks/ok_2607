@@ -38,11 +38,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     return ok({ checkpoint: updated });
-  } catch (error) {
-    return apiError(
-      500,
-      "internal_error",
-      `チェックポイントの更新に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-    );
+  } catch {
+    return apiError(500, "internal_error", "チェックポイントの更新に失敗しました");
   }
 }

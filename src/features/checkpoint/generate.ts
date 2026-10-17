@@ -20,12 +20,18 @@ export type CheckpointStep = z.infer<typeof CheckpointStepSchema>;
 export const CheckpointMilestoneSchema = z.object({
   title: z.string().trim().min(1, "全体像のタイトルは必須です"),
   description: z.string().trim().nullable().optional(),
-  steps: z.array(CheckpointStepSchema).min(1, "各マイルストーンには1つ以上のステップが必要です"),
+  steps: z
+    .array(CheckpointStepSchema)
+    .min(1, "各マイルストーンには1つ以上のステップが必要です")
+    .max(5, "ステップは最大5個までです"),
 });
 export type CheckpointMilestone = z.infer<typeof CheckpointMilestoneSchema>;
 
 export const CheckpointPlanSchema = z.object({
-  milestones: z.array(CheckpointMilestoneSchema).min(1, "1つ以上のマイルストーンが必要です"),
+  milestones: z
+    .array(CheckpointMilestoneSchema)
+    .min(1, "1つ以上のマイルストーンが必要です")
+    .max(5, "マイルストーンは最大5個までです"),
 });
 export type CheckpointPlan = z.infer<typeof CheckpointPlanSchema>;
 
@@ -112,11 +118,12 @@ export async function generateCheckpointPlan(
   options: GenerateCheckpointOptions = {},
 ): Promise<CheckpointPlan> {
   let client = options.client;
-  const model = options.model ?? process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  let model = options.model;
 
-  if (!client) {
+  if (!client || !model) {
     const geminiLib = await import("@/lib/gemini");
-    client = geminiLib.gemini();
+    client ??= geminiLib.gemini();
+    model ??= geminiLib.geminiModel();
   }
 
   let responseText: string | null | undefined;

@@ -204,4 +204,62 @@ describe("POST /api/quests/[id]/checkpoints/generate", () => {
     const body = await response.json();
     expect(body.checkpoints).toEqual(mockSavedCheckpoints);
   });
+
+  it("クエスト取得で DB エラーが発生した場合は 500 internal_error を返す", async () => {
+    const validUuid = "11111111-1111-4111-a111-111111111111";
+    vi.mocked(getQuestWithTask).mockRejectedValueOnce(new Error("DB query failure"));
+
+    const request = new Request(
+      `http://localhost:3000/api/quests/${validUuid}/checkpoints/generate`,
+      {
+        method: "POST",
+      },
+    );
+    const response = await POST(request, {
+      params: Promise.resolve({ id: validUuid }),
+    });
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error.code).toBe("internal_error");
+  });
+
+  it("チェックポイント保存で DB エラーが発生した場合は 500 internal_error を返す", async () => {
+    const validUuid = "11111111-1111-4111-a111-111111111111";
+    vi.mocked(getQuestWithTask).mockResolvedValueOnce({
+      quest: {
+        id: validUuid,
+        taskId: "task-1",
+        status: "in_progress",
+        isUrgent: false,
+        xpEarned: 0,
+        startedAt: "2026-10-17T00:00:00Z",
+        completedAt: null,
+      },
+      task: {
+        id: "task-1",
+        title: "タスク",
+        dueAt: null,
+        status: "in_quest",
+      },
+    });
+    vi.mocked(generateCheckpointPlan).mockResolvedValueOnce({
+      milestones: [{ title: "M", steps: [{ title: "S" }] }],
+    });
+    vi.mocked(saveCheckpointPlanToDb).mockRejectedValueOnce(new Error("RPC transaction failed"));
+
+    const request = new Request(
+      `http://localhost:3000/api/quests/${validUuid}/checkpoints/generate`,
+      {
+        method: "POST",
+      },
+    );
+    const response = await POST(request, {
+      params: Promise.resolve({ id: validUuid }),
+    });
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error.code).toBe("internal_error");
+  });
 });

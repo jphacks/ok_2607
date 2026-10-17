@@ -26,7 +26,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const supabase = supabaseServer();
 
   // クエストとタスクを取得
-  const questDetail = await getQuestWithTask(supabase, questId);
+  let questDetail;
+  try {
+    questDetail = await getQuestWithTask(supabase, questId);
+  } catch {
+    return apiError(500, "internal_error", "クエスト情報の取得に失敗しました");
+  }
+
   if (!questDetail) {
     return apiError(404, "not_found", "指定されたクエストが見つかりません");
   }
@@ -54,11 +60,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   try {
     const checkpoints = await saveCheckpointPlanToDb(supabase, questId, plan);
     return ok({ checkpoints });
-  } catch (error) {
-    return apiError(
-      500,
-      "internal_error",
-      `チェックポイントの保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-    );
+  } catch {
+    return apiError(500, "internal_error", "チェックポイントの保存に失敗しました");
   }
 }

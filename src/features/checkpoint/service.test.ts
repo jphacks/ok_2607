@@ -68,139 +68,86 @@ describe("checkpoint service", () => {
       const result = await getQuestWithTask(mockSupabase, "non-existent");
       expect(result).toBeNull();
     });
+
+    it("クエスト取得で DB エラーが発生した場合、例外をスローする", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ error: new Error("DB connection error") }),
+        }),
+      } as unknown as SupabaseClient;
+
+      await expect(getQuestWithTask(mockSupabase, "quest-1")).rejects.toThrow(
+        "クエストの取得に失敗しました",
+      );
+    });
   });
 
   describe("saveCheckpointPlanToDb", () => {
-    it("既存チェックポイントを削除し、親子チェックポイントを正しく保存して返す", async () => {
+    it("replace_quest_checkpoints RPC を呼び出して原子的に置換し、チェックポイント配列を返す", async () => {
       const plan: CheckpointPlan = {
         milestones: [
           {
             title: "全体像1",
             description: "説明1",
-            steps: [
-              { title: "ステップ1-1", description: "子説明1-1" },
-              { title: "ステップ1-2", description: null },
-            ],
+            steps: [{ title: "ステップ1-1", description: "子説明1-1" }],
           },
         ],
       };
 
-      const mockDelete = vi.fn().mockReturnThis();
-      const mockDeleteEq = vi.fn().mockResolvedValue({ error: null });
+      const mockRows = [
+        {
+          id: "parent-uuid-1",
+          quest_id: "quest-1",
+          parent_id: null,
+          title: "全体像1",
+          description: "説明1",
+          position: 1,
+          is_done: false,
+          done_at: null,
+        },
+        {
+          id: "child-uuid-1",
+          quest_id: "quest-1",
+          parent_id: "parent-uuid-1",
+          title: "ステップ1-1",
+          description: "子説明1-1",
+          position: 1,
+          is_done: false,
+          done_at: null,
+        },
+      ];
 
-      const mockInsertParent = vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: "parent-uuid-1",
-              quest_id: "quest-1",
-              parent_id: null,
-              title: "全体像1",
-              description: "説明1",
-              position: 1,
-              is_done: false,
-              done_at: null,
-            },
-            error: null,
-          }),
-        }),
-      });
-
-      const mockInsertSteps = vi.fn().mockReturnValue({
-        select: vi.fn().mockResolvedValue({
-          data: [
-            {
-              id: "child-uuid-1",
-              quest_id: "quest-1",
-              parent_id: "parent-uuid-1",
-              title: "ステップ1-1",
-              description: "子説明1-1",
-              position: 1,
-              is_done: false,
-              done_at: null,
-            },
-            {
-              id: "child-uuid-2",
-              quest_id: "quest-1",
-              parent_id: "parent-uuid-1",
-              title: "ステップ1-2",
-              description: null,
-              position: 2,
-              is_done: false,
-              done_at: null,
-            },
-          ],
-          error: null,
-        }),
-      });
-
-      let insertCallCount = 0;
       const mockSupabase = {
-        from: vi.fn((table: string) => {
-          if (table === "checkpoints") {
-            return {
-              delete: mockDelete.mockReturnValue({ eq: mockDeleteEq }),
-              insert: vi.fn((payload) => {
-                insertCallCount++;
-                if (insertCallCount === 1) {
-                  return mockInsertParent(payload);
-                }
-                return mockInsertSteps(payload);
-              }),
-            };
-          }
-          return {};
+        rpc: vi.fn().mockResolvedValue({
+          data: mockRows,
+          error: null,
         }),
       } as unknown as SupabaseClient;
 
       const results = await saveCheckpointPlanToDb(mockSupabase, "quest-1", plan);
 
-      expect(mockDeleteEq).toHaveBeenCalledWith("quest_id", "quest-1");
-      expect(results).toHaveLength(3);
-      expect(results[0]).toEqual({
-        id: "parent-uuid-1",
-        questId: "quest-1",
-        parentId: null,
-        title: "全体像1",
-        description: "説明1",
-        position: 1,
-        isDone: false,
-        doneAt: null,
+      expect(mockSupabase.rpc).toHaveBeenCalledWith("replace_quest_checkpoints", {
+        p_quest_id: "quest-1",
+        p_milestones: plan.milestones,
       });
-      expect(results[1]).toEqual({
-        id: "child-uuid-1",
-        questId: "quest-1",
-        parentId: "parent-uuid-1",
-        title: "ステップ1-1",
-        description: "子説明1-1",
-        position: 1,
-        isDone: false,
-        doneAt: null,
-      });
-      expect(results[2]).toEqual({
-        id: "child-uuid-2",
-        questId: "quest-1",
-        parentId: "parent-uuid-1",
-        title: "ステップ1-2",
-        description: null,
-        position: 2,
-        isDone: false,
-        doneAt: null,
-      });
+      expect(results).toHaveLength(2);
+      expect(results[0].id).toBe("parent-uuid-1");
+      expect(results[1].id).toBe("child-uuid-1");
     });
 
-    it("削除時にエラーが返った場合、例外を投げる", async () => {
+    it("RPC 呼び出しでエラーが発生した場合、例外をスローする", async () => {
       const mockSupabase = {
-        from: vi.fn().mockReturnValue({
-          delete: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({ error: new Error("DB delete failed") }),
-          }),
+        rpc: vi.fn().mockResolvedValue({
+          data: null,
+          error: new Error("Transaction aborted"),
         }),
       } as unknown as SupabaseClient;
 
       await expect(
         saveCheckpointPlanToDb(mockSupabase, "quest-1", { milestones: [] }),
-      ).rejects.toThrow("既存チェックポイントの削除に失敗しました");
+      ).rejects.toThrow("チェックポイントの原子的置換に失敗しました");
     });
   });
 
@@ -301,6 +248,20 @@ describe("checkpoint service", () => {
 
       const result = await getQuestDetail(mockSupabase, "non-existent");
       expect(result).toBeNull();
+    });
+
+    it("クエスト詳細取得で DB エラーが発生した場合、例外をスローする", async () => {
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ error: new Error("DB connection error") }),
+        }),
+      } as unknown as SupabaseClient;
+
+      await expect(getQuestDetail(mockSupabase, "quest-1")).rejects.toThrow(
+        "クエストの取得に失敗しました",
+      );
     });
   });
 

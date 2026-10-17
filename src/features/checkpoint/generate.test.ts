@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { AiGenerationError, generateCheckpointPlan, type GenerateContentClient } from "./generate";
 
+vi.mock("@/lib/gemini", () => ({
+  gemini: vi.fn(),
+  geminiModel: () => "mock-model",
+}));
+
 describe("generateCheckpointPlan", () => {
   it("正常な JSON レスポンスから CheckpointPlan を生成できる", async () => {
     const mockPlan = {
@@ -132,6 +137,27 @@ describe("generateCheckpointPlan", () => {
               },
             ],
           }),
+        }),
+      },
+    };
+
+    await expect(
+      generateCheckpointPlan("タスク", {
+        client: mockClient,
+      }),
+    ).rejects.toThrow(AiGenerationError);
+  });
+
+  it("マイルストーンが上限（5件）を超える場合、AiGenerationError を投げる", async () => {
+    const tooManyMilestones = Array.from({ length: 6 }, (_, i) => ({
+      title: `全体像${i + 1}`,
+      steps: [{ title: `ステップ${i + 1}` }],
+    }));
+
+    const mockClient: GenerateContentClient = {
+      models: {
+        generateContent: vi.fn().mockResolvedValue({
+          text: JSON.stringify({ milestones: tooManyMilestones }),
         }),
       },
     };

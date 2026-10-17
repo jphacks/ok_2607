@@ -31,11 +31,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
 
     return ok(detail);
-  } catch (error) {
-    return apiError(
-      500,
-      "internal_error",
-      `クエスト詳細の取得に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-    );
+  } catch {
+    return apiError(500, "internal_error", "クエスト詳細の取得に失敗しました");
   }
 }
