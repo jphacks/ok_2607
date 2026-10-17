@@ -20,6 +20,7 @@ interface QuestClearScreenProps {
 }
 
 export function QuestClearScreen({
+  questId,
   taskTitle,
   completedCheckpointsCount = 5,
   totalCheckpointsCount = 5,
@@ -39,7 +40,10 @@ export function QuestClearScreen({
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-[#101320] text-white">
+    <div
+      data-quest-id={questId}
+      className="flex min-h-screen w-full flex-col items-center bg-[#101320] text-white"
+    >
       {/* スマホ画面サイズのコンテナ (max-w-md: ~390px-448px) */}
       <main className="flex min-h-screen w-full max-w-md flex-col justify-between px-5 py-4 font-dotgothic">
         {/* 上部ヘッダー */}
