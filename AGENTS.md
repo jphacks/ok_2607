@@ -22,6 +22,7 @@ JPHACKS 2026 のチーム開発。3択から 1 つ選ぶだけで「やること
 npm ci                 # 依存パッケージのインストール
 npm run dev            # 開発サーバー (http://localhost:3000)
 npm run check          # lint + format + 型チェック + テスト（作業の最後に必ず実行）
+npm run build          # 本番ビルド（PR 前に実行。CI でも実行される）
 npm run test           # テストだけ
 npm run lint:fix       # lint の自動修正
 npm run format         # Prettier で整形
@@ -33,7 +34,7 @@ npm run db:reset       # ローカル DB の作り直し
 
 人の承認は不要。**CI と AI レビューが通れば、AI がそのままマージしてよい**。
 
-1. `npm run check` を通してコミットする
+1. `npm run check` と `npm run build` を通してコミットする（CI はこの両方を実行する）
 2. 実装した会話とは別のコンテキストで AI レビューを受ける（`docs/ai-review.md`）
    - Claude Code: `code-reviewer` サブエージェントを呼び出す。`/ship` でここから先をまとめて実行できる
    - その他のツール: サブエージェントか別プロセスで、`docs/ai-review.md` と差分を渡してレビューさせる
