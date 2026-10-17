@@ -30,6 +30,7 @@
 src/
 ├── app/                  # ルーティング（ページと Route Handlers）。処理は薄く保つ
 │   ├── page.tsx          # タイトル画面
+│   ├── quests/[id]/checkpoints/page.tsx # AI チェックポイント生成・確認画面（04）
 │   └── api/              # Route Handlers（docs/api.md）
 ├── features/             # 機能ごとのコンポーネント・ロジック・テスト
 │   ├── title/            # タイトル画面            @ki-mutaku
@@ -53,7 +54,7 @@ docs/                     # 開発ドキュメント
 
 ## データモデル
 
-定義は `supabase/migrations/20261017000000_init.sql`。
+定義は `supabase/migrations/`（初期スキーマおよび RPC `replace_quest_checkpoints`）。
 
 ```
 tasks 1 ──── * quests 1 ──── * checkpoints（parent_id で 2 階層）
