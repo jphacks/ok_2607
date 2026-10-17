@@ -31,6 +31,7 @@ src/
 ├── app/                  # ルーティング（ページと Route Handlers）。処理は薄く保つ
 │   ├── page.tsx          # タイトル画面
 │   ├── quests/[id]/checkpoints/page.tsx # AI チェックポイント生成・確認画面（04）
+│   ├── quests/[id]/page.tsx             # クエスト進行画面（05）
 │   └── api/              # Route Handlers（docs/api.md）
 ├── features/             # 機能ごとのコンポーネント・ロジック・テスト
 │   ├── title/            # タイトル画面            @ki-mutaku
