@@ -96,7 +96,7 @@ AI に環境構築を任せるときは、次の順で進めること。
 
 ## AI ツールの設定
 
-メンバーは Claude Code・Codex・Antigravity などを使い分けている。ルールの正は `AGENTS.md` で、どのツールでも最初にそれが読み込まれていることを確認する。各ツールでは、`AGENTS.md` の禁止事項（リモート Supabase の破壊、`main` への直接 push、強制 push、`--no-verify`、無視ファイルの強制追加）をツール側でも止める。
+メンバーは Claude Code・Codex・Antigravity などを使い分けている。ルールの正は `AGENTS.md` で、どのツールでも最初にそれが読み込まれていることを確認する。各ツールでは、`AGENTS.md` の禁止事項（リモート Supabase の破壊、`main` への直接 push、強制 push、`--no-verify`、無視ファイルの強制追加）を、ツール側でもよくある書き方に限って止める。コマンドの先頭一致でしか判定できないため、`git push origin x --force` のように順番を変えた書き方は止まらない。あくまで補助で、本当の防御は `main` のブランチ保護と AGENTS.md のルール。
 
 ### Claude Code
 
@@ -121,6 +121,7 @@ AI に環境構築を任せるときは、次の順で進めること。
   - `supabase db reset --linked`、`npx supabase db reset --linked`
   - `supabase link`、`npx supabase link`
   - `git push --force`、`git push -f`、`git push origin main`
+    - 単純な文字列の前方一致で判定される場合、`git push --force` を入れると `/ship` が使う `git push --force-with-lease` まで止まることがある。止まったら `git push --force` を外し、`git push -f` だけにする
   - `git commit --no-verify`、`git commit -n`
   - `git add -f`、`git add --force`
 - AI レビューは、別のエージェント（新しい会話）に `docs/ai-review.md` と差分を渡して行う

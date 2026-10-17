@@ -17,6 +17,8 @@
 
 共通 UI（`src/components/ui/`、`src/app/tokens.css`、`src/app/globals.css`）の担当は **@ki-mutaku**。担当以外がこれらを変えたいときは、機能の PR に混ぜず、そのファイルだけの小さな PR を先に出す（`AGENTS.md`「共通ファイルと PR の大きさ」）。
 
+このファイル（`docs/design.md`）の内容も @ki-mutaku が決める。`docs/` は PM の担当だが、デザインのルールは共通 UI の担当に従う。
+
 ## ルール
 
 - 画面はスマホ縦型（幅 390px 前後）を基準に作る
@@ -74,3 +76,4 @@ AI に「`docs/design.md` の移行の手順に従って、<部品名> を移行
 2. 各画面の担当者が、自分の画面の CSS クラスや `features/checkpoint/components/Pixel*` を共通部品に置き換える（自分の担当範囲だけの PR）
 3. どこからも使われなくなった `globals.css` のクラスと `features/checkpoint/components/Pixel*` を消す
 4. 画面コンポーネント内の 16 進数の色をトークンに置き換える。対応するトークンが無い色は、近いトークンに寄せるか `tokens.css` に追加する
+5. `globals.css` の `:root`（`--background`、`--foreground`）と `.pixel-*` などのクラスにある 16 進数も、`tokens.css` のトークンを参照する形にする（今は `surface`・`text` と同じ値を二重に持っている）

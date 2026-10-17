@@ -10,16 +10,16 @@
 
 ## ディレクトリと担当
 
-| パス                                                                 | 担当                                    |
-| -------------------------------------------------------------------- | --------------------------------------- |
-| `src/features/title/`                                                | @ki-mutaku                              |
-| `src/features/quest/`                                                | @ki-mutaku                              |
-| `src/app/api/quests/candidates/`、`src/app/api/quests/route.ts`      | @ki-mutaku                              |
-| `src/features/checkpoint/`                                           | @miyagunimikihiro                       |
-| `src/app/api/quests/[id]/`、`src/app/api/checkpoints/`               | @miyagunimikihiro                       |
-| `src/features/task/`、`src/app/api/tasks/`、`src/app/api/stats/`     | @lovemeasure                            |
-| `src/components/ui/`、`src/app/tokens.css`、`src/app/globals.css`    | @ki-mutaku（共通 UI。変更は PR で共有） |
-| `src/lib/`、`src/app/layout.tsx`、`supabase/`、`docs/`、設定ファイル | @lovemeasure（共通。変更は PR で共有）  |
+| パス                                                                                | 担当                                    |
+| ----------------------------------------------------------------------------------- | --------------------------------------- |
+| `src/features/title/`                                                               | @ki-mutaku                              |
+| `src/features/quest/`                                                               | @ki-mutaku                              |
+| `src/app/api/quests/candidates/`、`src/app/api/quests/route.ts`                     | @ki-mutaku                              |
+| `src/features/checkpoint/`                                                          | @miyagunimikihiro                       |
+| `src/app/api/quests/[id]/`、`src/app/api/checkpoints/`                              | @miyagunimikihiro                       |
+| `src/features/task/`、`src/app/api/tasks/`、`src/app/api/stats/`                    | @lovemeasure                            |
+| `src/components/ui/`、`src/app/tokens.css`、`src/app/globals.css`、`docs/design.md` | @ki-mutaku（共通 UI。変更は PR で共有） |
+| `src/lib/`、`src/app/layout.tsx`、`supabase/`、`docs/`、設定ファイル                | @lovemeasure（共通。変更は PR で共有）  |
 
 ## 依存関係
 
