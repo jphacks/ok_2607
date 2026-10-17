@@ -94,6 +94,7 @@ AI とのチャットで立てた計画は会話に埋もれがちです。こ�
 | [docs/api.md](docs/api.md)                             | API 仕様                                              |
 | [docs/team.md](docs/team.md)                           | チームと担当範囲                                      |
 | [docs/working-agreement.md](docs/working-agreement.md) | ワーキングアグリーメント                              |
+| [docs/ai-review.md](docs/ai-review.md)                 | AI レビューの観点と流れ                               |
 | [AGENTS.md](AGENTS.md)                                 | AI エージェント向けのルール（`CLAUDE.md` からも参照） |
 
 ```sh

@@ -12,6 +12,7 @@ JPHACKS 2026 のチーム開発。3択から 1 つ選ぶだけで「やること
 - 担当範囲: `docs/team.md`
 - 環境構築: `docs/setup.md`
 - 開発の約束: `docs/working-agreement.md`
+- AI レビュー: `docs/ai-review.md`
 
 作業を始める前に、触る機能に関係するドキュメントを読むこと。
 
@@ -27,6 +28,22 @@ npm run format         # Prettier で整形
 npm run db:new <名前>  # マイグレーションを新規作成
 npm run db:reset       # ローカル DB の作り直し
 ```
+
+## PR からマージまで
+
+人の承認は不要。**CI と AI レビューが通れば、AI がそのままマージしてよい**。
+
+1. `npm run check` を通してコミットする
+2. 実装した会話とは別のコンテキストで AI レビューを受ける（`docs/ai-review.md`）
+   - Claude Code: `code-reviewer` サブエージェントを呼び出す。`/ship` でここから先をまとめて実行できる
+   - その他のツール: サブエージェントか別プロセスで、`docs/ai-review.md` と差分を渡してレビューさせる
+   - 人にセッションの切り替えを頼まない
+3. FAIL ならブロッカーを直して再レビュー。3 回で PASS にならなければ止めて人に判断を求める
+4. PR を作り、本文の「AI レビュー」欄に最後のレビュー結果を貼る
+5. `gh pr merge <番号> --auto --squash --delete-branch` で自動マージを予約する（CI が通ると GitHub がマージする）
+6. PASS の後にコードを変えたら（CI の修正を含む）、必ず AI レビューを受け直し、PR 本文の結果を更新する
+
+「PR にして」「マージまでやって」と頼まれたら、この流れを最後まで進める。
 
 ## 担当範囲
 
