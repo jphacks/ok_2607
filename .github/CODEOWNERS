@@ -1,0 +1,21 @@
+# 担当範囲。該当ファイルを変更した PR には担当者がレビュアーとして自動で付く。
+# 担当の見直しは PM (@lovemeasure) と相談して docs/team.md と合わせて更新する。
+
+# デフォルト・共通部分（コントラクト、DB、設定、ドキュメント）
+*                                      @lovemeasure
+
+# タイトル画面・3択タスク・レコメンドアルゴリズム
+/src/features/title/                   @tutayadx
+/src/features/quest/                   @tutayadx
+/src/app/api/quests/candidates/        @tutayadx
+/src/app/api/quests/route.ts           @tutayadx
+
+# AI チェックポイント生成
+/src/features/checkpoint/              @miyagunimikihiro
+/src/app/api/quests/[[]id]/            @miyagunimikihiro
+/src/app/api/checkpoints/              @miyagunimikihiro
+
+# タスク登録・経験値の集計
+/src/features/task/                    @lovemeasure
+/src/app/api/tasks/                    @lovemeasure
+/src/app/api/stats/                    @lovemeasure
