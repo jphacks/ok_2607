@@ -22,12 +22,18 @@ export function RoadmapSheet({ open, onClose, taskTitle, checkpoints }: RoadmapS
 
   useEffect(() => {
     if (!open) return;
+    // 閉じたら開く前の要素（「ロードマップを見る」ボタン）にフォーカスを戻す
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -63,7 +69,7 @@ export function RoadmapSheet({ open, onClose, taskTitle, checkpoints }: RoadmapS
           </button>
         </header>
 
-        <ol className="flex-1 space-y-3 overflow-y-auto border-t border-line-dim px-5 py-4">
+        <ol className="flex-1 space-y-3 overflow-y-auto border-t border-line-dim px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           {steps.map(({ checkpoint, state }, index) => {
             const children = childCheckpointsOf(checkpoints, checkpoint.id);
             return (

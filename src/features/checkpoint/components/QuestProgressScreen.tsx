@@ -174,7 +174,7 @@ export function QuestProgressScreen({
               type="button"
               onClick={() => setIsRoadmapOpen(true)}
               aria-haspopup="dialog"
-              className="px-1 py-1 text-xs text-gold-text hover:text-gold-accent"
+              className="-my-2 min-h-11 px-2 text-xs text-gold-text hover:text-gold-accent"
             >
               🗺 ロードマップを見る
             </button>

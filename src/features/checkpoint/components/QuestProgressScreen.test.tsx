@@ -422,11 +422,14 @@ describe("QuestProgressScreen のロードマップ", () => {
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /ロードマップを見る/ }));
+    const openButton = screen.getByRole("button", { name: /ロードマップを見る/ });
+    openButton.focus();
+    fireEvent.click(openButton);
     expect(screen.getByRole("dialog", { name: "ロードマップ" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "ロードマップを閉じる" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(openButton).toHaveFocus();
     expect(screen.getByRole("group", { name: "今やること" })).toBeInTheDocument();
   });
 });
