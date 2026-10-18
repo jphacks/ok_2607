@@ -9,3 +9,4 @@ export {
 } from "./sound";
 export { SoundToggle, type SoundToggleProps } from "./SoundToggle";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
+export { FloatingText, type FloatingTextProps } from "./FloatingText";
