@@ -40,17 +40,43 @@
 
 ## トークン一覧
 
-| トークン                                    | 用途                               |
-| ------------------------------------------- | ---------------------------------- |
-| `surface`                                   | 画面の背景                         |
-| `panel` / `panel-active`                    | パネル・カード / 選択中            |
-| `field`                                     | 入力欄の背景                       |
-| `text` / `muted` / `placeholder`            | 本文 / 補足 / プレースホルダー     |
-| `line` / `line-dim` / `frame`               | 入力欄の枠 / 区切り線 / パネル外枠 |
-| `gold` / `gold-hover`                       | 主ボタンの背景                     |
-| `gold-accent` / `gold-border` / `gold-text` | 強調・選択枠 / パネル枠 / 副ボタン |
-| `gold-ink`                                  | 主ボタンの文字                     |
-| `success` / `danger`                        | 成功・フォーカス / エラー          |
+| トークン                                          | 用途                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| `surface`                                         | 画面の背景                                                    |
+| `panel` / `panel-active`                          | パネル・カード / 選択中                                       |
+| `field`                                           | 入力欄の背景                                                  |
+| `text` / `muted` / `placeholder`                  | 本文 / 補足 / プレースホルダー                                |
+| `line` / `line-dim` / `frame`                     | 入力欄の枠 / 区切り線 / パネル外枠                            |
+| `gold` / `gold-hover`                             | 主ボタンの背景                                                |
+| `gold-accent` / `gold-border` / `gold-text`       | 強調・選択枠 / パネル枠 / 副ボタン                            |
+| `gold-ink`                                        | 主ボタンの文字                                                |
+| `success` / `danger`                              | 成功・フォーカス / エラー                                     |
+| `neon-pink` / `neon-cyan`                         | 一瞬の強調（即決・コンボ・レベルアップ） / 進捗・チェック完了 |
+| `urgent`                                          | 緊急クエストの枠                                              |
+| `rarity-common` / `rarity-rare` / `rarity-mythic` | 3択カードのレア度の枠（通常 / レア / 幻）                     |
+
+配色の方針は `docs/superpowers/specs/2026-10-18-game-feel-design.md`。強調色はゴールドとネオン 2 色（ピンク・シアン）までに絞り、本文とパネルのコントラスト比は 4.5:1 以上にする。画面全体には `body::after` で薄い走査線を重ねている。
+
+### アニメーション
+
+`tokens.css` の `--animate-*` として定義しており、`animate-<名前>` のクラスで使う。1 つの演出は 0.5 秒以内（無限ループの装飾を除く）。OS で視差効果の低減を指定すると、`globals.css` の全体ルールですべて止まる。JS で動かす演出は `usePrefersReducedMotion()`（`src/components/ui/`）で止める。
+
+| クラス                 | 用途                                    |
+| ---------------------- | --------------------------------------- |
+| `animate-card-flip`    | カードが裏から表に返る                  |
+| `animate-rare-glow`    | レアカードが表になる瞬間に光る          |
+| `animate-holo`         | 幻カードのホロ枠が流れる（ループ）      |
+| `animate-urgent-pulse` | 緊急クエストの枠が脈打つ（ループ）      |
+| `animate-shake`        | 即決したときの軽い揺れ                  |
+| `animate-stamp`        | 「即決!!」のハンコ                      |
+| `animate-dissolve`     | 選ばなかったカードが崩れて消える        |
+| `animate-float-up`     | `+10 XP` のような文字が飛び出して消える |
+| `animate-flash`        | レベルアップの全画面フラッシュ          |
+| `animate-pop`          | 新しく出たものが「ポン」と出る          |
+
+### 効果音と振動
+
+`src/components/ui/sound.ts` の `playSfx(name)` で鳴らし、`vibrate(ms)` で振動させる。音のオン・オフは `SoundToggle` で切り替え、`localStorage` の `trione:sound` に保存する。使えない環境では音なしとして動く。
 
 ## 共通部品と移行
 
