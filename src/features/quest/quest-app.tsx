@@ -7,6 +7,7 @@ import { HomeScreen } from "@/features/title/home-screen";
 import { TaskList } from "@/features/task/task-list";
 import { QuestChoices } from "@/features/quest/quest-choices";
 import { PixelBottomNav, type NavTabId } from "@/components/ui/PixelBottomNav";
+import { DebugActions } from "@/features/quest/debug-actions";
 import {
   ApiError,
   CreateTaskResponse,
@@ -156,6 +157,26 @@ export function QuestApp() {
     setTab("tasks");
   }
 
+  async function handleAddDummyTasks() {
+    const dummyTitles = [
+      "薬草を採取してポーションを作る",
+      "ダンジョン地下1階を探索する",
+      "鍛冶屋で剣を強化する",
+    ];
+    for (const title of dummyTitles) {
+      await createTask({ title, dueAt: null });
+    }
+  }
+
+  async function handleTriggerUrgentQuest() {
+    const twoHoursLater = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    await createTask({
+      title: "【緊急】魔王軍の斥候を撃退せよ",
+      dueAt: twoHoursLater,
+    });
+    switchTab("quest");
+  }
+
   return (
     <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-[390px] flex-col bg-[#111321] text-[#ededf4] shadow-2xl">
       <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px]">
@@ -214,6 +235,12 @@ export function QuestApp() {
             onResumeQuest={handleResumeQuest}
           />
         )}
+        <div className="mt-8">
+          <DebugActions
+            onAddDummyTasks={handleAddDummyTasks}
+            onTriggerUrgentQuest={handleTriggerUrgentQuest}
+          />
+        </div>
       </main>
       <PixelBottomNav currentTab={tab} onSelectTab={switchTab} />
     </div>
