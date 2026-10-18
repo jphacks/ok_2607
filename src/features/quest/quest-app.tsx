@@ -15,6 +15,7 @@ import {
 } from "@/features/quest/cache";
 import { OperationProgress } from "@/components/ui/OperationProgress";
 import { PixelBottomNav, type NavTabId } from "@/components/ui/PixelBottomNav";
+import { SoundToggle } from "@/components/ui/SoundToggle";
 import { DebugActions } from "@/features/quest/debug-actions";
 import { AuthStatus } from "@/features/auth/components/AuthStatus";
 import { LoginScreen } from "@/features/auth/components/LoginScreen";
@@ -229,7 +230,7 @@ export function QuestApp() {
         if (!signal?.aborted && version === choiceVersion.current) {
           clearCache();
           setChoiceError(
-            cause instanceof Error ? cause.message : "冒険の候補を取得できませんでした。",
+            cause instanceof Error ? cause.message : "クエストの候補を取得できませんでした。",
           );
         }
       } finally {
@@ -248,7 +249,7 @@ export function QuestApp() {
     } catch (cause) {
       if (version === statsVersion.current)
         setStatsError(
-          cause instanceof Error ? cause.message : "冒険の記録を取得できませんでした。",
+          cause instanceof Error ? cause.message : "クエストの記録を取得できませんでした。",
         );
     }
   }, []);
@@ -620,14 +621,7 @@ export function QuestApp() {
   if (authLoading) {
     return (
       <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl items-center justify-center bg-surface text-muted">
-        <OperationProgress
-          title="冒険の書を読み込み中"
-          steps={[
-            { label: "ログイン状態を確認", status: "running" },
-            { label: "タスク一覧を確認", status: "pending" },
-            { label: "最新の候補を確認", status: "pending" },
-          ]}
-        />
+        <p className="font-mono text-xs">クエストの書を読み込み中…</p>
       </div>
     );
   }
@@ -638,14 +632,17 @@ export function QuestApp() {
   }
 
   return (
-    <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl flex-col bg-[#111321] text-[#ededf4] shadow-2xl">
+    <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl flex-col bg-surface text-text shadow-2xl">
       <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px] sm:px-8 lg:px-12">
-        <span className="flex items-center gap-2 text-[#f3ca70]">
+        <span className="flex items-center gap-2 text-gold-accent">
           <span aria-hidden="true">✦</span>
           <span className="font-mono text-sm tracking-[-1px]">TriOne</span>
         </span>
-        <span className="font-mono text-[10px] text-[#a4a8bc]">
-          ●　{stats ? `${stats.completedQuests} CLEAR` : "冒険のはじまり"}
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-muted">
+            ●　{stats ? `${stats.completedQuests} CLEAR` : "クエストのはじまり"}
+          </span>
+          <SoundToggle />
         </span>
       </header>
       <AuthStatus />
@@ -658,25 +655,14 @@ export function QuestApp() {
         }`}
         tabIndex={-1}
       >
-        {tab === "quest" && (choicePending || taskPending || choiceError || taskError) && (
-          <div className="mb-6">
-            <OperationProgress
-              title={
-                choiceOperation === "record"
-                  ? "候補の提示を保存"
-                  : choiceOperation === "start"
-                    ? "クエストを開始"
-                    : "冒険の準備"
-              }
-              steps={
-                choiceOperation === "record"
-                  ? [
-                      {
-                        label: "表示した候補をサーバーに保存",
-                        status: choiceError ? "error" : choicePending ? "running" : "complete",
-                      },
-                    ]
-                  : choiceOperation === "start"
+        {tab === "quest" &&
+          (choiceOperation === "start" || (choiceOperation === "read" && !choices)) &&
+          (choicePending || taskPending || choiceError || taskError) && (
+            <div className="mb-6">
+              <OperationProgress
+                title={choiceOperation === "start" ? "クエストを開始" : "クエストの準備"}
+                steps={
+                  choiceOperation === "start"
                     ? [
                         { label: "DBで候補を検証してクエストを開始", status: "error" },
                         { label: "チェックポイント画面へ移動", status: "pending" },
@@ -704,10 +690,10 @@ export function QuestApp() {
                                 : "pending",
                         },
                       ]
-              }
-            />
-          </div>
-        )}
+                }
+              />
+            </div>
+          )}
         {tab === "quest" && (
           <QuestChoices
             choices={choices}
@@ -730,7 +716,7 @@ export function QuestApp() {
           (taskError ? (
             <div className="pixel-panel p-5">
               <h1 className="mb-4 text-xl">タスクリスト</h1>
-              <p role="alert" className="text-sm leading-6 text-[#ffb5a9]">
+              <p role="alert" className="text-sm leading-6 text-danger">
                 {taskError}
               </p>
               <button className="secondary-button mt-4 w-full" onClick={() => void loadTasks()}>
@@ -747,7 +733,7 @@ export function QuestApp() {
               onDelete={deleteTask}
             />
           ) : (
-            <p role="status" className="text-sm text-[#a4a8bc]">
+            <p role="status" className="text-sm text-muted">
               タスクを読み込んでいます…
             </p>
           ))}

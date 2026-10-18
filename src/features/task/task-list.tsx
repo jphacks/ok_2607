@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { playSfx } from "@/components/ui/sound";
 import { TASK_TITLE_MAX_LENGTH, type CreateTaskRequest, type Task } from "@/lib/schemas";
 
 export function TaskList({
@@ -65,10 +66,12 @@ export function TaskList({
             { duration: 320, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
           );
         } else if (previous === undefined) {
+          // 新しいタスクは「ポン」と拡大して出てくる
           item.animate(
             [
-              { opacity: 0, transform: "translateY(-16px)" },
-              { opacity: 1, transform: "translateY(0)" },
+              { opacity: 0, transform: "scale(0.8)" },
+              { opacity: 1, transform: "scale(1.05)", offset: 0.6 },
+              { opacity: 1, transform: "scale(1)" },
             ],
             { duration: 320, easing: "ease-out" },
           );
@@ -125,7 +128,10 @@ export function TaskList({
               : null,
       };
       if (editingTask) await onUpdate(editingTask.id, input);
-      else await onCreate(input);
+      else {
+        await onCreate(input);
+        playSfx("select");
+      }
       closeForm();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "タスクを保存できませんでした。");
@@ -143,19 +149,19 @@ export function TaskList({
     >
       <span
         aria-hidden="true"
-        className={`h-[18px] w-[18px] shrink-0 border border-[#e9c874] ${task.status === "done" ? "bg-[#e9c874]" : ""}`}
+        className={`h-[18px] w-[18px] shrink-0 border border-gold-accent ${task.status === "done" ? "bg-gold-accent" : ""}`}
       />
       <div className="min-w-0 flex-1">
         <p className="break-words text-sm leading-6">{task.title}</p>
-        <p className="mt-1 text-xs text-[#a4a8bc]">
+        <p className="mt-1 text-xs text-muted">
           {task.dueAt
             ? `期限 ${new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(new Date(task.dueAt))}`
             : "期限なし"}
           <span className="ml-3 text-muted" aria-label={`reject回数 ${task.skippedCount}回`}>
             ❌{task.skippedCount}
           </span>
-          {task.status === "in_quest" && <span className="ml-3 text-[#a5d4be]">挑戦中</span>}
-          {task.status === "done" && <span className="ml-3 text-[#a5d4be]">完了</span>}
+          {task.status === "in_quest" && <span className="ml-3 text-success">挑戦中</span>}
+          {task.status === "done" && <span className="ml-3 text-success">完了</span>}
         </p>
       </div>
       <details
@@ -217,7 +223,7 @@ export function TaskList({
       <div className="screen-heading">
         <div>
           <h1 id="tasks-heading">タスクリスト</h1>
-          <p>あなたの冒険の種を登録しよう</p>
+          <p>あなたのクエストの種を登録しよう</p>
         </div>
         <span className="pixel-wizard" aria-hidden="true" />
       </div>
@@ -262,7 +268,7 @@ export function TaskList({
             {editingTask ? "タスクを編集" : "新しいタスクを追加"}
           </h2>
           <label className="block text-sm">
-            タスク名 <span className="text-[#f3ca70]">必須</span>
+            タスク名 <span className="text-gold-accent">必須</span>
             <input
               autoFocus
               name="title"
@@ -283,7 +289,7 @@ export function TaskList({
             {title.length}/{TASK_TITLE_MAX_LENGTH}
           </p>
           <label className="block text-sm">
-            期限 <span className="text-xs text-[#a4a8bc]">任意</span>
+            期限 <span className="text-xs text-muted">任意</span>
             <input
               name="dueDate"
               type="date"
@@ -293,11 +299,9 @@ export function TaskList({
               disabled={saving}
             />
           </label>
-          <p className="text-xs text-[#a4a8bc]">
-            期限はその日の終わりまで。あとから決めても大丈夫。
-          </p>
+          <p className="text-xs text-muted">期限はその日の終わりまで。あとから決めても大丈夫。</p>
           {error && (
-            <p role="alert" className="text-sm text-[#ffb5a9]">
+            <p role="alert" className="text-sm text-danger">
               {error}
             </p>
           )}
@@ -390,10 +394,10 @@ export function TaskList({
         </details>
       )}
       {tasks.length === 0 && !openForm && (
-        <p className="pixel-panel p-5 text-sm leading-7 text-[#a4a8bc]">
+        <p className="pixel-panel p-5 text-sm leading-7 text-muted">
           まだタスクがありません。
           <br />
-          最初の冒険の種を登録しましょう。
+          最初のクエストの種を登録しましょう。
         </p>
       )}
     </section>

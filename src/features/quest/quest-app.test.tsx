@@ -290,7 +290,7 @@ describe("タスク登録と3択の画面遷移", () => {
           responseGate.resolve(Response.json({ isUrgent: false, candidates: [], inProgressQuest }));
         });
       }
-      fireEvent.click(await screen.findByRole("button", { name: "進行中の冒険を再開する" }));
+      fireEvent.click(await screen.findByRole("button", { name: "進行中のクエストを再開する" }));
       expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
     },
   );
@@ -327,9 +327,14 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(screen.queryByRole("button", { name: /再抽選する/ })).not.toBeInTheDocument();
   });
 
+  it("ヘッダーに効果音の切り替えボタンがある", async () => {
+    render(<QuestApp />);
+    expect(await screen.findByRole("button", { name: "効果音" })).toBeInTheDocument();
+  });
+
   it("初回はクエストを表示し、空の状態からタスク名・期限だけの作成画面に進める", async () => {
     render(<QuestApp />);
-    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("今日の冒険を選べ");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("クエストを選べ");
     fireEvent.click(await screen.findByRole("button", { name: "＋ 新しいタスクを追加" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("textbox", { name: /タスク名/ })).toBeVisible();
@@ -344,17 +349,17 @@ describe("タスク登録と3択の画面遷移", () => {
     fireEvent.click(screen.getByRole("button", { name: "タスク" }));
     fireEvent.click(screen.getByRole("button", { name: "新しいタスクを追加" }));
     fireEvent.change(screen.getByRole("textbox", { name: /タスク名/ }), {
-      target: { value: "新しい冒険" },
+      target: { value: "新しいクエスト" },
     });
     fireEvent.click(screen.getByRole("button", { name: "追加する" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const rows = within(screen.getByRole("list", { name: "登録済みタスク" })).getAllByRole(
       "listitem",
     );
-    expect(rows[0]).toHaveTextContent("新しい冒険");
+    expect(rows[0]).toHaveTextContent("新しいクエスト");
     expect(rows[1]).toHaveTextContent("以前のタスク");
     fireEvent.click(screen.getByRole("button", { name: /^クエスト/ }));
-    expect(await screen.findByRole("radio", { name: /新しい冒険/ })).toBeVisible();
+    expect(await screen.findByRole("radio", { name: /新しいクエスト/ })).toBeVisible();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 
@@ -481,7 +486,7 @@ describe("タスク登録と3択の画面遷移", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "ステータスで確認する" }));
     const homeResumeBtn = await screen.findByRole("button", {
-      name: "進行中の冒険を再開する",
+      name: "進行中のクエストを再開する",
     });
     fireEvent.click(homeResumeBtn);
 
@@ -578,7 +583,7 @@ describe("タスク登録と3択の画面遷移", () => {
     render(<QuestApp />);
 
     expect(
-      await screen.findByRole("button", { name: "Google アカウントで冒険を始める" }),
+      await screen.findByRole("button", { name: "Google アカウントでクエストを始める" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "メインメニュー" })).not.toBeInTheDocument();
   });
@@ -593,6 +598,24 @@ function candidateRequests(method = "GET") {
 }
 
 describe("ローカル抽選と確認済みキャッシュ", () => {
+  it("初回の候補読み込みでは処理の進捗を表示する", async () => {
+    storedTasks = [existing];
+    const response = Promise.withResolvers<Response>();
+    pendingCandidateResponse = response.promise;
+    render(<QuestApp />);
+    const progress = await screen.findByRole("region", { name: "クエストの準備" });
+    expect(
+      within(progress).getByRole("progressbar", { name: "最新の候補を確認：処理中" }),
+    ).toBeVisible();
+    await act(async () => {
+      response.resolve(
+        Response.json({ candidates: [existing], isUrgent: false, inProgressQuest: null }),
+      );
+    });
+    expect(await screen.findByRole("radio")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "クエストの準備" })).not.toBeInTheDocument();
+  });
+
   it("再抽選はGETを増やさず即座に新しいカードを表示し、提示保存中も選択できる", async () => {
     storedTasks = Array.from({ length: 4 }, (_, index) => ({
       ...existing,
@@ -620,8 +643,8 @@ describe("ローカル抽選と確認済みキャッシュ", () => {
     expect(candidateRequests()).toHaveLength(getsBefore);
     expect(candidateRequests("POST")).toHaveLength(1);
     expect(window.localStorage.getItem(questCacheKey("test-user-id"))).toBeNull();
-    const progress = screen.getByRole("region", { name: "候補の提示を保存" });
-    expect(within(progress).getByText("完了した処理: 0 / 1 件")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "候補の提示を保存" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     const input: { shownTaskIds: string[] } = JSON.parse(
       String(candidateRequests("POST")[0][1]?.body),
     );
@@ -665,9 +688,7 @@ describe("ローカル抽選と確認済みキャッシュ", () => {
     expect(radio).toBeChecked();
     expect(screen.getByRole("button", { name: "このクエストに挑戦する" })).toBeDisabled();
     expect(window.localStorage.getItem(questCacheKey("test-user-id"))).toBeNull();
-    expect(screen.getByRole("region", { name: "候補の提示を保存" })).toHaveTextContent(
-      "エラーがあります",
-    );
+    expect(screen.queryByRole("region", { name: "候補の提示を保存" })).not.toBeInTheDocument();
     rejectPresentation = false;
     fireEvent.click(screen.getByRole("button", { name: "もう一度読み込む" }));
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
@@ -845,6 +866,8 @@ describe("ローカル抽選と確認済みキャッシュ", () => {
       expect(screen.getByRole("button", { name: "このクエストに挑戦する" })).toBeDisabled();
       expect(window.localStorage.getItem(questCacheKey("test-user-id"))).toBeNull();
       expect(candidateRequests()).toHaveLength(2);
+      expect(screen.queryByRole("region", { name: "クエストの準備" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
       await act(async () => {
         tasksRead.resolve(Response.json({ tasks: [] }));
         candidatesRead.resolve(

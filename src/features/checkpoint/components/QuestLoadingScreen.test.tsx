@@ -18,13 +18,13 @@ describe("QuestLoadingScreen", () => {
     expect(screen.getByText("LOADING")).toBeInTheDocument();
 
     // デフォルトメッセージ
-    expect(screen.getByText("冒険の書をひらいている…")).toBeInTheDocument();
+    expect(screen.getByText("クエストの書をひらいている…")).toBeInTheDocument();
     expect(screen.getByText("ダンジョンへ向かっています…")).toBeInTheDocument();
 
     // アクセシビリティ属性
     const status = screen.getByRole("status");
     expect(status).toHaveAttribute("aria-live", "polite");
-    expect(status).toHaveAttribute("aria-label", "読み込み中: 冒険の書をひらいている…");
+    expect(status).toHaveAttribute("aria-label", "読み込み中: クエストの書をひらいている…");
   });
 
   it("カスタムメッセージとサブメッセージ、レベルを指定して表示できる", () => {

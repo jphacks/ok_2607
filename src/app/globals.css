@@ -131,10 +131,6 @@ button:disabled {
     line-height: 1.7;
     color: var(--color-muted);
   }
-  .quest-selected {
-    background-color: var(--color-panel-active);
-    box-shadow: 0 0 0 1px var(--color-gold-accent);
-  }
   .pixel-wizard,
   .pixel-adventurer,
   .pixel-slime {
