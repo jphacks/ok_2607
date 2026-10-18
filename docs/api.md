@@ -74,7 +74,7 @@ Issue #20 の残るデータ分離対応は、この共通契約の先行PRと�
 { "task": Task }
 ```
 
-`dueAt` は省略・`null` 可。
+`title` は前後の空白を除いて1〜30文字（`TASK_TITLE_MAX_LENGTH`）。空文字・31文字以上は `400 validation_error`。`dueAt` は省略・`null` 可。
 
 通常の登録画面の入力はタスク名と任意の期限だけ。画面で日付だけを指定した場合は、端末のタイムゾーンで当日の終わりをISO 8601へ変換する。
 
@@ -89,7 +89,7 @@ Issue #20 の残るデータ分離対応は、この共通契約の先行PRと�
 { "task": Task }
 ```
 
-`status: "discarded"` が「手放す」操作。
+`title` を指定する場合は登録と同じく1〜30文字。`status: "discarded"` が「手放す」操作。
 
 更新項目は1つ以上必須。空の更新（未知のキーだけの入力を含む）は `400 validation_error`。
 成功応答の型は `UpdateTaskResponse`。`dueAt: null` は期限の解除を表す。
