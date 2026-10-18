@@ -64,13 +64,13 @@ export function QuestChoices({
       <div className="screen-heading mb-4 min-h-0">
         <div className="min-w-0">
           <h1 id="quest-heading">
-            {choices?.inProgressQuest ? "進行中の冒険" : "今日の冒険を選べ"}
+            {choices?.inProgressQuest ? "進行中のクエスト" : "クエストを選べ"}
           </h1>
           <p>
             {choices?.inProgressQuest
               ? "まずは挑戦中のクエストに集中しよう"
               : choices?.isUrgent
-                ? "締切の近い冒険も含めて、挑戦するタスクを選択"
+                ? "締切の近いクエストも含めて、挑戦するタスクを選択"
                 : "直感を信じて、最初に目が留まったものをタップ！"}
           </p>
         </div>
@@ -102,13 +102,13 @@ export function QuestChoices({
         </div>
       ) : !choices ? (
         <p role="status" className="pixel-panel p-6 text-sm text-muted">
-          冒険の候補を読み込んでいます…
+          クエストの候補を読み込んでいます…
         </p>
       ) : choices.inProgressQuest ? (
         <div className="pixel-panel p-6">
           <h2 className="text-base text-gold-accent">クエストに挑戦中</h2>
           <p className="mb-6 mt-3 text-sm leading-7 text-muted">
-            進行中のクエストがあります。新しい冒険を選ぶ前に、今のクエストを進めましょう。
+            進行中のクエストがあります。新しいクエストを選ぶ前に、今のクエストを進めましょう。
           </p>
           <div className="space-y-3">
             {onResumeQuest && (
@@ -126,11 +126,11 @@ export function QuestChoices({
         </div>
       ) : choices.candidates.length === 0 ? (
         <div className="pixel-panel p-6">
-          <h2 className="text-base text-gold-accent">冒険の種を登録しよう</h2>
+          <h2 className="text-base text-gold-accent">クエストの種を登録しよう</h2>
           <p className="mb-6 mt-3 text-sm leading-7 text-muted">
             選べるタスクがまだありません。
             <br />
-            やりたいことを追加すると、ここに冒険の候補が現れます。
+            やりたいことを追加すると、ここにクエストの候補が現れます。
           </p>
           <button className="gold-button w-full" onClick={onAddTask}>
             ＋ 新しいタスクを追加

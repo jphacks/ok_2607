@@ -44,13 +44,13 @@ describe("QuestClearScreen", () => {
     expect(screen.getByText("次のレベルまであと 80 XP")).toBeInTheDocument();
 
     // ボタン & ホームリンク
-    expect(screen.getByRole("button", { name: "次の冒険へ" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "次のクエストへ" })).toBeInTheDocument();
     const homeLink = screen.getByRole("link", { name: "ホームに戻る" });
     expect(homeLink).toBeInTheDocument();
     expect(homeLink).toHaveAttribute("href", "/");
   });
 
-  it("「次の冒険へ」ボタンをクリックすると onNextQuest が呼ばれる", () => {
+  it("「次のクエストへ」ボタンをクリックすると onNextQuest が呼ばれる", () => {
     const handleNextQuest = vi.fn();
     render(
       <QuestClearScreen
@@ -60,17 +60,17 @@ describe("QuestClearScreen", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "次の冒険へ" });
+    const button = screen.getByRole("button", { name: "次のクエストへ" });
     fireEvent.click(button);
 
     expect(handleNextQuest).toHaveBeenCalledTimes(1);
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("onNextQuest が未指定の場合、「次の冒険へ」ボタンをクリックすると router.push('/') が呼ばれる", () => {
+  it("onNextQuest が未指定の場合、「次のクエストへ」ボタンをクリックすると router.push('/') が呼ばれる", () => {
     render(<QuestClearScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
 
-    const button = screen.getByRole("button", { name: "次の冒険へ" });
+    const button = screen.getByRole("button", { name: "次のクエストへ" });
     fireEvent.click(button);
 
     expect(mockPush).toHaveBeenCalledWith("/");

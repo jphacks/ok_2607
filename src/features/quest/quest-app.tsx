@@ -138,7 +138,7 @@ export function QuestApp() {
     } catch (cause) {
       if (!signal?.aborted && version === choiceVersion.current)
         setChoiceError(
-          cause instanceof Error ? cause.message : "冒険の候補を取得できませんでした。",
+          cause instanceof Error ? cause.message : "クエストの候補を取得できませんでした。",
         );
     } finally {
       if (!signal?.aborted && version === choiceVersion.current) setChoicePending(false);
@@ -154,7 +154,7 @@ export function QuestApp() {
     } catch (cause) {
       if (version === statsVersion.current)
         setStatsError(
-          cause instanceof Error ? cause.message : "冒険の記録を取得できませんでした。",
+          cause instanceof Error ? cause.message : "クエストの記録を取得できませんでした。",
         );
     }
   }, []);
@@ -290,7 +290,7 @@ export function QuestApp() {
   if (authLoading) {
     return (
       <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl items-center justify-center bg-surface text-muted">
-        <p className="font-mono text-xs">冒険の書を読み込み中…</p>
+        <p className="font-mono text-xs">クエストの書を読み込み中…</p>
       </div>
     );
   }
@@ -308,7 +308,7 @@ export function QuestApp() {
           <span className="font-mono text-sm tracking-[-1px]">TriOne</span>
         </span>
         <span className="font-mono text-[10px] text-[#a4a8bc]">
-          ●　{stats ? `${stats.completedQuests} CLEAR` : "冒険のはじまり"}
+          ●　{stats ? `${stats.completedQuests} CLEAR` : "クエストのはじまり"}
         </span>
       </header>
       <AuthStatus />

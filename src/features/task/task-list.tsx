@@ -217,7 +217,7 @@ export function TaskList({
       <div className="screen-heading">
         <div>
           <h1 id="tasks-heading">タスクリスト</h1>
-          <p>あなたの冒険の種を登録しよう</p>
+          <p>あなたのクエストの種を登録しよう</p>
         </div>
         <span className="pixel-wizard" aria-hidden="true" />
       </div>
@@ -393,7 +393,7 @@ export function TaskList({
         <p className="pixel-panel p-5 text-sm leading-7 text-[#a4a8bc]">
           まだタスクがありません。
           <br />
-          最初の冒険の種を登録しましょう。
+          最初のクエストの種を登録しましょう。
         </p>
       )}
     </section>

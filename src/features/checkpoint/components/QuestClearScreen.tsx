@@ -127,7 +127,7 @@ export function QuestClearScreen({
 
         {/* 下部アクションボタン & ホームリンク */}
         <div className="mt-5 flex flex-col items-center space-y-3 pb-2 sm:mt-8 sm:space-y-4">
-          <PixelButton onClick={handleNextQuest}>次の冒険へ</PixelButton>
+          <PixelButton onClick={handleNextQuest}>次のクエストへ</PixelButton>
 
           <Link href="/" className="text-sm text-[#a9b6c9] transition-colors hover:text-white">
             ホームに戻る
