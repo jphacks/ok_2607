@@ -290,6 +290,11 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(screen.queryByRole("button", { name: /再抽選する/ })).not.toBeInTheDocument();
   });
 
+  it("ヘッダーに効果音の切り替えボタンがある", async () => {
+    render(<QuestApp />);
+    expect(await screen.findByRole("button", { name: "効果音" })).toBeInTheDocument();
+  });
+
   it("初回はクエストを表示し、空の状態からタスク名・期限だけの作成画面に進める", async () => {
     render(<QuestApp />);
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("今日の冒険を選べ");
