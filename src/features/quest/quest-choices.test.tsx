@@ -202,3 +202,82 @@ describe("QuestChoices - ファースト・インプレッション（直感チ�
     expect(startBtn).not.toBeDisabled();
   });
 });
+
+describe("QuestChoices - 選択の強調と再抽選", () => {
+  const threeChoices: QuestCandidatesResponse = {
+    ...mockChoices,
+    candidates: [
+      ...mockCandidates,
+      { ...mockCandidates[1], id: "task-3", title: "部屋の掃除をする" },
+    ],
+  };
+
+  function renderChoices(pending = false) {
+    const onRetry = vi.fn();
+    render(
+      <QuestChoices
+        choices={threeChoices}
+        pending={pending}
+        error=""
+        onAddTask={vi.fn()}
+        onHome={vi.fn()}
+        onRetry={onRetry}
+        onStart={vi.fn()}
+      />,
+    );
+    return { onRetry };
+  }
+
+  function cardOf(title: RegExp) {
+    return screen.getByRole("radio", { name: title }).closest("label")!;
+  }
+
+  it("未選択ではどのカードも暗くならない", () => {
+    renderChoices();
+    for (const title of [/Webアプリ/, /レポート/, /部屋の掃除/]) {
+      expect(cardOf(title)).toHaveAttribute("data-dimmed", "false");
+      expect(cardOf(title)).toHaveAttribute("data-selected", "false");
+    }
+  });
+
+  it("1つ選ぶと選ばれていないカードが暗くなり、暗いカードをタップして選び直せる", () => {
+    renderChoices();
+    fireEvent.click(screen.getByRole("radio", { name: /レポート/ }));
+    expect(cardOf(/レポート/)).toHaveAttribute("data-selected", "true");
+    expect(cardOf(/レポート/)).toHaveAttribute("data-dimmed", "false");
+    expect(cardOf(/レポート/)).toHaveClass("border-gold-accent", "bg-panel-active");
+    expect(cardOf(/Webアプリ/)).toHaveAttribute("data-dimmed", "true");
+    expect(cardOf(/Webアプリ/)).toHaveClass("opacity-40", "grayscale");
+    expect(cardOf(/部屋の掃除/)).toHaveAttribute("data-dimmed", "true");
+
+    fireEvent.click(screen.getByRole("radio", { name: /Webアプリ/ }));
+    expect(screen.getByRole("radio", { name: /Webアプリ/ })).toBeChecked();
+    expect(cardOf(/Webアプリ/)).toHaveAttribute("data-dimmed", "false");
+    expect(cardOf(/レポート/)).toHaveAttribute("data-dimmed", "true");
+  });
+
+  it("見出し横の再抽選アイコンで onRetry が呼ばれ、下部の再抽選ボタンは無い", () => {
+    const { onRetry } = renderChoices();
+    const heading = screen.getByRole("heading", { name: "今日の冒険を選べ" });
+    const header = heading.parentElement!.parentElement!;
+    fireEvent.click(within(header).getByRole("button", { name: "候補を再抽選する" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /再抽選する$/ })).toHaveAccessibleName(
+      "候補を再抽選する",
+    );
+  });
+
+  it("抽選中は再抽選アイコンが無効になり回転する", () => {
+    renderChoices(true);
+    const button = screen.getByRole("button", { name: "候補を再抽選する" });
+    expect(button).toBeDisabled();
+    expect(button.querySelector("span")).toHaveClass("motion-safe:animate-spin");
+  });
+
+  it("長いタイトルは2行で切る", () => {
+    renderChoices();
+    expect(within(cardOf(/Webアプリ/)).getByText("Webアプリを完成させる")).toHaveClass(
+      "line-clamp-2",
+    );
+  });
+});
