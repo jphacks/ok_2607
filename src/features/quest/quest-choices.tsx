@@ -10,7 +10,8 @@ const RARITY_CARD_CLASS: Record<Rarity, string> = {
   common: "border-rarity-common",
   rare: "border-2 border-rarity-rare text-rarity-rare animate-rare-glow",
   mythic:
-    "border-2 border-transparent animate-holo [background:linear-gradient(var(--color-panel),var(--color-panel))_padding-box,linear-gradient(90deg,var(--color-rarity-mythic),var(--color-neon-pink),var(--color-neon-cyan),var(--color-rarity-mythic))_border-box] [background-size:100%_100%,200%_100%]",
+    // background-size を別クラスにすると一括指定に上書きされるため、一括指定の中に書く
+    "border-2 border-transparent animate-holo [background:linear-gradient(var(--color-panel),var(--color-panel))_0_0/100%_100%_padding-box,linear-gradient(90deg,var(--color-rarity-mythic),var(--color-neon-pink),var(--color-neon-cyan),var(--color-rarity-mythic))_0_0/200%_100%_border-box]",
   urgent: "border-2 border-urgent animate-urgent-pulse",
 };
 
