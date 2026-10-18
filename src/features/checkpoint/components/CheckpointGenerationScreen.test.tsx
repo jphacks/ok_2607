@@ -371,6 +371,28 @@ describe("チェックポイント名の保存", () => {
     expect(screen.getByText(editableCheckpoint.title)).toBeVisible();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it("ヘッダーに指定した level が表示され、省略時はデフォルト Lv. 1 が表示される", () => {
+    const { unmount } = render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        level={3}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*03/)).toBeInTheDocument();
+    unmount();
+
+    render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*01/)).toBeInTheDocument();
+  });
 });
 
 it("IME変換確定のEnterでは保存しない", () => {

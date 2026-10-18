@@ -409,6 +409,28 @@ describe("クエスト完了の保存", () => {
     fireEvent.click(screen.getByText("データを保存・読み込みできる"));
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+
+  it("ヘッダーに指定した level が表示され、省略時はデフォルト Lv. 1 が表示される", () => {
+    const { unmount } = render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        level={3}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*03/)).toBeInTheDocument();
+    unmount();
+
+    render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*01/)).toBeInTheDocument();
+  });
 });
 
 describe("QuestProgressScreen のロードマップ", () => {
