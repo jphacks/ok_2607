@@ -17,9 +17,10 @@ describe("PixelBottomNav", () => {
     expect(taskBtn).toBeInTheDocument();
 
     // クエスト（中央、丸ボタン、aria-label付き）
-    const questBtn = screen.getByRole("button", { name: /クエスト/ });
+    const questBtn = screen.getByRole("button", { name: "クエスト" });
     expect(questBtn).toBeInTheDocument();
-    expect(screen.getByText("クエストを開始")).toBeInTheDocument();
+    expect(screen.queryByText("クエストを開始")).not.toBeInTheDocument();
+    expect(screen.queryByText("冒険を開始する")).not.toBeInTheDocument();
 
     // ステータス
     const statusBtn = screen.getByRole("button", { name: "ステータス" });
