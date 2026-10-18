@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Checkpoint } from "@/lib/schemas";
+import { type CheckpointStep, childCheckpointsOf, computeCheckpointFocus } from "../order";
 import { DecorativeTileBar, PixelHeader } from "./PixelHeader";
 import { HeroPixelArt } from "./HeroPixelArt";
 import { PixelButton } from "./PixelButton";
-import { PixelCard } from "./PixelCard";
 import { PixelCheckbox } from "./PixelCheckbox";
 import { PixelProgressBar } from "./PixelProgressBar";
 
@@ -18,6 +18,11 @@ interface QuestProgressScreenProps {
   onCompleteQuest?: () => void;
 }
 
+/** この件数以上のときは、完了済みと先の項目を畳んでスクロールなしで収める */
+const COMPACT_THRESHOLD = 7;
+/** 畳むときに表示する先の項目の数 */
+const VISIBLE_LOCKED_IN_COMPACT = 2;
+
 export function QuestProgressScreen({
   questId,
   taskTitle,
@@ -27,24 +32,40 @@ export function QuestProgressScreen({
 }: QuestProgressScreenProps) {
   const router = useRouter();
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>(initialCheckpoints);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  // 同じ描画のあいだの連打も防ぐため、通信中かどうかは ref でも持つ
+  const pendingRef = useRef(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 親チェックポイント（parentId が null の全体像）のみを抽出してソート
-  const parentCheckpoints = checkpoints
-    .filter((cp) => cp.parentId === null)
-    .sort((a, b) => a.position - b.position);
+  const focus = computeCheckpointFocus(checkpoints);
+  const { steps, current, completedCount, totalCount, isAllCompleted } = focus;
+  const currentStep = steps.find((step) => step.state === "current");
+  const currentChildren = current ? childCheckpointsOf(checkpoints, current.id) : [];
 
-  const completedCount = parentCheckpoints.filter((cp) => cp.isDone).length;
-  const totalCount = parentCheckpoints.length;
-  const isAllCompleted = totalCount > 0 && completedCount === totalCount;
+  const doneSteps = steps.filter((step) => step.state === "done");
+  const lockedSteps = steps.filter((step) => step.state === "locked");
+  const isCompact = totalCount >= COMPACT_THRESHOLD;
+  // 畳むときは、取り消し用に最後の完了済みだけ残す
+  const foldedDoneCount = isCompact ? Math.max(0, doneSteps.length - 1) : 0;
+  const visibleDoneSteps = doneSteps.slice(foldedDoneCount);
+  const visibleLockedSteps = isCompact
+    ? lockedSteps.slice(0, VISIBLE_LOCKED_IN_COMPACT)
+    : lockedSteps;
+  const foldedLockedCount = lockedSteps.length - visibleLockedSteps.length;
 
-  // チェックポイントの完了状態トグル
-  const handleToggleCheckpoint = async (id: string, currentStatus: boolean) => {
+  // チェックポイントの完了状態トグル（順番どおりのものだけ）
+  const handleToggle = async (step: CheckpointStep) => {
+    if (!step.canToggle || pendingRef.current) {
+      return;
+    }
+    const { id, isDone: currentStatus } = step.checkpoint;
     const nextStatus = !currentStatus;
+    const setStatus = (isDone: boolean) =>
+      setCheckpoints((prev) => prev.map((cp) => (cp.id === id ? { ...cp, isDone } : cp)));
 
     // 楽観的更新
-    setCheckpoints((prev) => prev.map((cp) => (cp.id === id ? { ...cp, isDone: nextStatus } : cp)));
+    setStatus(nextStatus);
     setError(null);
 
     // デモ用チェックポイント（または demo クエスト）の場合は API 呼び出しを行わずローカル更新のみ
@@ -52,6 +73,9 @@ export function QuestProgressScreen({
       return;
     }
 
+    // 通信中は他の操作を受け付けない（連打で順番を飛ばさないため）
+    pendingRef.current = true;
+    setPendingId(id);
     try {
       const res = await fetch(`/api/checkpoints/${id}`, {
         method: "PATCH",
@@ -61,18 +85,15 @@ export function QuestProgressScreen({
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
-        // 失敗時はロールバック
-        setCheckpoints((prev) =>
-          prev.map((cp) => (cp.id === id ? { ...cp, isDone: currentStatus } : cp)),
-        );
+        setStatus(currentStatus);
         setError(errorData?.error?.message || "チェックポイントの更新に失敗しました。");
       }
     } catch {
-      // ネットワークエラー時もロールバック
-      setCheckpoints((prev) =>
-        prev.map((cp) => (cp.id === id ? { ...cp, isDone: currentStatus } : cp)),
-      );
+      setStatus(currentStatus);
       setError("通信エラーが発生しました。");
+    } finally {
+      pendingRef.current = false;
+      setPendingId(null);
     }
   };
 
@@ -111,75 +132,142 @@ export function QuestProgressScreen({
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-[#101320] text-white">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col justify-between px-5 py-4 font-dotgothic sm:px-8 sm:py-8 lg:px-12 lg:py-10">
-        {/* 上部ヘッダー & 見出し */}
-        <div>
-          <PixelHeader level={level} />
-          <DecorativeTileBar className="my-2" />
+    <div className="flex min-h-dvh w-full flex-col items-center bg-surface text-text">
+      <main className="flex min-h-dvh w-full max-w-3xl flex-col px-5 py-3 font-dotgothic sm:px-8 sm:py-6 lg:px-12 lg:py-8">
+        <PixelHeader level={level} />
+        <DecorativeTileBar className="my-1" />
 
-          {/* 見出し & 主人公キャラクター */}
-          <div className="mt-4 flex items-start justify-between">
-            <div className="flex-1 pr-2">
-              <span className="text-[11px] font-bold tracking-wider text-[#f2c36b]">
-                QUEST IN PROGRESS
-              </span>
-              <h1 className="mt-0.5 text-lg font-bold tracking-wide text-white">{taskTitle}</h1>
-            </div>
-            <div className="flex-shrink-0 pt-1">
-              <HeroPixelArt size={52} />
-            </div>
+        {/* 見出し & 主人公キャラクター */}
+        <div className="mt-2 flex items-start justify-between">
+          <div className="min-w-0 flex-1 pr-2">
+            <span className="text-[11px] font-bold tracking-wider text-gold-accent">
+              QUEST IN PROGRESS
+            </span>
+            <h1 className="mt-0.5 line-clamp-2 text-lg font-bold tracking-wide break-words text-text">
+              {taskTitle}
+            </h1>
           </div>
-
-          {/* 進捗バー */}
-          <div className="mt-5">
-            <PixelProgressBar completed={completedCount} total={totalCount} />
+          <div className="flex-shrink-0">
+            <HeroPixelArt size={44} />
           </div>
-
-          {/* チェックポイントリスト */}
-          <div className="mt-6 space-y-3">
-            {parentCheckpoints.map((cp) => {
-              return (
-                <PixelCard
-                  key={cp.id}
-                  as="div"
-                  onClick={() => handleToggleCheckpoint(cp.id, cp.isDone)}
-                  className={`cursor-pointer transition-colors hover:border-[#ffe18d] ${
-                    cp.isDone ? "bg-[#1d2235]" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-3.5">
-                    <PixelCheckbox
-                      checked={cp.isDone}
-                      onChange={() => handleToggleCheckpoint(cp.id, cp.isDone)}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <h2
-                        className={`text-sm font-bold transition-colors ${
-                          cp.isDone ? "text-[#a8b3cf] line-through opacity-85" : "text-white"
-                        }`}
-                      >
-                        {cp.title}
-                      </h2>
-                    </div>
-                  </div>
-                </PixelCard>
-              );
-            })}
-          </div>
-
-          {error && <p className="mt-4 text-center text-xs text-red-400">{error}</p>}
         </div>
 
+        <div className="mt-3">
+          <PixelProgressBar completed={completedCount} total={totalCount} />
+        </div>
+
+        {/* チェックポイント: 今やる 1 つだけを強調し、他は小さく表示する */}
+        <ol className="mt-4 flex flex-1 flex-col gap-1.5" aria-label="チェックポイント">
+          {foldedDoneCount > 0 && (
+            <li className="px-2 text-xs text-muted opacity-70">✓ {foldedDoneCount} 件完了</li>
+          )}
+
+          {visibleDoneSteps.map((step) => (
+            <li key={step.checkpoint.id}>
+              <SmallStepRow step={step} onToggle={handleToggle} />
+            </li>
+          ))}
+
+          {current ? (
+            <li>
+              <div
+                role="group"
+                aria-label="今やること"
+                onClick={() => currentStep && void handleToggle(currentStep)}
+                className="my-1 cursor-pointer border-4 border-gold-accent bg-panel-active p-4 shadow-md transition-transform active:translate-y-0.5"
+              >
+                <p className="text-xs font-bold tracking-wider text-gold-accent">▶ 今やること</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <h2 className="line-clamp-3 min-w-0 flex-1 text-xl leading-snug font-bold break-words text-text">
+                    {current.title}
+                  </h2>
+                  <PixelCheckbox
+                    checked={false}
+                    disabled={pendingId !== null}
+                    onChange={() => currentStep && void handleToggle(currentStep)}
+                  />
+                </div>
+                {currentChildren.length > 0 && (
+                  <ul className="mt-3 space-y-0.5 border-t border-line-dim pt-2">
+                    {currentChildren.map((child) => (
+                      <li key={child.id} className="line-clamp-1 text-xs text-muted">
+                        ・{child.title}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </li>
+          ) : (
+            totalCount > 0 && (
+              <li className="my-1 border-4 border-gold-accent bg-panel-active p-4 text-center">
+                <p className="text-base font-bold text-gold-accent">
+                  すべてのチェックポイントを達成！
+                </p>
+                <p className="mt-1 text-xs text-muted">クエストを完了しよう</p>
+              </li>
+            )
+          )}
+
+          {visibleLockedSteps.map((step) => (
+            <li key={step.checkpoint.id}>
+              <SmallStepRow step={step} onToggle={handleToggle} />
+            </li>
+          ))}
+
+          {foldedLockedCount > 0 && (
+            <li className="px-2 text-xs text-muted opacity-60">🔒 ほか {foldedLockedCount} 件</li>
+          )}
+        </ol>
+
+        {error && (
+          <p role="alert" className="mt-2 text-center text-xs text-danger">
+            {error}
+          </p>
+        )}
+
         {/* 下部アクションボタン & 装飾バー */}
-        <div className="mt-6 pb-2">
-          <PixelButton onClick={handleComplete} disabled={isCompleting || !isAllCompleted}>
+        <div className="mt-4 pb-1">
+          <PixelButton
+            onClick={handleComplete}
+            disabled={isCompleting || !isAllCompleted}
+            className={isAllCompleted ? "motion-safe:animate-pulse" : ""}
+          >
             {isCompleting ? "完了処理中..." : "クエストを完了する"}
           </PixelButton>
-
-          <DecorativeTileBar className="mt-5" />
+          <DecorativeTileBar className="mt-3" />
         </div>
       </main>
     </div>
+  );
+}
+
+interface SmallStepRowProps {
+  step: CheckpointStep;
+  onToggle: (step: CheckpointStep) => void;
+}
+
+/** 完了済み・先の項目を 1 行で小さく表示する。順番外のものはロックする */
+function SmallStepRow({ step, onToggle }: SmallStepRowProps) {
+  const isDone = step.state === "done";
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={step.state === "done"}
+      aria-disabled={!step.canToggle}
+      onClick={() => onToggle(step)}
+      className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs ${
+        isDone ? "text-muted opacity-70" : "text-muted opacity-50"
+      } ${step.canToggle ? "cursor-pointer hover:opacity-100" : "cursor-default"}`}
+    >
+      <span aria-hidden="true" className="w-4 flex-shrink-0 text-center">
+        {isDone ? "✓" : "🔒"}
+      </span>
+      <span className={`line-clamp-1 min-w-0 flex-1 break-all ${isDone ? "line-through" : ""}`}>
+        {step.checkpoint.title}
+      </span>
+      {step.canToggle && <span className="flex-shrink-0 text-[10px] text-gold-text">戻す</span>}
+    </button>
   );
 }
