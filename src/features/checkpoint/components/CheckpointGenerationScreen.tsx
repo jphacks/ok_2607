@@ -55,7 +55,7 @@ export function CheckpointGenerationScreen({
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.error?.message || "チェックポイントの生成に失敗しました");
+          throw new Error(data.error?.message || "ロードマップの生成に失敗しました");
         }
         if (isMounted) {
           setCheckpoints(data.checkpoints || []);
@@ -111,7 +111,7 @@ export function CheckpointGenerationScreen({
       let saved: Checkpoint;
       if (questId === "demo" || id.startsWith("demo-")) {
         const original = checkpoints.find((cp) => cp.id === id);
-        if (!original) throw new Error("チェックポイントが見つかりません。");
+        if (!original) throw new Error("マイルストーンが見つかりません。");
         saved = { ...original, title: parsed.data.title! };
       } else {
         const response = await fetch(`/api/checkpoints/${id}`, {
@@ -191,10 +191,10 @@ export function CheckpointGenerationScreen({
               className="mt-4 rounded border border-gold-border/40 bg-panel p-3 text-xs text-gold-accent"
             >
               <p className="flex items-center gap-1.5 font-bold">
-                <span>✦</span> 基本ステップを作成しました
+                <span>✦</span> 基本のロードマップを作成しました
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                AIに接続できなかったため定型プランを用意しました。各ステップをタップして自由に編集できます。
+                AIに接続できなかったため定型プランを用意しました。各マイルストーンをタップして自由に編集できます。
               </p>
             </div>
           )}
@@ -242,7 +242,7 @@ export function CheckpointGenerationScreen({
                         {isEditing ? (
                           <input
                             type="text"
-                            aria-label="チェックポイント名"
+                            aria-label="マイルストーン名"
                             maxLength={200}
                             disabled={isSavingEdit}
                             value={editTitle}
@@ -295,8 +295,8 @@ export function CheckpointGenerationScreen({
             <p className="mt-4 flex items-center justify-center gap-1 text-center text-xs text-[#a8b3cf]">
               <span className="text-[#f2c36b]">✧</span>{" "}
               {isFallback
-                ? "基本ステップはタップして自由に編集できます"
-                : "AIが提案したチェックポイントは編集できます"}
+                ? "基本のマイルストーンはタップして自由に編集できます"
+                : "AIが提案したマイルストーンは編集できます"}
             </p>
           )}
         </div>

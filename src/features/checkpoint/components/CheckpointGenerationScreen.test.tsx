@@ -71,7 +71,7 @@ describe("CheckpointGenerationScreen", () => {
     expect(screen.getByText("02")).toBeInTheDocument();
 
     // 注釈
-    expect(screen.getByText(/AIが提案したチェックポイントは編集できます/)).toBeInTheDocument();
+    expect(screen.getByText(/AIが提案したマイルストーンは編集できます/)).toBeInTheDocument();
   });
 
   it("「クエストを開始する」ボタンを押すと onStartQuest または router.push が呼ばれる", () => {
@@ -143,9 +143,11 @@ describe("CheckpointGenerationScreen", () => {
 
     // fetch 完了後にバナーとチェックポイントが表示される
     expect(await screen.findByTestId("fallback-banner")).toBeInTheDocument();
-    expect(screen.getByText("基本ステップを作成しました")).toBeInTheDocument();
+    expect(screen.getByText("基本のロードマップを作成しました")).toBeInTheDocument();
     expect(screen.getByText("準備と整理")).toBeInTheDocument();
-    expect(screen.getByText(/基本ステップはタップして自由に編集できます/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/基本のマイルストーンはタップして自由に編集できます/),
+    ).toBeInTheDocument();
 
     // クエスト開始ボタンが押せること
     const startButton = screen.getByRole("button", { name: "クエストを開始する" });
@@ -194,7 +196,7 @@ function renderEditor() {
     />,
   );
   fireEvent.click(screen.getByText(editableCheckpoint.title));
-  return screen.getByRole("textbox", { name: "チェックポイント名" });
+  return screen.getByRole("textbox", { name: "マイルストーン名" });
 }
 function savedResponse(title: string) {
   return new Response(JSON.stringify({ checkpoint: { ...editableCheckpoint, title } }));
