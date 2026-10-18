@@ -1108,3 +1108,13 @@ describe("開始・再開の実処理の進捗", () => {
     expect(window.localStorage.getItem(questCacheKey("test-user-id"))).toBeNull();
   });
 });
+
+describe("ヘッダーのアプリアイコン", () => {
+  it("ヘッダー左上に public/icon.png のアプリアイコンが表示される", async () => {
+    render(<QuestApp />);
+    const icon = await screen.findByRole("img", { name: "TriOne" });
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("src", expect.stringContaining("icon.png"));
+    expect(screen.getByText("TriOne")).toBeInTheDocument();
+  });
+});
