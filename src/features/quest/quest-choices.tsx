@@ -66,7 +66,7 @@ export function QuestChoices({
             {choices?.inProgressQuest
               ? "まずは挑戦中のクエストに集中しよう"
               : choices?.isUrgent
-                ? "期限が迫っています。この冒険から始めよう"
+                ? "締切の近い冒険も含めて、挑戦するタスクを選択"
                 : "直感を信じて、最初に目が留まったものをタップ！"}
           </p>
         </div>
@@ -137,7 +137,13 @@ export function QuestChoices({
                       aria-hidden="true"
                       className="w-7 shrink-0 pt-0.5 text-center text-[28px] leading-none text-gold-accent"
                     >
-                      {choices.isUrgent ? "♨" : index === 0 ? "⚔" : index === 1 ? "✦" : "✧"}
+                      {choices.isUrgent && index === 0
+                        ? "♨"
+                        : index === 0
+                          ? "⚔"
+                          : index === 1
+                            ? "✦"
+                            : "✧"}
                     </span>
                     <div className="min-w-0 flex-1">
                       {/* タイトルを中央に大きく太字で配置（直感ファースト） */}
@@ -147,7 +153,9 @@ export function QuestChoices({
                       {/* 詳細・メタ情報はトーンを抑えて配置 */}
                       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted/80">
                         <span>
-                          {choices.isUrgent ? "緊急クエスト ・ 締切間近" : "今日のクエスト候補"}
+                          {choices.isUrgent && index === 0
+                            ? "緊急クエスト ・ 締切間近"
+                            : "今日のクエスト候補"}
                         </span>
                         <span aria-label={`reject回数 ${task.skippedCount}回`}>
                           ❌{task.skippedCount}

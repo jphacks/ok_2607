@@ -46,7 +46,11 @@ describe("期限と入力の検証", () => {
     { title: "あ".repeat(201) },
     { title: "本を読む", dueAt: "2026-10-20" },
     { title: "本を読む", dueAt: "2026-10-20T23:59:00" },
-  ])("不正なタイトル・期限は保存しない: %j", async (input) => {
+    ...[-1, 0.5, 2147483648, null, "3"].map((skippedCount) => ({
+      title: "本を読む",
+      skippedCount,
+    })),
+  ])("不正なタイトル・期限・reject回数は保存しない: %j", async (input) => {
     const response = await post(input);
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: { code: "validation_error" } });

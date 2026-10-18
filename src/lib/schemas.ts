@@ -56,6 +56,7 @@ export type Quest = z.infer<typeof Quest>;
 export const CreateTaskRequest = z.object({
   title: z.string().trim().min(1).max(200),
   dueAt: z.iso.datetime({ offset: true }).nullable().optional(),
+  skippedCount: z.number().int().min(0).max(2147483647).optional(),
 });
 export type CreateTaskRequest = z.infer<typeof CreateTaskRequest>;
 

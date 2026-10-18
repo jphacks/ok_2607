@@ -1,4 +1,5 @@
 import type { StatsResponse, Task } from "@/lib/schemas";
+import { calculateLevel } from "@/features/checkpoint/xp";
 
 export function HomeScreen({
   tasks,
@@ -26,10 +27,53 @@ export function HomeScreen({
         </div>
         <span className="pixel-adventurer" aria-hidden="true" />
       </div>
+      <button
+        className="gold-button mb-6 min-h-20 w-full text-xl font-bold"
+        onClick={() => {
+          if (current && inProgressQuestId && onResumeQuest) {
+            onResumeQuest(inProgressQuestId);
+          } else {
+            onQuest();
+          }
+        }}
+      >
+        <span className="mr-3" aria-hidden="true">
+          ⚔
+        </span>
+        {current && inProgressQuestId ? "進行中の冒険を再開する" : "今日の冒険を始める"}
+      </button>
       <div className="pixel-panel mb-4 p-4">
         <h2 className="text-sm">冒険の記録</h2>
         {stats ? (
           <>
+            {(() => {
+              const levelInfo = calculateLevel(stats.totalXp);
+              return (
+                <div className="mt-3">
+                  <div className="flex items-baseline justify-between font-mono">
+                    <span className="text-base font-bold text-gold-accent">
+                      Lv. {levelInfo.level}
+                    </span>
+                    <span className="text-xs text-muted">
+                      次のLvまで {levelInfo.nextLevelXp} XP
+                    </span>
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-label="次のレベルまでの進捗"
+                    aria-valuenow={levelInfo.currentLevelXp}
+                    aria-valuemin={0}
+                    aria-valuemax={levelInfo.requiredXp}
+                    className="mt-2 h-2 w-full overflow-hidden rounded bg-field"
+                  >
+                    <div
+                      className="h-full bg-gold transition-all"
+                      style={{ width: `${Math.round(levelInfo.progressRatio * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
             <p className="mt-3 font-mono text-sm text-[#f3ca70]">EXP　{stats.totalXp}</p>
             <p className="mt-3 text-xs text-[#a4a8bc]">
               クリアしたクエスト　{stats.completedQuests} 件
@@ -65,21 +109,6 @@ export function HomeScreen({
           {error}
         </p>
       )}
-      <button
-        className="gold-button w-full text-left"
-        onClick={() => {
-          if (current && inProgressQuestId && onResumeQuest) {
-            onResumeQuest(inProgressQuestId);
-          } else {
-            onQuest();
-          }
-        }}
-      >
-        <span className="mr-3" aria-hidden="true">
-          ⚔
-        </span>
-        {current && inProgressQuestId ? "進行中の冒険を再開する" : "今日の冒険を始める"}
-      </button>
       <h2 className="mb-3 mt-9 text-base">クリアした冒険</h2>
       {completed.length > 0 ? (
         <ul className="space-y-3">
