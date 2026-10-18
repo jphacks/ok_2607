@@ -270,7 +270,7 @@ export function QuestApp() {
   async function handleTriggerUrgentQuest() {
     const twoHoursLater = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     await createTask({
-      title: "【緊急】魔王軍の斥候を撃退せよ",
+      title: "【緊急】大学のレポートを提出する",
       dueAt: twoHoursLater,
     });
     switchTab("quest");
