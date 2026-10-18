@@ -49,50 +49,58 @@ export function CheckpointGenerationScreen({
     .filter((cp) => cp.parentId === null)
     .sort((a, b) => a.position - b.position);
 
+  const isMountedRef = useRef(true);
+  const isGeneratingRef = useRef(false);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const generate = React.useCallback(async () => {
+    if (isGeneratingRef.current) return;
+    isGeneratingRef.current = true;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/quests/${questId}/checkpoints/generate`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error?.message || "ロードマップの生成に失敗しました");
+      }
+      const parsed = Checkpoint.array().nonempty().safeParse(data?.checkpoints);
+      if (
+        !parsed.success ||
+        !parsed.data.some((cp) => cp.parentId === null) ||
+        parsed.data.some((cp) => cp.parentId === null && !cp.title.trim())
+      ) {
+        throw new Error("チェックポイントの生成結果が不正です");
+      }
+      if (isMountedRef.current) {
+        setCheckpoints(parsed.data);
+        setIsFallback(data.isFallback === true);
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err instanceof Error ? err.message : "予期せぬエラーが発生しました");
+      }
+    } finally {
+      isGeneratingRef.current = false;
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [questId]);
+
   // 初期チェックポイントがない場合は自動生成
   React.useEffect(() => {
     if (initialCheckpoints.length > 0) return;
-
-    let isMounted = true;
-    async function generate() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/quests/${questId}/checkpoints/generate`, {
-          method: "POST",
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.error?.message || "ロードマップの生成に失敗しました");
-        }
-        const parsed = Checkpoint.array().nonempty().safeParse(data?.checkpoints);
-        if (
-          !parsed.success ||
-          !parsed.data.some((cp) => cp.parentId === null) ||
-          parsed.data.some((cp) => cp.parentId === null && !cp.title.trim())
-        ) {
-          throw new Error("チェックポイントの生成結果が不正です");
-        }
-        if (isMounted) {
-          setCheckpoints(parsed.data);
-          setIsFallback(data.isFallback === true);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "予期せぬエラーが発生しました");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    generate();
-    return () => {
-      isMounted = false;
-    };
-  }, [questId, initialCheckpoints.length]);
+    void generate();
+  }, [generate, initialCheckpoints.length]);
 
   const handleStart = () => {
     if (activeEdit.current !== null || savingEdit.current) return;
@@ -301,7 +309,8 @@ export function CheckpointGenerationScreen({
                 <p className="font-bold">生成に失敗しました</p>
                 <p className="mt-1 text-xs opacity-90">{error}</p>
                 <button
-                  onClick={() => window.location.reload()}
+                  type="button"
+                  onClick={() => void generate()}
                   className="mt-3 border border-red-400 px-3 py-1 text-xs hover:bg-red-900/50"
                 >
                   再試行する

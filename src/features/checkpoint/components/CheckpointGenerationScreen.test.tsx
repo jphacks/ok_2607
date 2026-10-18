@@ -544,6 +544,97 @@ describe("CheckpointGenerationScreen", () => {
     expect(screen.queryByText("すべての処理が完了しました")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeDisabled();
   });
+
+  it("エラー表示時に「再試行する」をクリックするとインラインで再試行され、成功するとチェックポイントが表示される", async () => {
+    let resolveRetry!: (res: Response) => void;
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "通信エラーが発生しました" },
+        }),
+      } as Response)
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRetry = resolve;
+          }),
+      );
+
+    render(
+      <CheckpointGenerationScreen
+        questId={generatedCheckpoint.questId}
+        taskTitle="Webアプリを完成させる"
+      />,
+    );
+
+    // 1回目のエラー
+    expect(await screen.findByText("生成に失敗しました")).toBeInTheDocument();
+    expect(screen.getByText("通信エラーが発生しました")).toBeInTheDocument();
+
+    const retryButton = screen.getByRole("button", { name: "再試行する" });
+    fireEvent.click(retryButton);
+
+    // インラインで再試行が走り、エラーが消えてローディングが表示される
+    expect(screen.queryByText("生成に失敗しました")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: "AIによる道筋の生成・保存：処理中" }),
+    ).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenLastCalledWith(
+      `/api/quests/${generatedCheckpoint.questId}/checkpoints/generate`,
+      {
+        method: "POST",
+      },
+    );
+
+    // 成功レスポンスを返す
+    resolveRetry({
+      ok: true,
+      json: async () => ({
+        checkpoints: [generatedCheckpoint],
+        isFallback: false,
+      }),
+    } as Response);
+
+    // 生成されたチェックポイントが表示され、クエスト開始ボタンが有効になる
+    expect(await screen.findByText(generatedCheckpoint.title)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("progressbar", { name: "AIによる道筋の生成・保存：処理中" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeEnabled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("再試行が再び失敗した場合、新しいエラーメッセージが表示されて再度再試行可能", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "初回エラー" },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "2回目のエラー" },
+        }),
+      } as Response);
+
+    render(<CheckpointGenerationScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
+
+    expect(await screen.findByText("初回エラー")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "再試行する" }));
+
+    expect(await screen.findByText("2回目のエラー")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行する" })).toBeInTheDocument();
+
+    fetchSpy.mockRestore();
+  });
 });
 
 afterEach(() => vi.restoreAllMocks());
