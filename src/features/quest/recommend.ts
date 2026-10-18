@@ -5,7 +5,7 @@ type RecommendationOptions = {
   random?: () => number;
 };
 
-/** 緊急の最短期限を優先し、それ以外は重みに比例して重複なく抽選する。 */
+/** 緊急の最短期限を優先し、それ以外はreject回数の逆数に比例して重複なく抽選する。 */
 export function recommendTasks(
   tasks: readonly Task[],
   { now = new Date(), random = Math.random }: RecommendationOptions = {},
@@ -33,20 +33,15 @@ export function recommendTasks(
 
   const candidates: Task[] = [];
   while (candidates.length < 3 && active.length > 0) {
-    const totalWeight = active.reduce((total, task) => total + task.weight, 0);
-    let index: number;
-    if (totalWeight === 0) {
-      // 重みが全て0でも候補を失わないよう、残りから等確率で選ぶ。
-      index = Math.floor(random() * active.length);
-    } else {
-      let remainingWeight = random() * totalWeight;
-      index = active.length - 1;
-      for (let position = 0; position < active.length; position += 1) {
-        remainingWeight -= active[position].weight;
-        if (remainingWeight < 0) {
-          index = position;
-          break;
-        }
+    const totalScore = active.reduce((total, task) => total + 1 / (task.skippedCount + 1), 0);
+    // [0, 総スコア) の抽選は、各スコアを総和で正規化した確率と等価。
+    let remainingScore = random() * totalScore;
+    let index = active.length - 1;
+    for (let position = 0; position < active.length; position += 1) {
+      remainingScore -= 1 / (active[position].skippedCount + 1);
+      if (remainingScore < 0) {
+        index = position;
+        break;
       }
     }
     candidates.push(active[index]);
