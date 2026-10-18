@@ -113,7 +113,7 @@ export function PixelBottomNav({ currentTab, onSelectTab, className = "" }: Pixe
   return (
     <nav
       aria-label="メインメニュー"
-      className={`fixed bottom-0 left-1/2 z-20 w-full max-w-[390px] -translate-x-1/2 bg-panel pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.5)] ${className}`}
+      className={`fixed bottom-0 left-1/2 z-20 w-full max-w-[inherit] -translate-x-1/2 bg-panel pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.5)] ${className}`}
     >
       <div className="h-[2px] w-full bg-line-dim" aria-hidden="true" />
       <div className="relative flex h-[72px] items-center justify-around px-2">
