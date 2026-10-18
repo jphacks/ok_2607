@@ -11,7 +11,7 @@ export function PixelHeader({ level = 4, className = "" }: PixelHeaderProps) {
   return (
     <header className={`w-full ${className}`}>
       <div className="flex items-center justify-between py-2 text-sm">
-        <span className="font-dotgothic font-bold tracking-wider text-[#f2c36b]">✦ TODO ROGUE</span>
+        <span className="font-dotgothic font-bold tracking-wider text-[#f2c36b]">✦ TriOne</span>
         <span className="flex items-center gap-1.5 font-dotgothic text-xs text-[#a8b3cf]">
           <span className="inline-block h-2 w-2 rounded-full bg-[#758ab3]" />
           LV. {formattedLevel}
