@@ -162,13 +162,18 @@ export async function getQuestDetail(
   };
 }
 
+export interface UpdateCheckpointFieldsInput {
+  title?: string;
+  isDone?: boolean;
+}
+
 /**
- * チェックポイントの達成状態（isDone / doneAt）を更新する。
+ * チェックポイントの項目（title / isDone / doneAt）を更新する。
  */
-export async function updateCheckpointStatus(
+export async function updateCheckpointFields(
   supabase: SupabaseClient,
   checkpointId: string,
-  isDone: boolean,
+  fields: UpdateCheckpointFieldsInput,
   userId: string,
 ): Promise<Checkpoint | null> {
   const { data: checkpointRow, error: checkpointError } = await supabase
@@ -184,12 +189,18 @@ export async function updateCheckpointStatus(
     return null;
   }
 
+  const updates: Record<string, unknown> = {};
+  if (fields.title !== undefined) {
+    updates.title = fields.title;
+  }
+  if (fields.isDone !== undefined) {
+    updates.is_done = fields.isDone;
+    updates.done_at = fields.isDone ? new Date().toISOString() : null;
+  }
+
   const { data: updatedRow, error } = await supabase
     .from("checkpoints")
-    .update({
-      is_done: isDone,
-      done_at: isDone ? new Date().toISOString() : null,
-    })
+    .update(updates)
     .eq("id", checkpointId)
     .eq("quest_id", checkpointRow.quest_id)
     .select("id, quest_id, parent_id, title, description, position, is_done, done_at")
@@ -204,6 +215,18 @@ export async function updateCheckpointStatus(
   }
 
   return mapDbCheckpointToSchema(updatedRow);
+}
+
+/**
+ * チェックポイントの達成状態（isDone / doneAt）を更新する。
+ */
+export async function updateCheckpointStatus(
+  supabase: SupabaseClient,
+  checkpointId: string,
+  isDone: boolean,
+  userId: string,
+): Promise<Checkpoint | null> {
+  return updateCheckpointFields(supabase, checkpointId, { isDone }, userId);
 }
 
 export type CompleteQuestResult =

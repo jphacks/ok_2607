@@ -11,10 +11,10 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/features/checkpoint/service", () => ({
-  updateCheckpointStatus: vi.fn(),
+  updateCheckpointFields: vi.fn(),
 }));
 
-import { updateCheckpointStatus } from "@/features/checkpoint/service";
+import { updateCheckpointFields } from "@/features/checkpoint/service";
 
 function createJsonRequest(body: string) {
   return new Request("http://localhost:3000/api/checkpoints/test", {
@@ -41,23 +41,24 @@ describe("PATCH /api/checkpoints/[id]", () => {
     expect(response.status).toBe(401);
     expect((await response.json()).error.code).toBe("unauthorized");
     expect(supabaseServer).not.toHaveBeenCalled();
-    expect(updateCheckpointStatus).not.toHaveBeenCalled();
+    expect(updateCheckpointFields).not.toHaveBeenCalled();
   });
 
   it("他ユーザーまたは不存在の対象は同じ 404 とし Cookie のユーザー ID を渡す", async () => {
-    vi.mocked(updateCheckpointStatus).mockResolvedValueOnce(null);
+    vi.mocked(updateCheckpointFields).mockResolvedValueOnce(null);
     const request = new Request("http://localhost/api?userId=other", {
       method: "PATCH",
-      body: JSON.stringify({ isDone: true, userId: "other" }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isDone: true }),
     });
     const response = await PATCH(request, {
       params: Promise.resolve({ id: "11111111-1111-4111-a111-111111111111" }),
     });
     expect(response.status).toBe(404);
-    expect(updateCheckpointStatus).toHaveBeenCalledWith(
+    expect(updateCheckpointFields).toHaveBeenCalledWith(
       undefined,
       "11111111-1111-4111-a111-111111111111",
-      true,
+      { isDone: true },
       "authenticated-user",
     );
   });
@@ -97,9 +98,33 @@ describe("PATCH /api/checkpoints/[id]", () => {
     expect(body.error.code).toBe("validation_error");
   });
 
+  it("タイトルが空文字または空白のみの場合は 400 validation_error を返す", async () => {
+    const validUuid = "11111111-1111-4111-a111-111111111111";
+    const request = createJsonRequest(JSON.stringify({ title: "   " }));
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: validUuid }),
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+  });
+
+  it("更新項目が空の場合は 400 validation_error を返す", async () => {
+    const validUuid = "11111111-1111-4111-a111-111111111111";
+    const request = createJsonRequest(JSON.stringify({}));
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: validUuid }),
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+  });
+
   it("チェックポイントが存在しない場合は 404 not_found を返す", async () => {
     const validUuid = "11111111-1111-4111-a111-111111111111";
-    vi.mocked(updateCheckpointStatus).mockResolvedValueOnce(null);
+    vi.mocked(updateCheckpointFields).mockResolvedValueOnce(null);
 
     const request = createJsonRequest(JSON.stringify({ isDone: true }));
     const response = await PATCH(request, {
@@ -123,7 +148,7 @@ describe("PATCH /api/checkpoints/[id]", () => {
       isDone: true,
       doneAt: "2026-10-17T06:00:00Z",
     };
-    vi.mocked(updateCheckpointStatus).mockResolvedValueOnce(mockCheckpoint);
+    vi.mocked(updateCheckpointFields).mockResolvedValueOnce(mockCheckpoint);
 
     const request = createJsonRequest(JSON.stringify({ isDone: true }));
     const response = await PATCH(request, {
@@ -135,9 +160,39 @@ describe("PATCH /api/checkpoints/[id]", () => {
     expect(body).toEqual({ checkpoint: mockCheckpoint });
   });
 
+  it("タイトルのみ正常に更新できる", async () => {
+    const validUuid = "11111111-1111-4111-a111-111111111111";
+    const mockCheckpoint = {
+      id: validUuid,
+      questId: "quest-1",
+      parentId: null,
+      title: "参考文献を探す",
+      description: null,
+      position: 1,
+      isDone: false,
+      doneAt: null,
+    };
+    vi.mocked(updateCheckpointFields).mockResolvedValueOnce(mockCheckpoint);
+
+    const request = createJsonRequest(JSON.stringify({ title: "  参考文献を探す  " }));
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: validUuid }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({ checkpoint: mockCheckpoint });
+    expect(updateCheckpointFields).toHaveBeenCalledWith(
+      undefined,
+      validUuid,
+      { title: "参考文献を探す" },
+      "authenticated-user",
+    );
+  });
+
   it("DB 処理等で例外が発生した場合は 500 internal_error を返す", async () => {
     const validUuid = "11111111-1111-4111-a111-111111111111";
-    vi.mocked(updateCheckpointStatus).mockRejectedValueOnce(new Error("DB error"));
+    vi.mocked(updateCheckpointFields).mockRejectedValueOnce(new Error("DB error"));
 
     const request = createJsonRequest(JSON.stringify({ isDone: true }));
     const response = await PATCH(request, {

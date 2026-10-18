@@ -13,7 +13,7 @@ interface CheckpointGenerationScreenProps {
   taskTitle: string;
   initialCheckpoints?: Checkpoint[];
   level?: number;
-  onStartQuest?: () => void;
+  onStartQuest?: (checkpoints?: Checkpoint[]) => void;
 }
 
 export function CheckpointGenerationScreen({
@@ -28,8 +28,16 @@ export function CheckpointGenerationScreen({
   const [isLoading, setIsLoading] = useState(initialCheckpoints.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [isFallback, setIsFallback] = useState(false);
+
+  // 編集モード関連のステート
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // 追加モード関連のステート
+  const [isAdding, setIsAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
 
   // 親チェックポイント（parentId が null の全体像）のみを抽出してソート
   const parentCheckpoints = checkpoints
@@ -77,7 +85,7 @@ export function CheckpointGenerationScreen({
 
   const handleStart = () => {
     if (onStartQuest) {
-      onStartQuest();
+      onStartQuest(parentCheckpoints);
     } else {
       router.push(`/quests/${questId}`);
     }
@@ -86,35 +94,119 @@ export function CheckpointGenerationScreen({
   const handleEditStart = (cp: Checkpoint) => {
     setEditingId(cp.id);
     setEditTitle(cp.title);
+    setEditError(null);
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditError(null);
   };
 
   const handleEditSave = async (id: string) => {
-    if (!editTitle.trim()) {
+    const trimmedTitle = editTitle.trim();
+    if (!trimmedTitle) {
+      setEditError("タイトルを入力してください");
+      return;
+    }
+
+    // デモクエストまたはクライアント生成されたチェックポイントの場合はローカル反映のみ
+    if (questId === "demo" || id.startsWith("demo-") || id.startsWith("custom-")) {
+      setCheckpoints((prev) =>
+        prev.map((cp) => (cp.id === id ? { ...cp, title: trimmedTitle } : cp)),
+      );
       setEditingId(null);
-      return;
-    }
-    const updated = checkpoints.map((cp) => (cp.id === id ? { ...cp, title: editTitle } : cp));
-    setCheckpoints(updated);
-    setEditingId(null);
-
-    // サーバーに更新を通知（オプショナル。失敗しても画面上は保持）
-    if (questId === "demo" || id.startsWith("demo-")) {
+      setEditTitle("");
+      setEditError(null);
       return;
     }
 
+    setIsSavingEdit(true);
+    setEditError(null);
     try {
-      await fetch(`/api/checkpoints/${id}`, {
+      const res = await fetch(`/api/checkpoints/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: editTitle }),
+        body: JSON.stringify({ title: trimmedTitle }),
       });
-    } catch {
-      // ログ出力のみ
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error?.message || "保存に失敗しました");
+      }
+
+      setCheckpoints((prev) =>
+        prev.map((cp) => (cp.id === id ? { ...cp, title: trimmedTitle } : cp)),
+      );
+      setEditingId(null);
+      setEditTitle("");
+      setEditError(null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "保存に失敗しました");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
+  // ステップの並び替え（上へ移動）
+  const handleMoveUp = (index: number) => {
+    if (index <= 0) return;
+    const reordered = [...parentCheckpoints];
+    const temp = reordered[index - 1];
+    reordered[index - 1] = reordered[index];
+    reordered[index] = temp;
+
+    // position を再割り当て
+    const updatedParents = reordered.map((cp, idx) => ({ ...cp, position: idx }));
+    const nonParents = checkpoints.filter((cp) => cp.parentId !== null);
+    setCheckpoints([...updatedParents, ...nonParents]);
+  };
+
+  // ステップの並び替え（下へ移動）
+  const handleMoveDown = (index: number) => {
+    if (index >= parentCheckpoints.length - 1) return;
+    const reordered = [...parentCheckpoints];
+    const temp = reordered[index + 1];
+    reordered[index + 1] = reordered[index];
+    reordered[index] = temp;
+
+    // position を再割り当て
+    const updatedParents = reordered.map((cp, idx) => ({ ...cp, position: idx }));
+    const nonParents = checkpoints.filter((cp) => cp.parentId !== null);
+    setCheckpoints([...updatedParents, ...nonParents]);
+  };
+
+  // チェックポイントの新規追加
+  const handleAddCheckpoint = () => {
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) return;
+
+    const nextPosition =
+      parentCheckpoints.length > 0
+        ? Math.max(...parentCheckpoints.map((cp) => cp.position)) + 1
+        : 0;
+
+    const newCp: Checkpoint = {
+      id:
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `custom-${Date.now()}`,
+      questId,
+      parentId: null,
+      title: trimmedTitle,
+      description: "到達すべき状態",
+      position: nextPosition,
+      isDone: false,
+      doneAt: null,
+    };
+
+    setCheckpoints((prev) => [...prev, newCp]);
+    setNewTitle("");
+    setIsAdding(false);
+  };
+
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-[#101320] text-white">
+    <div className="flex min-h-screen w-full flex-col items-center bg-surface text-text">
       <main className="flex min-h-screen w-full max-w-3xl flex-col justify-between px-5 py-4 font-dotgothic sm:px-8 sm:py-8 lg:px-12 lg:py-10">
         {/* 上部ヘッダー */}
         <div>
@@ -126,7 +218,7 @@ export function CheckpointGenerationScreen({
             <div className="flex-1 pr-2">
               <h1 className="text-xl font-bold tracking-wide text-white">AIが冒険の道筋を描く</h1>
               <div className="mt-2">
-                <span className="text-[11px] font-bold tracking-wider text-[#f2c36b]">
+                <span className="text-[11px] font-bold tracking-wider text-gold-accent">
                   MAIN QUEST
                 </span>
                 <p className="mt-0.5 text-base font-bold text-white">{taskTitle}</p>
@@ -147,7 +239,7 @@ export function CheckpointGenerationScreen({
                 <span>✦</span> 基本ステップを作成しました
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                AIに接続できなかったため定型プランを用意しました。各ステップをタップして自由に編集できます。
+                AIに接続できなかったため定型プランを用意しました。各ステップを自由に編集・カスタマイズできます。
               </p>
             </div>
           )}
@@ -155,8 +247,8 @@ export function CheckpointGenerationScreen({
           {/* チェックポイントリスト */}
           <div className="mt-4 space-y-3">
             {isLoading && (
-              <div className="flex flex-col items-center justify-center space-y-3 py-12 text-[#f2c36b]">
-                <div className="h-6 w-6 animate-spin border-2 border-[#f2c36b] border-t-transparent" />
+              <div className="flex flex-col items-center justify-center space-y-3 py-12 text-gold-accent">
+                <div className="h-6 w-6 animate-spin border-2 border-gold-accent border-t-transparent" />
                 <p className="animate-pulse text-sm">魔道士がクエストを分解中...</p>
               </div>
             )}
@@ -179,55 +271,165 @@ export function CheckpointGenerationScreen({
               parentCheckpoints.map((cp, idx) => {
                 const stepNum = String(idx + 1).padStart(2, "0");
                 const isEditing = editingId === cp.id;
+                const isFirst = idx === 0;
+                const isLast = idx === parentCheckpoints.length - 1;
 
                 return (
-                  <PixelCard
-                    key={cp.id}
-                    as="div"
-                    className="cursor-pointer transition-colors hover:border-[#ffe18d]"
-                    onClick={() => !isEditing && handleEditStart(cp)}
-                  >
+                  <PixelCard key={cp.id} as="div" className="transition-colors">
                     <div className="flex items-center gap-3">
-                      <span className="font-dotgothic text-base font-bold text-[#f2c36b]">
+                      <span className="font-dotgothic text-base font-bold text-gold-accent">
                         {stepNum}
                       </span>
                       <div className="min-w-0 flex-1">
                         {isEditing ? (
-                          <input
-                            type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            onBlur={() => handleEditSave(cp.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleEditSave(cp.id);
-                              if (e.key === "Escape") setEditingId(null);
-                            }}
-                            autoFocus
-                            className="w-full rounded border border-[#f2c36b] bg-[#101320] px-2 py-0.5 text-sm text-white focus:outline-none"
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleEditSave(cp.id);
+                                if (e.key === "Escape") handleEditCancel();
+                              }}
+                              autoFocus
+                              className="w-full rounded border border-gold-accent bg-field px-2.5 py-1 text-sm text-text focus:outline-none"
+                              placeholder="チェックポイントのタイトル"
+                            />
+                            {editError && (
+                              <p className="text-xs text-danger" role="alert">
+                                {editError}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEditSave(cp.id)}
+                                disabled={isSavingEdit}
+                                className="border border-gold-accent bg-gold-accent/20 px-3 py-0.5 text-xs font-bold text-gold-accent hover:bg-gold-accent hover:text-gold-ink active:translate-y-0.5 transition-colors"
+                              >
+                                {isSavingEdit ? "保存中..." : "保存"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleEditCancel}
+                                disabled={isSavingEdit}
+                                className="border border-line-dim bg-panel px-3 py-0.5 text-xs text-muted hover:text-text active:translate-y-0.5 transition-colors"
+                              >
+                                キャンセル
+                              </button>
+                            </div>
+                          </div>
                         ) : (
-                          <>
-                            <h2 className="truncate text-sm font-bold text-white">{cp.title}</h2>
-                            <p className="text-[11px] text-[#a8b3cf]">
-                              {cp.description || "到達すべき状態"}
-                            </p>
-                          </>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <h2 className="truncate text-sm font-bold text-white">{cp.title}</h2>
+                              <p className="text-[11px] text-muted">
+                                {cp.description || "到達すべき状態"}
+                              </p>
+                            </div>
+                            {/* 操作アクションボタン: ▲, ▼, 編集 */}
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                aria-label="上へ移動"
+                                onClick={() => handleMoveUp(idx)}
+                                disabled={isFirst}
+                                className="border border-line-dim bg-panel px-1.5 py-0.5 text-xs text-muted hover:border-gold-accent hover:text-gold-accent disabled:opacity-30 disabled:cursor-not-allowed active:translate-y-0.5 transition-colors"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                aria-label="下へ移動"
+                                onClick={() => handleMoveDown(idx)}
+                                disabled={isLast}
+                                className="border border-line-dim bg-panel px-1.5 py-0.5 text-xs text-muted hover:border-gold-accent hover:text-gold-accent disabled:opacity-30 disabled:cursor-not-allowed active:translate-y-0.5 transition-colors"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                type="button"
+                                aria-label="編集"
+                                onClick={() => handleEditStart(cp)}
+                                className="border border-line-dim bg-panel px-2 py-0.5 text-xs text-gold-accent hover:border-gold-accent hover:bg-gold-accent/10 active:translate-y-0.5 transition-colors"
+                              >
+                                ✎ 編集
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
                   </PixelCard>
                 );
               })}
+
+            {/* 新規チェックポイント追加フォーム or ボタン */}
+            {!isLoading && !error && (
+              <div>
+                {isAdding ? (
+                  <div className="border border-dashed border-gold-accent bg-panel p-3">
+                    <p className="text-xs font-bold text-gold-accent">
+                      ＋ 新しいチェックポイントを追加
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      <input
+                        type="text"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleAddCheckpoint();
+                          if (e.key === "Escape") {
+                            setIsAdding(false);
+                            setNewTitle("");
+                          }
+                        }}
+                        autoFocus
+                        placeholder="例: 参考資料を1本選ぶ"
+                        className="w-full rounded border border-gold-accent bg-field px-2.5 py-1 text-sm text-text focus:outline-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAddCheckpoint}
+                          disabled={!newTitle.trim()}
+                          className="border border-gold-accent bg-gold-accent/20 px-3 py-1 text-xs font-bold text-gold-accent hover:bg-gold-accent hover:text-gold-ink disabled:opacity-40 disabled:cursor-not-allowed active:translate-y-0.5 transition-colors"
+                        >
+                          追加
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAdding(false);
+                            setNewTitle("");
+                          }}
+                          className="border border-line-dim bg-panel px-3 py-1 text-xs text-muted hover:text-text active:translate-y-0.5 transition-colors"
+                        >
+                          キャンセル
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsAdding(true)}
+                    className="flex w-full items-center justify-center gap-1.5 border-2 border-dashed border-line-dim bg-panel/40 py-2.5 text-xs font-bold text-gold-accent hover:border-gold-accent hover:bg-panel active:translate-y-0.5 transition-colors"
+                  >
+                    <span>＋</span> チェックポイントを追加
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 編集可能ガイダンス */}
           {!isLoading && !error && (
-            <p className="mt-4 flex items-center justify-center gap-1 text-center text-xs text-[#a8b3cf]">
-              <span className="text-[#f2c36b]">✧</span>{" "}
+            <p className="mt-4 flex items-center justify-center gap-1 text-center text-xs text-muted">
+              <span className="text-gold-accent">✧</span>{" "}
               {isFallback
-                ? "基本ステップはタップして自由に編集できます"
-                : "AIが提案したチェックポイントは編集できます"}
+                ? "基本ステップは自由に追加・編集・並び替えできます"
+                : "AIが提案したチェックポイントは自由に追加・編集・並び替えできます"}
             </p>
           )}
         </div>

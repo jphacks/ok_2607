@@ -5,6 +5,7 @@ import {
   getQuestDetail,
   getQuestWithTask,
   saveCheckpointPlanToDb,
+  updateCheckpointFields,
   updateCheckpointStatus,
 } from "./service";
 
@@ -131,7 +132,7 @@ function fixture(
     };
     return query;
   });
-  return { db: { from, rpc } as unknown as SupabaseClient, from, rpc, updates, child };
+  return { db: { from, rpc } as unknown as SupabaseClient, from, rpc, updates, child, parent };
 }
 
 describe("checkpoint service の所有者境界", () => {
@@ -177,6 +178,35 @@ describe("checkpoint service の所有者境界", () => {
     const undone = await updateCheckpointStatus(db, "child-1", false, "owner");
     expect(undone?.isDone).toBe(false);
     expect(undone?.doneAt).toBeNull();
+  });
+
+  it("名前のみ更新した場合は達成状態と完了日時を保持する", async () => {
+    const { db, parent } = fixture();
+    expect(parent.is_done).toBe(true);
+    expect(parent.done_at).toBe(date);
+
+    const result = await updateCheckpointFields(db, "parent-1", { title: "新しい名前" }, "owner");
+    expect(result?.title).toBe("新しい名前");
+    expect(result?.isDone).toBe(true);
+    expect(result?.doneAt).toBe(date);
+    expect(parent.title).toBe("新しい名前");
+    expect(parent.is_done).toBe(true);
+    expect(parent.done_at).toBe(date);
+  });
+
+  it("名前と達成状態を同時に更新できる", async () => {
+    const { db, child } = fixture();
+    const result = await updateCheckpointFields(
+      db,
+      "child-1",
+      { title: "更新後ステップ", isDone: true },
+      "owner",
+    );
+    expect(result?.title).toBe("更新後ステップ");
+    expect(result?.isDone).toBe(true);
+    expect(result?.doneAt).toEqual(expect.any(String));
+    expect(child.title).toBe("更新後ステップ");
+    expect(child.is_done).toBe(true);
   });
 
   it("検証後に別クエストへ移されたチェックポイントは更新しない", async () => {
