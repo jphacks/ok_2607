@@ -11,7 +11,7 @@ export function TreasureChestPixelArt({ className = "", size = 48 }: TreasureChe
   return (
     <div className={`flex items-center justify-center gap-4 ${className}`}>
       {/* 左のキラキラ */}
-      <span className="font-dotgothic text-2xl text-[#f2c36b] drop-shadow-[0_0_8px_rgba(242,195,107,0.6)] animate-pulse">
+      <span className="font-dotgothic text-2xl text-gold drop-shadow-[0_0_8px_var(--color-gold-accent)] animate-pulse">
         ✦
       </span>
 
@@ -81,7 +81,7 @@ export function TreasureChestPixelArt({ className = "", size = 48 }: TreasureChe
       </svg>
 
       {/* 右のキラキラ */}
-      <span className="font-dotgothic text-2xl text-[#f2c36b] drop-shadow-[0_0_8px_rgba(242,195,107,0.6)] animate-pulse">
+      <span className="font-dotgothic text-2xl text-gold drop-shadow-[0_0_8px_var(--color-gold-accent)] animate-pulse">
         ✦
       </span>
     </div>

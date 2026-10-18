@@ -37,6 +37,7 @@
 - デバッグ操作の「ダミータスクを追加」は、ゲーム内の行動ではなく仕事・学校・私生活のタスクを各2件、合計6件追加する。いずれも期限なしで、既存タスクは保持する。reject回数（`skippedCount`）は、会議の議事録0回・プレゼン資料1回・数学の課題2回・英単語の復習3回・食料品の買い物5回・部屋の掃除10回として保存し、抽選確率の違いを確認できるようにする。
 - タスクリストの完了済み（`done`）は「完了済みタスク（N件）」のアコーディオンに分離し、初期状態では閉じる。クリック・Enter・Spaceで開閉でき、未完了・挑戦中は常時表示する。各一覧内のreject回数順と編集・削除メニューは維持する。完了済みが0件なら見出しを表示しない。開閉状態は画面を離れるとリセットする。
 - デバッグ操作の「緊急クエストを発動」は、RPG内の行動ではなく実生活のタスク「【緊急】大学のレポートを提出する」を追加する。期限は操作時点の2時間後とし、追加後はクエストタブで緊急候補として表示する。
+- 3択タスクの候補カードは、直感的な選択を促すためカード全体をタップして選択する。カード内の冗長なテキスト（「今日のクエスト候補」や「選択する/選択中」ラベル、視覚的ラジオボタン）は表示せず、タスク名・期限・reject回数を端的に表示する。reject回数によるレア度のラベル・特殊枠・発光・ホロ演出は表示しない。即決の演出は維持する。緊急クエスト時のみ「緊急クエスト ・ 締切間近」を表示する。
 
 ## トークン一覧
 
@@ -53,7 +54,7 @@
 | `success` / `danger`                              | 成功・フォーカス / エラー                                     |
 | `neon-pink` / `neon-cyan`                         | 一瞬の強調（即決・コンボ・レベルアップ） / 進捗・チェック完了 |
 | `urgent`                                          | 緊急クエストの枠                                              |
-| `rarity-common` / `rarity-rare` / `rarity-mythic` | 3択カードのレア度の枠（通常 / レア / 幻）                     |
+| `rarity-common` / `rarity-rare` / `rarity-mythic` | 旧レア度用（3択カードでは使用しない）                         |
 
 配色の方針は `docs/superpowers/specs/2026-10-18-game-feel-design.md`。強調色はゴールドとネオン 2 色（ピンク・シアン）までに絞り、本文とパネルのコントラスト比は 4.5:1 以上にする。画面全体には `body::after` で薄い走査線を重ねている。
 
@@ -64,8 +65,8 @@
 | クラス                 | 用途                                    |
 | ---------------------- | --------------------------------------- |
 | `animate-card-flip`    | カードが裏から表に返る                  |
-| `animate-rare-glow`    | レアカードが表になる瞬間に光る          |
-| `animate-holo`         | 幻カードのホロ枠が流れる（ループ）      |
+| `animate-rare-glow`    | 旧レア演出（3択カードでは使用しない）   |
+| `animate-holo`         | 旧ホロ演出（3択カードでは使用しない）   |
 | `animate-urgent-pulse` | 緊急クエストの枠が脈打つ（ループ）      |
 | `animate-shake`        | 即決したときの軽い揺れ                  |
 | `animate-stamp`        | 「即決!!」のハンコ                      |
@@ -84,7 +85,7 @@
 
 同じ役割の部品が 2 系統あり、色も 16 進数で直接書かれている。
 
-- **CSS クラス**（PR #6、`globals.css`）: `.pixel-panel`、`.gold-button`、`.secondary-button`、`.pixel-input`、`.pixel-divider`、`.screen-heading`、`.quest-selected`。ホーム・タスク一覧・3択（`src/features/title/`、`task/`、`quest/`）で使用
+- **CSS クラス**（PR #6、`globals.css`）: `.pixel-panel`、`.gold-button`、`.secondary-button`、`.pixel-input`、`.pixel-divider`、`.screen-heading`。ホーム・タスク一覧・3択（`src/features/title/`、`task/`、`quest/`）で使用
 - **React 部品**（PR #7 以降、`src/features/checkpoint/components/`）: `PixelButton`、`PixelCard`、`PixelHeader`、`PixelCheckbox`、`PixelProgressBar`。チェックポイント生成・進行・クリア画面で使用
 - 16 進数の直書き: `src/features/` の画面コンポーネント 15 ファイル（ドット絵を含む）
 
@@ -103,6 +104,8 @@
 | ドット絵（`HeroPixelArt`、`MagePixelArt`、`TreasureChestPixelArt`、`.pixel-wizard` など）は機能固有なので、各機能のフォルダに残してよい。ドット絵の中の色はトークンにしなくてよい。 |
 
 ### 実処理の進捗
+
+クエストの再抽選・表示済み候補の再読み込みでは進捗パネルを表示しない。再抽選ボタンの処理中表示、提示保存中の開始抑止と失敗時のエラー表示は維持する。初回読み込みとクエスト開始・画面遷移の進捗表示は対象外とする。
 
 `OperationProgress` は処理名と `pending` / `running` / `complete` / `error` の段階を受け取る。件数は完了した処理数であり、時間の割合ではない。通信・検証・保存などの実処理が成功してからだけ `complete` にする。所要時間が不明な処理は不定進捗を使い、タイマーで増やす進捗や、失敗・中断を完了扱いにする表示は禁止する。
 

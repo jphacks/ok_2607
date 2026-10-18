@@ -39,18 +39,18 @@ describe("QuestClearScreen", () => {
 
     // リザルトカード
     expect(screen.getByText("Webアプリを完成させる")).toBeInTheDocument();
-    expect(screen.getByText(/チェックポイント 5 \/ 5/)).toBeInTheDocument();
+    expect(screen.getByText(/マイルストーン 5 \/ 5/)).toBeInTheDocument();
     expect(screen.getByText("＋ 120 XP")).toBeInTheDocument();
     expect(screen.getByText("次のレベルまであと 80 XP")).toBeInTheDocument();
 
     // ボタン & ホームリンク
-    expect(screen.getByRole("button", { name: "次の冒険へ" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "次のクエストへ" })).toBeInTheDocument();
     const homeLink = screen.getByRole("link", { name: "ホームに戻る" });
     expect(homeLink).toBeInTheDocument();
     expect(homeLink).toHaveAttribute("href", "/");
   });
 
-  it("チェックポイント数が 0 件の場合に「✓ チェックポイント 0 / 0」と表示される", () => {
+  it("チェックポイント数が 0 件の場合に「✓ マイルストーン 0 / 0」と表示される", () => {
     render(
       <QuestClearScreen
         questId="quest-zero"
@@ -60,11 +60,11 @@ describe("QuestClearScreen", () => {
       />,
     );
 
-    expect(screen.getByText(/チェックポイント 0 \/ 0/)).toBeInTheDocument();
+    expect(screen.getByText(/マイルストーン 0 \/ 0/)).toBeInTheDocument();
     expect(screen.queryByText(/5/)).not.toBeInTheDocument();
   });
 
-  it("チェックポイント数が 3 件の場合に「✓ チェックポイント 3 / 3」と表示される", () => {
+  it("チェックポイント数が 3 件の場合に「✓ マイルストーン 3 / 3」と表示される", () => {
     render(
       <QuestClearScreen
         questId="quest-three"
@@ -74,18 +74,18 @@ describe("QuestClearScreen", () => {
       />,
     );
 
-    expect(screen.getByText(/チェックポイント 3 \/ 3/)).toBeInTheDocument();
+    expect(screen.getByText(/マイルストーン 3 \/ 3/)).toBeInTheDocument();
   });
 
   it("デフォルトプロップスでレンダリングしたときに進捗と獲得XPが0基準で表示される", () => {
     render(<QuestClearScreen questId="quest-default" taskTitle="デフォルトタスク" />);
 
-    expect(screen.getByText(/チェックポイント 0 \/ 0/)).toBeInTheDocument();
+    expect(screen.getByText(/マイルストーン 0 \/ 0/)).toBeInTheDocument();
     expect(screen.getByText("＋ 0 XP")).toBeInTheDocument();
     expect(screen.getByText("次のレベルまであと 0 XP")).toBeInTheDocument();
   });
 
-  it("「次の冒険へ」ボタンをクリックすると onNextQuest が呼ばれる", () => {
+  it("「次のクエストへ」ボタンをクリックすると onNextQuest が呼ばれる", () => {
     const handleNextQuest = vi.fn();
     render(
       <QuestClearScreen
@@ -95,17 +95,17 @@ describe("QuestClearScreen", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "次の冒険へ" });
+    const button = screen.getByRole("button", { name: "次のクエストへ" });
     fireEvent.click(button);
 
     expect(handleNextQuest).toHaveBeenCalledTimes(1);
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("onNextQuest が未指定の場合、「次の冒険へ」ボタンをクリックすると router.push('/') が呼ばれる", () => {
+  it("onNextQuest が未指定の場合、「次のクエストへ」ボタンをクリックすると router.push('/') が呼ばれる", () => {
     render(<QuestClearScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
 
-    const button = screen.getByRole("button", { name: "次の冒険へ" });
+    const button = screen.getByRole("button", { name: "次のクエストへ" });
     fireEvent.click(button);
 
     expect(mockPush).toHaveBeenCalledWith("/");

@@ -1,7 +1,7 @@
 // PATCH チェックポイント名・達成状態の更新
 // 担当: @miyagunimikihiro / 仕様: docs/api.md
 import { z } from "zod";
-import { updateCheckpoint } from "@/features/checkpoint/service";
+import { CheckpointOrderError, updateCheckpoint } from "@/features/checkpoint/service";
 import { apiError, ok, parseJson } from "@/lib/api-response";
 import { UpdateCheckpointFieldsRequest } from "@/lib/schemas";
 import { getCurrentUser } from "@/lib/auth";
@@ -44,7 +44,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     return ok({ checkpoint: updated });
-  } catch {
+  } catch (error) {
+    if (error instanceof CheckpointOrderError) {
+      return apiError(409, "conflict", error.message);
+    }
     return apiError(500, "internal_error", "チェックポイントの更新に失敗しました");
   }
 }

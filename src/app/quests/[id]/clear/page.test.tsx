@@ -92,73 +92,104 @@ describe("クリア画面の保存状態確認", () => {
     expect(page.props.completedCheckpointsCount).toBe(0);
   });
 
-  it("チェックポイントを3件持つ完了クエストで totalCheckpointsCount と completedCheckpointsCount が正しく 3 となる", async () => {
+  it("親チェックポイントの完了数に基づいて完了数・全数・獲得XPがクリア画面に渡される", async () => {
     vi.mocked(getQuestDetail).mockResolvedValue({
       quest: {
-        id: "q-three",
+        id: "q",
         taskId: "t",
         status: "completed",
         isUrgent: false,
-        xpEarned: 100,
+        xpEarned: 40,
         startedAt: "2026-10-18T00:00:00Z",
         completedAt: "2026-10-18T01:00:00Z",
       },
       task: {
         id: "t",
-        title: "タスク",
+        title: "親タスク",
         status: "done",
         dueAt: null,
-        shownCount: 0,
+        shownCount: 1,
         skippedCount: 0,
         createdAt: "2026-10-18T00:00:00Z",
         updatedAt: "2026-10-18T00:00:00Z",
       },
       checkpoints: [
         {
-          id: "cp-1",
-          questId: "q-three",
+          id: "p1",
+          questId: "q",
           parentId: null,
-          title: "CP 1",
-          description: null,
-          position: 0,
-          isDone: true,
-          doneAt: "2026-10-18T00:10:00Z",
-        },
-        {
-          id: "cp-2",
-          questId: "q-three",
-          parentId: null,
-          title: "CP 2",
+          title: "親1",
           description: null,
           position: 1,
           isDone: true,
-          doneAt: "2026-10-18T00:20:00Z",
+          doneAt: "2026-10-18T00:00:00Z",
         },
         {
-          id: "cp-3",
-          questId: "q-three",
+          id: "p2",
+          questId: "q",
           parentId: null,
-          title: "CP 3",
+          title: "親2",
           description: null,
           position: 2,
           isDone: true,
-          doneAt: "2026-10-18T00:30:00Z",
+          doneAt: "2026-10-18T00:00:00Z",
         },
         {
-          id: "cp-child",
-          questId: "q-three",
-          parentId: "cp-1",
-          title: "Child CP",
+          id: "p3",
+          questId: "q",
+          parentId: null,
+          title: "親3",
           description: null,
-          position: 0,
+          position: 3,
+          isDone: false,
+          doneAt: null,
+        },
+        {
+          id: "c1",
+          questId: "q",
+          parentId: "p1",
+          title: "子1",
+          description: null,
+          position: 1,
           isDone: true,
-          doneAt: "2026-10-18T00:05:00Z",
+          doneAt: "2026-10-18T00:00:00Z",
+        },
+        {
+          id: "c2",
+          questId: "q",
+          parentId: "p2",
+          title: "子2",
+          description: null,
+          position: 1,
+          isDone: true,
+          doneAt: "2026-10-18T00:00:00Z",
+        },
+        {
+          id: "c3",
+          questId: "q",
+          parentId: "p1",
+          title: "子3",
+          description: null,
+          position: 2,
+          isDone: false,
+          doneAt: null,
+        },
+        {
+          id: "c4",
+          questId: "q",
+          parentId: "p3",
+          title: "子4",
+          description: null,
+          position: 1,
+          isDone: false,
+          doneAt: null,
         },
       ],
     });
 
-    const page = await QuestClearPage({ params: Promise.resolve({ id: "q-three" }) });
+    const page = await QuestClearPage({ params: Promise.resolve({ id: "q" }) });
+    expect(page.props.completedCheckpointsCount).toBe(2);
     expect(page.props.totalCheckpointsCount).toBe(3);
-    expect(page.props.completedCheckpointsCount).toBe(3);
+    expect(page.props.xpGained).toBe(40);
   });
 });

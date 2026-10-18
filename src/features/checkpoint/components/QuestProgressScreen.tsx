@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, type Checkpoint } from "@/lib/schemas";
 import { type CheckpointStep, childCheckpointsOf, computeCheckpointFocus } from "../order";
@@ -9,6 +9,7 @@ import { HeroPixelArt } from "./HeroPixelArt";
 import { PixelButton } from "./PixelButton";
 import { PixelCheckbox } from "./PixelCheckbox";
 import { PixelProgressBar } from "./PixelProgressBar";
+import { RoadmapSheet } from "./RoadmapSheet";
 
 interface QuestProgressScreenProps {
   questId: string;
@@ -27,7 +28,7 @@ export function QuestProgressScreen({
   questId,
   taskTitle,
   initialCheckpoints,
-  level = 4,
+  level = 1,
   onCompleteQuest,
 }: QuestProgressScreenProps) {
   const router = useRouter();
@@ -37,6 +38,8 @@ export function QuestProgressScreen({
   const pendingRef = useRef(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRoadmapOpen, setIsRoadmapOpen] = useState(false);
+  const closeRoadmap = useCallback(() => setIsRoadmapOpen(false), []);
 
   const focus = computeCheckpointFocus(checkpoints);
   const { steps, current, completedCount, totalCount, isAllCompleted } = focus;
@@ -54,7 +57,7 @@ export function QuestProgressScreen({
     : lockedSteps;
   const foldedLockedCount = lockedSteps.length - visibleLockedSteps.length;
 
-  // チェックポイントの完了状態トグル（順番どおりのものだけ）
+  // マイルストーンの完了状態トグル（順番どおりのものだけ）
   const handleToggle = async (step: CheckpointStep) => {
     if (!step.canToggle || pendingRef.current) {
       return;
@@ -86,7 +89,7 @@ export function QuestProgressScreen({
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
         setStatus(currentStatus);
-        setError(errorData?.error?.message || "チェックポイントの更新に失敗しました。");
+        setError(errorData?.error?.message || "マイルストーンの更新に失敗しました。");
       }
     } catch {
       setStatus(currentStatus);
@@ -166,10 +169,20 @@ export function QuestProgressScreen({
 
         <div className="mt-3">
           <PixelProgressBar completed={completedCount} total={totalCount} />
+          <div className="mt-1 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setIsRoadmapOpen(true)}
+              aria-haspopup="dialog"
+              className="-my-2 min-h-11 px-2 text-xs text-gold-text hover:text-gold-accent"
+            >
+              🗺 ロードマップを見る
+            </button>
+          </div>
         </div>
 
-        {/* チェックポイント: 今やる 1 つだけを強調し、他は小さく表示する */}
-        <ol className="mt-4 flex flex-1 flex-col gap-1.5" aria-label="チェックポイント">
+        {/* マイルストーン: 今やる 1 つだけを強調し、他は小さく表示する */}
+        <ol className="mt-4 flex flex-1 flex-col gap-1.5" aria-label="マイルストーン">
           {foldedDoneCount > 0 && (
             <li className="px-2 text-xs text-muted opacity-70">✓ {foldedDoneCount} 件完了</li>
           )}
@@ -197,6 +210,7 @@ export function QuestProgressScreen({
                     checked={false}
                     disabled={pendingId !== null || isCompleting}
                     onChange={() => currentStep && void handleToggle(currentStep)}
+                    ariaLabel={`${current.title}を完了にする`}
                   />
                 </div>
                 {currentChildren.length > 0 && (
@@ -214,7 +228,7 @@ export function QuestProgressScreen({
             totalCount > 0 && (
               <li className="my-1 border-4 border-gold-accent bg-panel-active p-4 text-center">
                 <p className="text-base font-bold text-gold-accent">
-                  すべてのチェックポイントを達成！
+                  すべてのマイルストーンを達成！
                 </p>
                 <p className="mt-1 text-xs text-muted">クエストを完了しよう</p>
               </li>
@@ -250,6 +264,12 @@ export function QuestProgressScreen({
           <DecorativeTileBar className="mt-3" />
         </div>
       </main>
+      <RoadmapSheet
+        open={isRoadmapOpen}
+        onClose={closeRoadmap}
+        taskTitle={taskTitle}
+        checkpoints={checkpoints}
+      />
     </div>
   );
 }
@@ -268,10 +288,16 @@ function SmallStepRow({ step, onToggle }: SmallStepRowProps) {
       role="checkbox"
       aria-checked={step.state === "done"}
       aria-disabled={!step.canToggle}
+      disabled={!step.canToggle}
+      tabIndex={step.canToggle ? 0 : -1}
       onClick={() => onToggle(step)}
       className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs ${
         isDone ? "text-muted opacity-70" : "text-muted opacity-50"
-      } ${step.canToggle ? "cursor-pointer hover:opacity-100" : "cursor-default"}`}
+      } ${
+        step.canToggle
+          ? "cursor-pointer hover:opacity-100 focus-visible:ring-2 focus-visible:ring-gold-accent"
+          : "cursor-default disabled:cursor-default"
+      }`}
     >
       <span aria-hidden="true" className="w-4 flex-shrink-0 text-center">
         {isDone ? "✓" : "🔒"}
