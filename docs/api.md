@@ -3,9 +3,9 @@
 - 型の正は `src/lib/schemas.ts`。この文書とずれたらスキーマに合わせて直し、同じ PR で両方更新する
 - リクエスト・レスポンスはすべて JSON。日時は ISO 8601（タイムゾーン付き）、ID は UUID
 - キー名は camelCase（DB の snake_case は Route Handler 内で変換する）
-- ログインは無い（単一ユーザー前提）
+- Supabase Auth による Google アカウント認証に対応。ログイン中は各ユーザー固有のデータ（タスク・クエスト・経験値）が取得・保存される。タスク編集・削除には認証が必須。
 
-実装済み: タスク一覧・登録、3択候補、クエスト開始、経験値集計。タスク編集・削除とチェックポイント関連は引き続き別実装。
+この文書は API の共通コントラクトを定義する。タスク編集・削除の復旧は Issue #48 で管理する。
 
 ## エラー形式
 
@@ -26,6 +26,9 @@
 
 | メソッド | エンドポイント                          | 用途                           | 担当              |
 | -------- | --------------------------------------- | ------------------------------ | ----------------- |
+| GET      | `/api/auth/me`                          | ログイン中ユーザー情報取得     | @miyagunimikihiro |
+| POST     | `/api/auth/signout`                     | ログアウト                     | @miyagunimikihiro |
+| GET      | `/auth/callback`                        | OAuth コールバック             | @miyagunimikihiro |
 | GET      | `/api/tasks`                            | タスク一覧                     | @lovemeasure      |
 | POST     | `/api/tasks`                            | タスク登録                     | @lovemeasure      |
 | PATCH    | `/api/tasks/{id}`                       | タスク編集                     | @lovemeasure      |
@@ -77,9 +80,16 @@
 
 `status: "discarded"` が「手放す」操作。
 
+更新項目は1つ以上必須。空の更新（未知のキーだけの入力を含む）は `400 validation_error`。
+成功応答の型は `UpdateTaskResponse`。`dueAt: null` は期限の解除を表す。
+編集にはログインが必要。未認証は `401 unauthorized`、存在しないタスク・他ユーザーのタスクは区別せず `404 not_found` を返す。
+
 ### DELETE /api/tasks/{id}
 
 `204`（本文なし）。
+
+削除にはログインが必要。未認証は `401 unauthorized`、存在しないタスク・他ユーザーのタスクは区別せず `404 not_found` を返す。
+物理削除により関連クエスト・チェックポイントも削除される。完了クエストの削除に伴い経験値集計も変化する。
 
 ### GET /api/quests/candidates
 

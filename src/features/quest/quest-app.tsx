@@ -8,24 +8,24 @@ import { TaskList } from "@/features/task/task-list";
 import { QuestChoices } from "@/features/quest/quest-choices";
 import { PixelBottomNav, type NavTabId } from "@/components/ui/PixelBottomNav";
 import { DebugActions } from "@/features/quest/debug-actions";
+import { AuthStatus } from "@/features/auth/components/AuthStatus";
+import { LoginScreen } from "@/features/auth/components/LoginScreen";
 import {
   ApiError,
   CreateTaskResponse,
+  UpdateTaskResponse,
   StartQuestResponse,
   TasksResponse,
   QuestCandidatesResponse,
   StatsResponse,
   type Task,
+  type Quest,
   type CreateTaskRequest,
 } from "@/lib/schemas";
 
 type Tab = NavTabId;
 
-async function requestJson<S extends z.ZodType>(
-  url: string,
-  schema: S,
-  init?: RequestInit,
-): Promise<z.infer<S>> {
+async function requestApi(url: string, init?: RequestInit): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(url, init);
@@ -33,11 +33,21 @@ async function requestJson<S extends z.ZodType>(
     if (cause instanceof Error && cause.name === "AbortError") throw cause;
     throw new Error("通信に失敗しました。接続を確認して、もう一度お試しください。");
   }
-  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
     const error = ApiError.safeParse(body);
     throw new Error(error.success ? error.data.error.message : "データを取得できませんでした。");
   }
+  return response;
+}
+
+async function requestJson<S extends z.ZodType>(
+  url: string,
+  schema: S,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
+  const response = await requestApi(url, init);
+  const body: unknown = await response.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) throw new Error("サーバーからの応答を読み取れませんでした。");
   return parsed.data;
@@ -45,17 +55,55 @@ async function requestJson<S extends z.ZodType>(
 
 export function QuestApp() {
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<{ id: string; email?: string } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [tab, setTab] = useState<Tab>("quest");
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [taskError, setTaskError] = useState("");
   const [choices, setChoices] = useState<QuestCandidatesResponse | null>(null);
+  // 候補を無効化しても、既存クエストの再開情報は保持する。
+  const [inProgressQuest, setInProgressQuest] = useState<Quest | null>(null);
   const [choiceError, setChoiceError] = useState("");
   const [choicePending, setChoicePending] = useState(true);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [statsError, setStatsError] = useState("");
   const [openForm, setOpenForm] = useState(false);
   const choiceVersion = useRef(0);
+  const inProgressVersion = useRef(0);
+  const statsVersion = useRef(0);
   const needsChoices = useRef(false);
+
+  // 認証状態の確認
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { user: { id: string; email?: string } | null };
+          setCurrentUser(data.user);
+        } else {
+          setCurrentUser(null);
+        }
+      } catch {
+        setCurrentUser(null);
+      } finally {
+        clearTimeout(timeoutId);
+        setAuthLoading(false);
+      }
+    }
+    void checkAuth();
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, []);
 
   const loadTasks = useCallback(async (signal?: AbortSignal) => {
     setTaskError("");
@@ -70,6 +118,7 @@ export function QuestApp() {
 
   const loadChoices = useCallback(async (signal?: AbortSignal) => {
     const version = ++choiceVersion.current;
+    const progressVersion = ++inProgressVersion.current;
     setChoicePending(true);
     setChoiceError("");
     try {
@@ -77,6 +126,9 @@ export function QuestApp() {
         signal,
         cache: "no-store",
       });
+      if (progressVersion === inProgressVersion.current) {
+        setInProgressQuest(result.inProgressQuest);
+      }
       if (version === choiceVersion.current) {
         setChoices(result);
         needsChoices.current = false;
@@ -92,20 +144,27 @@ export function QuestApp() {
   }, []);
 
   const loadStats = useCallback(async () => {
+    const version = ++statsVersion.current;
     setStatsError("");
     try {
-      setStats(await requestJson("/api/stats", StatsResponse, { cache: "no-store" }));
+      const result = await requestJson("/api/stats", StatsResponse, { cache: "no-store" });
+      if (version === statsVersion.current) setStats(result);
     } catch (cause) {
-      setStatsError(cause instanceof Error ? cause.message : "冒険の記録を取得できませんでした。");
+      if (version === statsVersion.current)
+        setStatsError(
+          cause instanceof Error ? cause.message : "冒険の記録を取得できませんでした。",
+        );
     }
   }, []);
 
+  // ログイン済みの場合のみタスク・候補を取得
   useEffect(() => {
+    if (!currentUser) return;
     const controller = new AbortController();
     void loadTasks(controller.signal);
     void loadChoices(controller.signal);
     return () => controller.abort();
-  }, [loadTasks, loadChoices]);
+  }, [currentUser, loadTasks, loadChoices]);
 
   function switchTab(next: Tab) {
     setTab(next);
@@ -124,6 +183,41 @@ export function QuestApp() {
     void loadChoices();
   }
 
+  function invalidateChoices() {
+    choiceVersion.current += 1;
+    needsChoices.current = true;
+    setChoices(null);
+    setChoicePending(false);
+    setChoiceError("");
+  }
+
+  async function updateTask(id: string, input: CreateTaskRequest) {
+    const result = await requestJson(`/api/tasks/${id}`, UpdateTaskResponse, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    setTasks((previous) => previous?.map((task) => (task.id === id ? result.task : task)) ?? null);
+    invalidateChoices();
+  }
+
+  async function deleteTask(id: string) {
+    const response = await requestApi(`/api/tasks/${id}`, { method: "DELETE" });
+    if (response.status !== 204) throw new Error("タスクの削除結果を確認できませんでした。");
+    if (
+      inProgressQuest?.taskId === id ||
+      tasks?.some((task) => task.id === id && task.status === "in_quest")
+    ) {
+      inProgressVersion.current += 1;
+    }
+    setTasks((previous) => previous?.filter((task) => task.id !== id) ?? null);
+    setInProgressQuest((previous) => (previous?.taskId === id ? null : previous));
+    invalidateChoices();
+    statsVersion.current += 1;
+    setStats(null);
+    setStatsError("");
+  }
+
   async function startQuest(task: Task) {
     if (!choices) return;
     const result = await requestJson("/api/quests", StartQuestResponse, {
@@ -134,6 +228,8 @@ export function QuestApp() {
         shownTaskIds: choices.candidates.map((candidate) => candidate.id),
       }),
     });
+    inProgressVersion.current += 1;
+    setInProgressQuest(result.quest);
     setTasks(
       (previous) =>
         previous?.map((item) => (item.id === task.id ? { ...item, status: "in_quest" } : item)) ??
@@ -159,9 +255,12 @@ export function QuestApp() {
 
   async function handleAddDummyTasks() {
     const dummyTitles = [
-      "薬草を採取してポーションを作る",
-      "ダンジョン地下1階を探索する",
-      "鍛冶屋で剣を強化する",
+      "会議の議事録をまとめる",
+      "来週のプレゼン資料を作成する",
+      "数学の課題を提出する",
+      "英単語を20個復習する",
+      "食料品を買いに行く",
+      "部屋の掃除をする",
     ];
     for (const title of dummyTitles) {
       await createTask({ title, dueAt: null });
@@ -177,6 +276,20 @@ export function QuestApp() {
     switchTab("quest");
   }
 
+  // 認証チェック中はローディング
+  if (authLoading) {
+    return (
+      <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-[390px] items-center justify-center bg-surface text-muted">
+        <p className="font-mono text-xs">冒険の書を読み込み中…</p>
+      </div>
+    );
+  }
+
+  // 未ログイン時はログイン専用画面を表示
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-[390px] flex-col bg-[#111321] text-[#ededf4] shadow-2xl">
       <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px]">
@@ -188,6 +301,7 @@ export function QuestApp() {
           ●　{stats ? `${stats.completedQuests} CLEAR` : "冒険のはじまり"}
         </span>
       </header>
+      <AuthStatus />
       <div className="pixel-divider shrink-0" aria-hidden="true" />
       <main id="main-content" className="flex-1 px-[22px] pb-32 pt-6" tabIndex={-1}>
         {tab === "quest" && (
@@ -219,6 +333,8 @@ export function QuestApp() {
               openForm={openForm}
               onFormChange={setOpenForm}
               onCreate={createTask}
+              onUpdate={updateTask}
+              onDelete={deleteTask}
             />
           ) : (
             <p role="status" className="text-sm text-[#a4a8bc]">
@@ -230,7 +346,7 @@ export function QuestApp() {
             tasks={tasks ?? []}
             stats={stats}
             error={statsError || taskError}
-            inProgressQuestId={choices?.inProgressQuest?.id ?? null}
+            inProgressQuestId={inProgressQuest?.id ?? null}
             onQuest={() => switchTab("quest")}
             onResumeQuest={handleResumeQuest}
           />

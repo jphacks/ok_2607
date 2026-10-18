@@ -9,18 +9,29 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   listTasks: vi.fn(),
   questLookup: vi.fn(),
+  getCurrentUser: vi.fn(),
 }));
 
+vi.mock("@/lib/auth", () => ({
+  getCurrentUser: mocks.getCurrentUser,
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/server", () => ({
-  supabaseServer: () => ({
-    rpc: mocks.rpc,
-    from: () => ({
-      select: () => ({
-        eq: () => ({ maybeSingle: mocks.questLookup }),
-      }),
-    }),
-  }),
+  supabaseServer: () => {
+    const builder: {
+      select: () => typeof builder;
+      eq: () => typeof builder;
+      maybeSingle: typeof mocks.questLookup;
+    } = {
+      select: () => builder,
+      eq: () => builder,
+      maybeSingle: mocks.questLookup,
+    };
+    return {
+      rpc: mocks.rpc,
+      from: () => builder,
+    };
+  },
 }));
 vi.mock("@/features/task/server", async (importOriginal) => {
   const original = await importOriginal<typeof TaskServer>();
@@ -61,6 +72,7 @@ function request(body: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.getCurrentUser.mockResolvedValue({ id: "test-user-id", email: "test@example.com" });
   mocks.questLookup.mockResolvedValue({ data: null, error: null });
 });
 
@@ -168,5 +180,20 @@ describe("クエスト開始の入力と状態", () => {
     await expect(
       startQuest({ selectedTaskId: firstId, shownTaskIds: [firstId] }),
     ).rejects.toThrow();
+  });
+
+  it("未ログイン時は 401 unauthorized を返す", async () => {
+    mocks.getCurrentUser.mockResolvedValueOnce(null);
+
+    const getRes = await GET();
+    expect(getRes.status).toBe(401);
+    const getBody = await getRes.json();
+    expect(getBody.error.code).toBe("unauthorized");
+
+    mocks.getCurrentUser.mockResolvedValueOnce(null);
+    const postRes = await POST(request({ selectedTaskId: firstId, shownTaskIds: [firstId] }));
+    expect(postRes.status).toBe(401);
+    const postBody = await postRes.json();
+    expect(postBody.error.code).toBe("unauthorized");
   });
 });

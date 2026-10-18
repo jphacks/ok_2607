@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuestApp } from "@/features/quest/quest-app";
 import type { Quest, Task } from "@/lib/schemas";
@@ -23,12 +23,18 @@ const existing: Task = {
 let storedTasks: Task[];
 let rejectCreation: boolean;
 let inProgressQuest: Quest | null;
+let rejectDeletion: boolean;
+let pendingCandidateResponse: Promise<Response> | null;
+let pendingStatsResponse: Promise<Response> | null;
 
 beforeEach(() => {
   mockPush.mockClear();
   storedTasks = [];
   rejectCreation = false;
   inProgressQuest = null;
+  rejectDeletion = false;
+  pendingCandidateResponse = null;
+  pendingStatsResponse = null;
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
   // jsdom に未実装のネイティブダイアログAPIだけを補う。
   Object.defineProperties(HTMLDialogElement.prototype, {
@@ -63,8 +69,30 @@ beforeEach(() => {
         storedTasks = [task, ...storedTasks];
         return Response.json({ task }, { status: 201 });
       }
+      if (url.startsWith("/api/tasks/") && init?.method === "PATCH") {
+        const id = url.split("/").at(-1);
+        const input: { title: string; dueAt: string | null } = JSON.parse(String(init.body));
+        storedTasks = storedTasks.map((task) => (task.id === id ? { ...task, ...input } : task));
+        return Response.json({ task: storedTasks.find((task) => task.id === id) });
+      }
+      if (url.startsWith("/api/tasks/") && init?.method === "DELETE") {
+        if (rejectDeletion)
+          return Response.json(
+            { error: { code: "internal_error", message: "削除できませんでした" } },
+            { status: 500 },
+          );
+        const id = url.split("/").at(-1);
+        storedTasks = storedTasks.filter((task) => task.id !== id);
+        return new Response(null, { status: 204 });
+      }
+      if (url === "/api/auth/me") {
+        return Response.json({
+          user: { id: "test-user-id", email: "hero@example.com", name: "勇者" },
+        });
+      }
       if (url === "/api/tasks") return Response.json({ tasks: storedTasks });
       if (url === "/api/quests/candidates") {
+        if (pendingCandidateResponse) return pendingCandidateResponse;
         const urgent = storedTasks.find((t) => Boolean(t.dueAt));
         return Response.json({
           isUrgent: Boolean(urgent),
@@ -87,7 +115,8 @@ beforeEach(() => {
         return Response.json({ quest: newQuest }, { status: 201 });
       }
 
-      if (url === "/api/stats") return Response.json({ totalXp: 0, completedQuests: 0 });
+      if (url === "/api/stats")
+        return pendingStatsResponse ?? Response.json({ totalXp: 0, completedQuests: 0 });
       throw new Error(`想定外のリクエスト: ${url}`);
     }),
   );
@@ -102,6 +131,131 @@ afterEach(() => {
 });
 
 describe("タスク登録と3択の画面遷移", () => {
+  it("編集・期限解除を候補に反映し、削除失敗ではタスクを保持して再試行できる", async () => {
+    storedTasks = [{ ...existing, dueAt: "2026-11-01T09:15:00Z" }];
+    render(<QuestApp />);
+    await screen.findByRole("radio");
+    fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+    fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
+    fireEvent.click(screen.getByRole("button", { name: "編集" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /タスク名/ }), {
+      target: { value: "編集したタスク" },
+    });
+    fireEvent.change(screen.getByLabelText(/期限/), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("listitem")).toHaveTextContent("編集したタスク");
+    expect(screen.getByRole("listitem")).toHaveTextContent("期限なし");
+    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    expect(await screen.findByRole("radio", { name: /編集したタスク/ })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+    fireEvent.click(screen.getByLabelText("編集したタスクのメニュー"));
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
+    rejectDeletion = true;
+    fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+    await screen.findByRole("alert");
+    expect(screen.getByRole("listitem")).toHaveTextContent("編集したタスク");
+    rejectDeletion = false;
+    fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    expect(await screen.findByRole("button", { name: "＋ 新しいタスクを追加" })).toBeVisible();
+  });
+
+  it.each(["再取得前", "再取得後", "古い取得の失敗"] as const)(
+    "完了タスク削除後は削除前の集計応答を反映しない（%s）",
+    async (timing) => {
+      storedTasks = [{ ...existing, status: "done" }];
+      const stale = Promise.withResolvers<Response>();
+      pendingStatsResponse = stale.promise;
+      render(<QuestApp />);
+      await screen.findByRole("radio");
+      fireEvent.click(screen.getByRole("button", { name: "ステータス" }));
+      await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/stats", { cache: "no-store" }));
+      fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+      fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
+      fireEvent.click(screen.getByRole("button", { name: "削除" }));
+      fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      pendingStatsResponse = null;
+      const deliverStale = async () => {
+        await act(async () => {
+          stale.resolve(
+            timing === "古い取得の失敗"
+              ? Response.json(
+                  { error: { code: "internal_error", message: "削除前の集計エラー" } },
+                  { status: 500 },
+                )
+              : Response.json({ totalXp: 100, completedQuests: 1 }),
+          );
+        });
+      };
+      if (timing === "再取得前") await deliverStale();
+      fireEvent.click(screen.getByRole("button", { name: "ステータス" }));
+      expect(await screen.findByText(/EXP\s+0$/)).toBeVisible();
+      if (timing !== "再取得前") await deliverStale();
+      expect(screen.getByText(/EXP\s+0$/)).toBeVisible();
+      expect(screen.getByText(/クリアしたクエスト\s+0 件/)).toBeVisible();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    { operation: "編集", delayed: false },
+    { operation: "別タスク削除", delayed: false },
+    { operation: "編集", delayed: true },
+    { operation: "別タスク削除", delayed: true },
+  ])(
+    "$operation（初回取得遅延: $delayed）後もステータスから進行中クエストを直接再開できる",
+    async ({ operation, delayed }) => {
+      storedTasks = [
+        { ...existing, status: "in_quest" },
+        { ...existing, id: "10000000-0000-4000-8000-000000000002", title: "別のタスク" },
+      ];
+      inProgressQuest = {
+        id: "10000000-0000-4000-8000-000000000003",
+        taskId: existing.id,
+        status: "in_progress",
+        isUrgent: false,
+        xpEarned: 0,
+        startedAt: existing.createdAt,
+        completedAt: null,
+      };
+      const responseGate = delayed ? Promise.withResolvers<Response>() : null;
+      if (responseGate) pendingCandidateResponse = responseGate.promise;
+      render(<QuestApp />);
+      await screen.findByRole("navigation");
+      if (!delayed) await screen.findByRole("button", { name: "ステータスで確認する" });
+      fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+      await screen.findByText(existing.title);
+      const targetTitle = operation === "編集" ? existing.title : "別のタスク";
+      fireEvent.click(screen.getByLabelText(`${targetTitle}のメニュー`));
+      const row = screen.getByText(targetTitle).closest("li");
+      if (!row) throw new Error("対象のタスクセルが見つかりません");
+      if (operation === "編集") {
+        fireEvent.click(within(row).getByRole("button", { name: "編集" }));
+        fireEvent.change(screen.getByRole("textbox", { name: /タスク名/ }), {
+          target: { value: "挑戦中タスクの編集" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+      } else {
+        fireEvent.click(within(row).getByRole("button", { name: "削除" }));
+        fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+      }
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "ステータス" }));
+      if (responseGate) {
+        pendingCandidateResponse = null;
+        await act(async () => {
+          responseGate.resolve(Response.json({ isUrgent: false, candidates: [], inProgressQuest }));
+        });
+      }
+      fireEvent.click(await screen.findByRole("button", { name: "進行中の冒険を再開する" }));
+      expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
+    },
+  );
+
   it("進行中は開始・再抽選を表示せずステータスで現在のタスクを確認できる", async () => {
     storedTasks = [{ ...existing, status: "in_quest" }];
     inProgressQuest = {
@@ -136,7 +290,7 @@ describe("タスク登録と3択の画面遷移", () => {
 
   it("初回はクエストを表示し、空の状態からタスク名・期限だけの作成画面に進める", async () => {
     render(<QuestApp />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("今日の冒険を選べ");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("今日の冒険を選べ");
     fireEvent.click(await screen.findByRole("button", { name: "＋ 新しいタスクを追加" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("textbox", { name: /タスク名/ })).toBeVisible();
@@ -246,7 +400,7 @@ describe("タスク登録と3択の画面遷移", () => {
   it("3タブ（タスク / クエスト / ステータス）が表示され、中央のクエストが強調される", async () => {
     render(<QuestApp />);
 
-    const nav = screen.getByRole("navigation", { name: "メインメニュー" });
+    const nav = await screen.findByRole("navigation", { name: "メインメニュー" });
     expect(nav).toBeInTheDocument();
 
     const buttons = within(nav).getAllByRole("button");
@@ -261,15 +415,17 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(buttons[1]).toHaveAttribute("aria-current", "page");
   });
 
-  it("クエスト画面ではデバッグメニューが表示されない", () => {
+  it("クエスト画面ではデバッグメニューが表示されない", async () => {
     render(<QuestApp />);
+    await screen.findByRole("navigation", { name: "メインメニュー" });
     expect(screen.queryByText("🛠 デバッグ操作")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "ダミータスクを追加" })).not.toBeInTheDocument();
   });
 
-  it("タスク画面ではデバッグメニューからダミータスク追加を実行できる", async () => {
+  it("ダミータスク追加で仕事・学校・私生活の6件を期限なしで追加し、既存タスクを保持する", async () => {
+    storedTasks = [existing];
     render(<QuestApp />);
-    fireEvent.click(screen.getByRole("button", { name: /^タスク/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^タスク/ }));
 
     expect(screen.getByText("🛠 デバッグ操作")).toBeInTheDocument();
     const dummyBtn = screen.getByRole("button", { name: "ダミータスクを追加" });
@@ -278,12 +434,21 @@ describe("タスク登録と3択の画面遷移", () => {
     await waitFor(() => {
       expect(screen.getByText("ダミータスクを追加しました")).toBeInTheDocument();
     });
-    expect(storedTasks.length).toBe(3);
+    expect(storedTasks).toHaveLength(7);
+    expect(storedTasks).toContainEqual(existing);
+    const addedTasks = storedTasks.filter((task) => task.id !== existing.id);
+    expect(addedTasks.every((task) => task.dueAt === null)).toBe(true);
+    for (const category of [/会議|プレゼン/, /課題|英単語/, /買い|掃除/]) {
+      expect(addedTasks.filter((task) => category.test(task.title))).toHaveLength(2);
+    }
+    for (const task of storedTasks) {
+      expect(screen.getByText(task.title)).toBeInTheDocument();
+    }
   });
 
   it("タスク画面から緊急クエスト発動を実行するとクエスト画面に切り替わり緊急クエストが表示される", async () => {
     render(<QuestApp />);
-    fireEvent.click(screen.getByRole("button", { name: /^タスク/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^タスク/ }));
 
     const urgentBtn = screen.getByRole("button", { name: "緊急クエストを発動" });
     fireEvent.click(urgentBtn);
@@ -292,5 +457,24 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(screen.getByText("【緊急】魔王軍の斥候を撃退せよ")).toBeInTheDocument();
     // クエスト画面へ切り替わったため、デバッグメニューは非表示になる
     expect(screen.queryByText("🛠 デバッグ操作")).not.toBeInTheDocument();
+  });
+
+  it("未ログイン時はタスクを表示せず、ログイン専用画面を表示する", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/auth/me") {
+          return Response.json({ user: null });
+        }
+        return Response.json({});
+      }),
+    );
+
+    render(<QuestApp />);
+
+    expect(
+      await screen.findByRole("button", { name: "Google アカウントで冒険を始める" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "メインメニュー" })).not.toBeInTheDocument();
   });
 });
