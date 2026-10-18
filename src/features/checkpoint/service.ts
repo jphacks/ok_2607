@@ -192,6 +192,10 @@ export async function updateCheckpoint(
     return null;
   }
 
+  if (updates.title === undefined && updates.isDone === undefined) {
+    return null;
+  }
+
   const { data: updatedRow, error } = await supabase
     .from("checkpoints")
     .update({
@@ -217,6 +221,18 @@ export async function updateCheckpoint(
   }
 
   return mapDbCheckpointToSchema(updatedRow);
+}
+
+/**
+ * チェックポイントの達成状態（isDone / doneAt）を更新する。
+ */
+export async function updateCheckpointStatus(
+  supabase: SupabaseClient,
+  checkpointId: string,
+  isDone: boolean,
+  userId: string,
+): Promise<Checkpoint | null> {
+  return updateCheckpoint(supabase, checkpointId, { isDone }, userId);
 }
 
 export type CompleteQuestResult =
