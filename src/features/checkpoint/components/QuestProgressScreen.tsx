@@ -210,6 +210,7 @@ export function QuestProgressScreen({
                     checked={false}
                     disabled={pendingId !== null || isCompleting}
                     onChange={() => currentStep && void handleToggle(currentStep)}
+                    ariaLabel={`${current.title}を完了にする`}
                   />
                 </div>
                 {currentChildren.length > 0 && (
@@ -287,10 +288,16 @@ function SmallStepRow({ step, onToggle }: SmallStepRowProps) {
       role="checkbox"
       aria-checked={step.state === "done"}
       aria-disabled={!step.canToggle}
+      disabled={!step.canToggle}
+      tabIndex={step.canToggle ? 0 : -1}
       onClick={() => onToggle(step)}
       className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs ${
         isDone ? "text-muted opacity-70" : "text-muted opacity-50"
-      } ${step.canToggle ? "cursor-pointer hover:opacity-100" : "cursor-default"}`}
+      } ${
+        step.canToggle
+          ? "cursor-pointer hover:opacity-100 focus-visible:ring-2 focus-visible:ring-gold-accent"
+          : "cursor-default disabled:cursor-default"
+      }`}
     >
       <span aria-hidden="true" className="w-4 flex-shrink-0 text-center">
         {isDone ? "✓" : "🔒"}
