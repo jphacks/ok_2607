@@ -126,7 +126,7 @@ export async function getQuestDetail(
 
   const { data: taskRow, error: taskError } = await supabase
     .from("tasks")
-    .select("id, title, due_at, weight, status, shown_count, skipped_count, created_at, updated_at")
+    .select("id, title, due_at, status, shown_count, skipped_count, created_at, updated_at")
     .eq("id", questRow.task_id)
     .maybeSingle();
 
@@ -197,13 +197,14 @@ export type CompleteQuestResult =
 export async function completeQuest(
   supabase: SupabaseClient,
   questId: string,
+  userId?: string | null,
 ): Promise<CompleteQuestResult> {
   // 1. クエストの存在とステータスを確認
-  const { data: questRow, error: questError } = await supabase
-    .from("quests")
-    .select("id, status, is_urgent")
-    .eq("id", questId)
-    .maybeSingle();
+  let questQuery = supabase.from("quests").select("id, status, is_urgent").eq("id", questId);
+  if (userId) {
+    questQuery = questQuery.eq("user_id", userId);
+  }
+  const { data: questRow, error: questError } = await questQuery.maybeSingle();
 
   if (questError) {
     throw new Error(`クエストの取得に失敗しました: ${questError.message}`);
@@ -237,10 +238,14 @@ export async function completeQuest(
   });
 
   // 4. ストアドプロシージャ complete_quest を呼び出して原子的更新
-  const { data: rpcData, error: rpcError } = await supabase.rpc("complete_quest", {
+  const rpcParams: { p_quest_id: string; p_xp_earned: number; p_user_id?: string | null } = {
     p_quest_id: questId,
     p_xp_earned: xpEarned,
-  });
+  };
+  if (userId !== undefined) {
+    rpcParams.p_user_id = userId;
+  }
+  const { data: rpcData, error: rpcError } = await supabase.rpc("complete_quest", rpcParams);
 
   if (rpcError) {
     throw new Error(`クエストの完了処理に失敗しました: ${rpcError.message}`);

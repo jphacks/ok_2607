@@ -14,7 +14,6 @@ const TaskRow = z
     id: Task.shape.id,
     title: Task.shape.title,
     due_at: Task.shape.dueAt,
-    weight: Task.shape.weight,
     status: Task.shape.status,
     shown_count: Task.shape.shownCount,
     skipped_count: Task.shape.skippedCount,
@@ -25,7 +24,6 @@ const TaskRow = z
     id: data.id,
     title: data.title,
     dueAt: data.due_at,
-    weight: data.weight,
     status: data.status,
     shownCount: data.shown_count,
     skippedCount: data.skipped_count,
@@ -33,19 +31,22 @@ const TaskRow = z
     updatedAt: data.updated_at,
   }));
 
-const taskColumns = "id,title,due_at,weight,status,shown_count,skipped_count,created_at,updated_at";
+const taskColumns = "id,title,due_at,status,shown_count,skipped_count,created_at,updated_at";
 const pageSize = 1000;
 
 export function taskFromRow(row: unknown): Task {
   return TaskRow.parse(row);
 }
 
-export async function listTasks(status?: TaskStatus): Promise<Task[]> {
+export async function listTasks(status?: TaskStatus, userId?: string | null): Promise<Task[]> {
   const client = supabaseServer();
   const tasks: Task[] = [];
   // PostgREST の取得上限で古いタスクが一覧から消えないよう、全ページを読む。
   for (let offset = 0; ; offset += pageSize) {
     let query = client.from("tasks").select(taskColumns);
+    if (userId) {
+      query = query.eq("user_id", userId);
+    }
     query = status === undefined ? query.neq("status", "discarded") : query.eq("status", status);
     const { data, error } = await query
       .order("created_at", { ascending: false })
@@ -58,17 +59,28 @@ export async function listTasks(status?: TaskStatus): Promise<Task[]> {
   }
 }
 
-export async function createTask(input: CreateTaskRequest): Promise<Task> {
+export async function createTask(input: CreateTaskRequest, userId?: string | null): Promise<Task> {
+  const insertPayload: { title: string; due_at: string | null; user_id?: string | null } = {
+    title: input.title,
+    due_at: input.dueAt ?? null,
+  };
+  if (userId) {
+    insertPayload.user_id = userId;
+  }
   const { data, error } = await supabaseServer()
     .from("tasks")
-    .insert({ title: input.title, due_at: input.dueAt ?? null })
+    .insert(insertPayload)
     .select(taskColumns)
     .single();
   if (error) throw new Error("タスクを登録できませんでした");
   return taskFromRow(data);
 }
 
-export async function updateTask(id: string, input: UpdateTaskRequest): Promise<Task | null> {
+export async function updateTask(
+  id: string,
+  input: UpdateTaskRequest,
+  userId: string,
+): Promise<Task | null> {
   const patch: { title?: string; due_at?: string | null; status?: TaskStatus } = {};
   if (input.title !== undefined) patch.title = input.title;
   if (input.dueAt !== undefined) patch.due_at = input.dueAt;
@@ -77,17 +89,19 @@ export async function updateTask(id: string, input: UpdateTaskRequest): Promise<
     .from("tasks")
     .update(patch)
     .eq("id", id)
+    .eq("user_id", userId)
     .select(taskColumns)
     .maybeSingle();
   if (error) throw new Error("タスクを更新できませんでした");
   return data === null ? null : taskFromRow(data);
 }
 
-export async function deleteTask(id: string): Promise<boolean> {
+export async function deleteTask(id: string, userId: string): Promise<boolean> {
   const { data, error } = await supabaseServer()
     .from("tasks")
     .delete()
     .eq("id", id)
+    .eq("user_id", userId)
     .select("id")
     .maybeSingle();
   if (error) throw new Error("タスクを削除できませんでした");
@@ -100,16 +114,17 @@ const CompletedQuestRow = z.object({
   xp_earned: z.number().int().nonnegative(),
 });
 
-export async function getStats(): Promise<StatsResponse> {
+export async function getStats(userId?: string | null): Promise<StatsResponse> {
   const client = supabaseServer();
   let totalXp = 0;
   let completedQuests = 0;
   // 完了済みクエストの保存値だけを集計する。未完了の経験値は含めない。
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await client
-      .from("quests")
-      .select("xp_earned")
-      .eq("status", "completed")
+    let query = client.from("quests").select("xp_earned").eq("status", "completed");
+    if (userId) {
+      query = query.eq("user_id", userId);
+    }
+    const { data, error } = await query
       .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1);
     if (error) throw new Error("経験値を取得できませんでした");

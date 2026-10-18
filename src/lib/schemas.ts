@@ -14,7 +14,6 @@ export const Task = z.object({
   id: z.uuid(),
   title: z.string(),
   dueAt: z.iso.datetime({ offset: true }).nullable(),
-  weight: z.number(),
   status: TaskStatus,
   shownCount: z.number().int(),
   skippedCount: z.number().int(),
@@ -64,14 +63,14 @@ export const UpdateTaskRequest = z
     status: TaskStatus,
   })
   .partial()
-  .refine((input) => Object.keys(input).length > 0, {
+  .refine((input) => Object.values(input).some((value) => value !== undefined), {
     message: "更新する項目を指定してください",
   });
 export type UpdateTaskRequest = z.infer<typeof UpdateTaskRequest>;
 
 export const StartQuestRequest = z.object({
   selectedTaskId: z.uuid(),
-  // 3択で提示されたタスク ID（選ばれなかったものの重みを下げるのに使う）
+  // 3択で提示されたタスク ID（未選択タスクのreject回数を増やすのに使う）
   shownTaskIds: z.array(z.uuid()).min(1).max(3),
 });
 export type StartQuestRequest = z.infer<typeof StartQuestRequest>;
@@ -96,7 +95,7 @@ export const StartQuestResponse = z.object({ quest: Quest });
 export type StartQuestResponse = z.infer<typeof StartQuestResponse>;
 
 export const QuestCandidatesResponse = z.object({
-  // true のとき先頭候補は24時間以内の期限ありタスク。残りも最大3件まで提示する。
+  // true のとき candidates は締切が近い 1 件だけ（緊急クエスト）
   isUrgent: z.boolean(),
   candidates: z.array(Task).max(3),
   // 進行中なら候補は返さず、既存クエストを案内する。

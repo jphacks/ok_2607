@@ -7,6 +7,7 @@
 | フロントエンド | Next.js 15（App Router）+ React 19 + TypeScript + Tailwind CSS 4 |
 | バックエンド   | Next.js Route Handlers（`src/app/api/`）                         |
 | DB             | Supabase（PostgreSQL）                                           |
+| 認証           | Supabase Auth（Google OAuth）                                    |
 | AI             | Gemini API（`@google/genai`）                                    |
 | 入力検証       | zod                                                              |
 | テスト         | Vitest + Testing Library                                         |
@@ -74,15 +75,18 @@ tasks 1 ──── * quests 1 ──── * checkpoints（parent_id で 2 階
   └───── selection_logs（3択で何を見せて何を選んだか）
 ```
 
-| テーブル         | 主な列                                                                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `tasks`          | `title`、`due_at`、`weight`（レコメンド用）、`status`（`active` / `in_quest` / `done` / `discarded`）、`shown_count`、`skipped_count` |
-| `quests`         | `task_id`、`status`（`in_progress` / `completed` / `abandoned`）、`is_urgent`、`xp_earned`                                            |
-| `selection_logs` | `shown_task_ids`、`selected_task_id`、`quest_id`                                                                                      |
-| `checkpoints`    | `quest_id`、`parent_id`（null なら全体像）、`title`、`description`、`position`、`is_done`                                             |
+| テーブル         | 主な列                                                                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tasks`          | `user_id`（auth.users参照）、`title`、`due_at`、`status`（`active` / `in_quest` / `done` / `discarded`）、`shown_count`、`skipped_count`（reject回数） |
+| `quests`         | `user_id`（auth.users参照）、`task_id`、`status`（`in_progress` / `completed` / `abandoned`）、`is_urgent`、`xp_earned`                                |
+| `selection_logs` | `user_id`（auth.users参照）、`shown_task_ids`、`selected_task_id`、`quest_id`                                                                          |
+| `checkpoints`    | `quest_id`、`parent_id`（null なら全体像）、`title`、`description`、`position`、`is_done`                                                              |
 
 DB は snake_case、API と TypeScript は camelCase。変換は Route Handler（またはその下の関数）で行う。
 
+レコメンドは `1 / (skipped_count + 1)` の正規化確率で行い、旧 `weight` カラムは新規マイグレーションで削除。既存DBには全マイグレーションを順に適用する。
+クエスト開始のDB回帰テストは、分離したローカルDBに対し `psql -v ON_ERROR_STOP=1 -f supabase/tests/start_quest.sql` で実行する（テスト内の全件削除はロールバックする。リモートDBには実行しない）。
+
 ## 環境変数
 
-`.env.example` を参照。すべてサーバー専用で、`NEXT_PUBLIC_` 付きの変数は今のところ無い。Vercel にも同じ名前で設定する。
+`.env.example` を参照。Supabase Auth の OAuth 連携のために `NEXT_PUBLIC_SUPABASE_URL` と `NEXT_PUBLIC_SUPABASE_ANON_KEY`（公開用 anon key）を使用する。機密情報（`SUPABASE_SERVICE_ROLE_KEY` や `GEMINI_API_KEY`）はサーバー専用。Vercel にも同じ名前で設定する。

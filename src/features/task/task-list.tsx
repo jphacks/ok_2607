@@ -25,6 +25,8 @@ export function TaskList({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const initialDueDate = useRef("");
+  const savingRef = useRef(false);
+  const deletingRef = useRef(false);
   const list = useRef<HTMLUListElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const deleteDialog = useRef<HTMLDialogElement>(null);
@@ -76,11 +78,13 @@ export function TaskList({
     setEditingTask(null);
     setTitle("");
     setDueDate("");
+    initialDueDate.current = "";
     setError("");
   }
 
   async function confirmDelete() {
-    if (!deletingTask || deleting) return;
+    if (!deletingTask || deletingRef.current) return;
+    deletingRef.current = true;
     setDeleting(true);
     setDeleteError("");
     try {
@@ -89,21 +93,23 @@ export function TaskList({
     } catch (cause) {
       setDeleteError(cause instanceof Error ? cause.message : "タスクを削除できませんでした。");
     } finally {
+      deletingRef.current = false;
       setDeleting(false);
     }
   }
 
   async function submit() {
-    if (saving) return;
+    if (savingRef.current) return;
     const trimmed = title.trim();
     if (!trimmed) {
       setError("タスク名を入力してください。");
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     setError("");
     try {
-      const input = {
+      const input: CreateTaskRequest = {
         title: trimmed,
         dueAt:
           editingTask && dueDate === initialDueDate.current
@@ -118,6 +124,7 @@ export function TaskList({
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "タスクを保存できませんでした。");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -133,9 +140,13 @@ export function TaskList({
       </div>
       <button
         className="gold-button mb-7 w-full text-left"
+        disabled={saving || deleting}
         onClick={() => {
           setError("");
           setEditingTask(null);
+          setTitle("");
+          setDueDate("");
+          initialDueDate.current = "";
           onFormChange(true);
         }}
       >
@@ -148,11 +159,13 @@ export function TaskList({
         ref={dialog}
         aria-labelledby="task-form-heading"
         onCancel={(event) => {
-          if (saving) event.preventDefault();
+          if (savingRef.current) event.preventDefault();
           else closeForm();
         }}
-        onClose={closeForm}
-        className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-44px)] max-w-[346px] overflow-y-auto border-0 bg-transparent p-1 text-[#ededf4] backdrop:bg-[#080a14]/85"
+        onClose={() => {
+          if (!dialog.current?.open) closeForm();
+        }}
+        className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-44px)] max-w-[346px] overflow-y-auto border-0 bg-transparent p-1 text-text backdrop:bg-surface/85"
       >
         <form
           onSubmit={(event) => {
@@ -162,7 +175,7 @@ export function TaskList({
           className="pixel-panel space-y-4 p-5"
           aria-label={editingTask ? "タスク編集" : "タスク作成"}
         >
-          <h2 id="task-form-heading" className="text-lg text-[#f3ca70]">
+          <h2 id="task-form-heading" className="text-lg text-gold-accent">
             {editingTask ? "タスクを編集" : "新しいタスクを追加"}
           </h2>
           <label className="block text-sm">
@@ -223,10 +236,12 @@ export function TaskList({
         ref={deleteDialog}
         aria-labelledby="delete-task-heading"
         onCancel={(event) => {
-          if (deleting) event.preventDefault();
+          if (deletingRef.current) event.preventDefault();
           else setDeletingTask(null);
         }}
-        onClose={() => setDeletingTask(null)}
+        onClose={() => {
+          if (!deleteDialog.current?.open) setDeletingTask(null);
+        }}
         className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-44px)] max-w-[346px] overflow-y-auto border-0 bg-transparent p-1 text-text backdrop:bg-surface/85"
       >
         <div className="pixel-panel space-y-4 p-5">
@@ -308,6 +323,7 @@ export function TaskList({
               <div className="absolute right-0 top-10 z-20 w-28 border border-gold-border bg-panel p-1 shadow-xl">
                 <button
                   type="button"
+                  disabled={saving || deleting}
                   className="block min-h-11 w-full px-3 py-2 text-left text-sm hover:bg-panel-active"
                   onClick={(event) => {
                     event.currentTarget.closest("details")?.removeAttribute("open");
@@ -327,6 +343,7 @@ export function TaskList({
                 </button>
                 <button
                   type="button"
+                  disabled={saving || deleting}
                   className="block min-h-11 w-full px-3 py-2 text-left text-sm text-danger hover:bg-panel-active"
                   onClick={(event) => {
                     event.currentTarget.closest("details")?.removeAttribute("open");

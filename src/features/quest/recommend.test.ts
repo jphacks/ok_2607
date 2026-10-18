@@ -9,7 +9,6 @@ function task(id: number, overrides: Partial<Task> = {}): Task {
     id: `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`,
     title: `タスク${id}`,
     dueAt: null,
-    weight: 1,
     status: "active",
     shownCount: 0,
     skippedCount: 0,
@@ -20,12 +19,11 @@ function task(id: number, overrides: Partial<Task> = {}): Task {
 }
 
 describe("recommendTasks", () => {
-  it("24時間ちょうどの締切を重み0でも先頭に確保し、残り2件を抽選する", () => {
-    const urgent = task(2, { dueAt: "2026-10-18T12:00:00.000Z", weight: 0 });
-    const tasks = [task(1), urgent, task(3), task(4)];
-    expect(recommendTasks(tasks, { now, random: () => 0.99 })).toEqual({
+  it("24時間ちょうどの締切を緊急の1択にする", () => {
+    const urgent = task(2, { dueAt: "2026-10-18T12:00:00.000Z", skippedCount: 100 });
+    expect(recommendTasks([task(1), urgent], { now, random: () => 0 })).toEqual({
       isUrgent: true,
-      candidates: [urgent, tasks[3], tasks[2]],
+      candidates: [urgent],
     });
   });
 
@@ -34,28 +32,6 @@ describe("recommendTasks", () => {
     expect(recommendTasks([normal], { now })).toEqual({
       isUrgent: false,
       candidates: [normal],
-    });
-  });
-
-  it("24時間より先の最短締切も重み0でも必ず先頭に確保する", () => {
-    const future = task(2, { dueAt: "2026-10-20T12:00:00.000Z", weight: 0 });
-    const tasks = [task(1, { weight: 100 }), future, task(3), task(4)];
-    const original = structuredClone(tasks);
-    expect(recommendTasks(tasks, { now, random: () => 0 })).toEqual({
-      isUrgent: false,
-      candidates: [future, tasks[0], tasks[2]],
-    });
-    expect(tasks).toEqual(original);
-  });
-
-  it("最短締切以外の期限付きタスクも残りの抽選枠に含める", () => {
-    const earliest = task(3, { dueAt: "2026-10-17T13:00:00.000Z", weight: 0 });
-    const later = task(2, { dueAt: "2026-10-19T12:00:00.000Z", weight: 10 });
-    const middle = task(4, { dueAt: "2026-10-18T14:00:00.000Z", weight: 0 });
-    const tasks = [task(1), later, earliest, middle, task(5)];
-    expect(recommendTasks(tasks, { now, random: () => 0.5 })).toEqual({
-      isUrgent: true,
-      candidates: [earliest, later, tasks[4]],
     });
   });
 
@@ -74,13 +50,13 @@ describe("recommendTasks", () => {
     });
   });
 
-  it("期限切れを除外し、3件未満でも将来の締切を先頭に全候補を返す", () => {
-    const overdue = task(1, { dueAt: "2026-10-17T11:59:59.999Z", weight: 100 });
+  it("期限切れが残っていても、期限なし・24時間超の候補を通常抽選できる", () => {
+    const overdue = task(1, { dueAt: "2026-10-17T11:59:59.999Z" });
     const noDeadline = task(2);
     const future = task(3, { dueAt: "2026-10-18T12:00:00.001Z" });
     expect(recommendTasks([overdue, noDeadline, future], { now, random: () => 0 })).toEqual({
       isUrgent: false,
-      candidates: [future, noDeadline],
+      candidates: [noDeadline, future],
     });
   });
 
@@ -105,30 +81,42 @@ describe("recommendTasks", () => {
 
   it("3件未満なら全件を重複なく返し、入力を変更しない", () => {
     const tasks = [task(1), task(2)];
-    const original = structuredClone(tasks);
     const result = recommendTasks(tasks, { now, random: () => 0 });
-    expect(result.candidates).toEqual(original);
-    expect(tasks).toEqual(original);
+    expect(result.candidates.map((candidate) => candidate.id)).toEqual([tasks[0].id, tasks[1].id]);
+    expect(tasks).toHaveLength(2);
   });
 
-  it("締切がなければ全候補から重みに対応する抽選区間で最大3件を重複なく選ぶ", () => {
-    const tasks = [task(1), task(2, { weight: 3 }), task(3), task(4)];
-    const result = recommendTasks(tasks, { now, random: () => 0.3 });
+  it.each([
+    [0, 0],
+    [4 / 7 - 0.000001, 0],
+    [4 / 7, 1],
+    [6 / 7 - 0.000001, 1],
+    [6 / 7, 2],
+    [0.999999, 2],
+  ])("reject回数[0,1,3]を正規化し、乱数%sで候補%sを選ぶ", (random, index) => {
+    const tasks = [task(1), task(2, { skippedCount: 1 }), task(3, { skippedCount: 3 })];
+    expect(recommendTasks(tasks, { now, random: () => random }).candidates[0].id).toBe(
+      tasks[index].id,
+    );
+  });
+
+  it("選択済みを除いたスコアで再抽選し、最大3件を重複なく返す", () => {
+    const tasks = [
+      task(1),
+      task(2, { skippedCount: 1 }),
+      task(3, { skippedCount: 3 }),
+      task(4, { skippedCount: 3 }),
+    ];
+    const result = recommendTasks(tasks, { now, random: () => 0.6 });
     expect(result.candidates.map((candidate) => candidate.id)).toEqual([
       tasks[1].id,
       tasks[0].id,
-      tasks[2].id,
+      tasks[3].id,
     ]);
-    expect(new Set(result.candidates.map((candidate) => candidate.id)).size).toBe(3);
   });
 
-  it("重みの区間の境界では次のタスクを選ぶ", () => {
-    const tasks = [task(1), task(2, { weight: 3 }), task(3)];
-    expect(recommendTasks(tasks, { now, random: () => 0.2 }).candidates[0].id).toBe(tasks[1].id);
-  });
-
-  it("全ての重みが0でも等確率の抽選で重複なく選ぶ", () => {
-    const tasks = [task(1, { weight: 0 }), task(2, { weight: 0 }), task(3, { weight: 0 })];
+  it.each([0, 5])("reject回数が全て%sなら等確率で抽選する", (skippedCount) => {
+    const tasks = [task(1, { skippedCount }), task(2, { skippedCount }), task(3, { skippedCount })];
     expect(
       recommendTasks(tasks, { now, random: () => 0.99 }).candidates.map(
         (candidate) => candidate.id,
@@ -136,8 +124,10 @@ describe("recommendTasks", () => {
     ).toEqual([tasks[2].id, tasks[1].id, tasks[0].id]);
   });
 
-  it("正の重みが残っていれば重み0のタスクを先には選ばない", () => {
-    const tasks = [task(1, { weight: 0 }), task(2, { weight: 2 }), task(3, { weight: 0 })];
-    expect(recommendTasks(tasks, { now, random: () => 0 }).candidates[0].id).toBe(tasks[1].id);
+  it("reject回数がDB整数の上限でも候補から消えない", () => {
+    const tasks = [task(1), task(2, { skippedCount: 2147483647 })];
+    expect(recommendTasks(tasks, { now, random: () => 0.9999999999 }).candidates[0].id).toBe(
+      tasks[1].id,
+    );
   });
 });

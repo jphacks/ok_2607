@@ -1,15 +1,21 @@
-// POST クエスト開始（選択の記録と重みの更新）
+// POST クエスト開始（選択の記録とreject回数の更新）
 // 担当: @ki-mutaku / 仕様: docs/api.md
 import { apiError, ok, parseJson } from "@/lib/api-response";
+import { getCurrentUser } from "@/lib/auth";
 import { StartQuestRequest } from "@/lib/schemas";
 import { QuestSelectionError, startQuest } from "@/features/quest/server";
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return apiError(401, "unauthorized", "ログインが必要です");
+  }
+
   const parsed = await parseJson(request, StartQuestRequest);
   if (!parsed.ok) return parsed.response;
 
   try {
-    return ok({ quest: await startQuest(parsed.data) }, { status: 201 });
+    return ok({ quest: await startQuest(parsed.data, user.id) }, { status: 201 });
   } catch (error) {
     if (error instanceof QuestSelectionError) {
       return apiError(

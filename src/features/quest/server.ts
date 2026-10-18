@@ -51,13 +51,14 @@ function throwDatabaseError(error: { code: string }): never {
 
 export async function getQuestCandidates(
   options?: Parameters<typeof recommendTasks>[1],
+  userId?: string | null,
 ): Promise<QuestCandidatesResponse> {
   const client = supabaseServer();
-  const { data: inProgress, error: lookupError } = await client
-    .from("quests")
-    .select("*")
-    .eq("status", "in_progress")
-    .maybeSingle();
+  let lookupQuery = client.from("quests").select("*").eq("status", "in_progress");
+  if (userId) {
+    lookupQuery = lookupQuery.eq("user_id", userId);
+  }
+  const { data: inProgress, error: lookupError } = await lookupQuery.maybeSingle();
   if (lookupError) throw lookupError;
   if (inProgress) {
     return {
@@ -67,7 +68,7 @@ export async function getQuestCandidates(
     };
   }
 
-  const result = recommendTasks(await listTasks("active"), options);
+  const result = recommendTasks(await listTasks("active", userId), options);
   if (result.candidates.length === 0) return { ...result, inProgressQuest: null };
 
   const { data, error } = await client.rpc("record_quest_candidates", {
@@ -88,7 +89,7 @@ export async function getQuestCandidates(
   };
 }
 
-export async function startQuest(input: StartQuestRequest): Promise<Quest> {
+export async function startQuest(input: StartQuestRequest, userId?: string | null): Promise<Quest> {
   if (
     new Set(input.shownTaskIds).size !== input.shownTaskIds.length ||
     !input.shownTaskIds.includes(input.selectedTaskId)
@@ -100,6 +101,7 @@ export async function startQuest(input: StartQuestRequest): Promise<Quest> {
     .rpc("start_quest", {
       p_selected_task_id: input.selectedTaskId,
       p_shown_task_ids: input.shownTaskIds,
+      p_user_id: userId ?? null,
     })
     .single();
   if (error) throwDatabaseError(error);
