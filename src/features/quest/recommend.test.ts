@@ -9,7 +9,6 @@ function task(id: number, overrides: Partial<Task> = {}): Task {
     id: `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`,
     title: `タスク${id}`,
     dueAt: null,
-    weight: 1,
     status: "active",
     shownCount: 0,
     skippedCount: 0,
@@ -21,7 +20,7 @@ function task(id: number, overrides: Partial<Task> = {}): Task {
 
 describe("recommendTasks", () => {
   it("24時間ちょうどの締切を緊急の1択にする", () => {
-    const urgent = task(2, { dueAt: "2026-10-18T12:00:00.000Z", weight: 0 });
+    const urgent = task(2, { dueAt: "2026-10-18T12:00:00.000Z", skippedCount: 100 });
     expect(recommendTasks([task(1), urgent], { now, random: () => 0 })).toEqual({
       isUrgent: true,
       candidates: [urgent],
@@ -52,7 +51,7 @@ describe("recommendTasks", () => {
   });
 
   it("期限切れが残っていても、期限なし・24時間超の候補を通常抽選できる", () => {
-    const overdue = task(1, { dueAt: "2026-10-17T11:59:59.999Z", weight: 100 });
+    const overdue = task(1, { dueAt: "2026-10-17T11:59:59.999Z" });
     const noDeadline = task(2);
     const future = task(3, { dueAt: "2026-10-18T12:00:00.001Z" });
     expect(recommendTasks([overdue, noDeadline, future], { now, random: () => 0 })).toEqual({

@@ -14,7 +14,6 @@ export const Task = z.object({
   id: z.uuid(),
   title: z.string(),
   dueAt: z.iso.datetime({ offset: true }).nullable(),
-  weight: z.number(),
   status: TaskStatus,
   shownCount: z.number().int(),
   skippedCount: z.number().int(),
@@ -68,7 +67,7 @@ export type UpdateTaskRequest = z.infer<typeof UpdateTaskRequest>;
 
 export const StartQuestRequest = z.object({
   selectedTaskId: z.uuid(),
-  // 3択で提示されたタスク ID（選ばれなかったものの重みを下げるのに使う）
+  // 3択で提示されたタスク ID（未選択タスクのreject回数を増やすのに使う）
   shownTaskIds: z.array(z.uuid()).min(1).max(3),
 });
 export type StartQuestRequest = z.infer<typeof StartQuestRequest>;

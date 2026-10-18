@@ -17,7 +17,6 @@ const row = {
   id: "a1111111-1111-4111-8111-111111111111",
   title: "本を読む",
   due_at: null,
-  weight: 1,
   status: "active",
   shown_count: 0,
   skipped_count: 0,

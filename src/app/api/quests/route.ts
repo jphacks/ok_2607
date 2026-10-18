@@ -1,4 +1,4 @@
-// POST クエスト開始（選択の記録と重みの更新）
+// POST クエスト開始（選択の記録とreject回数の更新）
 // 担当: @ki-mutaku / 仕様: docs/api.md
 import { apiError, ok, parseJson } from "@/lib/api-response";
 import { StartQuestRequest } from "@/lib/schemas";
