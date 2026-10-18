@@ -53,8 +53,11 @@ export type Quest = z.infer<typeof Quest>;
 
 // ---- リクエスト ----
 
+/** タスク名の最大文字数。API の検証と入力欄の maxLength・文字数カウンターで共有する。 */
+export const TASK_TITLE_MAX_LENGTH = 30;
+
 export const CreateTaskRequest = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(TASK_TITLE_MAX_LENGTH),
   dueAt: z.iso.datetime({ offset: true }).nullable().optional(),
   skippedCount: z.number().int().min(0).max(2147483647).optional(),
 });
@@ -62,7 +65,7 @@ export type CreateTaskRequest = z.infer<typeof CreateTaskRequest>;
 
 export const UpdateTaskRequest = z
   .object({
-    title: z.string().trim().min(1).max(200),
+    title: z.string().trim().min(1).max(TASK_TITLE_MAX_LENGTH),
     dueAt: z.iso.datetime({ offset: true }).nullable(),
     status: TaskStatus,
   })

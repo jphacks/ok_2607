@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { CreateTaskRequest, Task } from "@/lib/schemas";
+import { TASK_TITLE_MAX_LENGTH, type CreateTaskRequest, type Task } from "@/lib/schemas";
 
 export function TaskList({
   tasks,
@@ -268,13 +268,20 @@ export function TaskList({
               name="title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              maxLength={200}
+              maxLength={TASK_TITLE_MAX_LENGTH}
               required
+              aria-describedby="task-title-count"
               placeholder="やりたいことを書き出そう"
               className="pixel-input mt-2"
               disabled={saving}
             />
           </label>
+          <p
+            id="task-title-count"
+            className={`-mt-3 text-right text-xs ${title.length >= TASK_TITLE_MAX_LENGTH ? "text-gold-accent" : "text-muted"}`}
+          >
+            {title.length}/{TASK_TITLE_MAX_LENGTH}
+          </p>
           <label className="block text-sm">
             期限 <span className="text-xs text-[#a4a8bc]">任意</span>
             <input
