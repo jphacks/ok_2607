@@ -5,7 +5,7 @@ import {
   getQuestDetail,
   getQuestWithTask,
   saveCheckpointPlanToDb,
-  updateCheckpointStatus,
+  updateCheckpoint,
 } from "./service";
 
 type Row = Record<string, unknown>;
@@ -151,7 +151,7 @@ describe("checkpoint service の所有者境界", () => {
     const { db, updates, rpc, child } = fixture(options);
     expect(await getQuestWithTask(db, "quest-1", "owner")).toBeNull();
     expect(await getQuestDetail(db, "quest-1", "owner")).toBeNull();
-    expect(await updateCheckpointStatus(db, "child-1", true, "owner")).toBeNull();
+    expect(await updateCheckpoint(db, "child-1", { isDone: true }, "owner")).toBeNull();
     expect(await completeQuest(db, "quest-1", "owner")).toEqual({ type: "not_found" });
     expect(child.is_done).toBe(false);
     expect(updates).not.toHaveBeenCalled();
@@ -162,7 +162,7 @@ describe("checkpoint service の所有者境界", () => {
     const { db, rpc, updates } = fixture();
     expect(await getQuestWithTask(db, "missing", "owner")).toBeNull();
     expect(await getQuestDetail(db, "missing", "owner")).toBeNull();
-    expect(await updateCheckpointStatus(db, "missing", true, "owner")).toBeNull();
+    expect(await updateCheckpoint(db, "missing", { isDone: true }, "owner")).toBeNull();
     expect(await completeQuest(db, "missing", "owner")).toEqual({ type: "not_found" });
     expect(rpc).not.toHaveBeenCalled();
     expect(updates).not.toHaveBeenCalled();
@@ -170,18 +170,18 @@ describe("checkpoint service の所有者境界", () => {
 
   it("本人のチェックポイントの達成と取消を保存できる", async () => {
     const { db, child } = fixture();
-    const result = await updateCheckpointStatus(db, "child-1", true, "owner");
+    const result = await updateCheckpoint(db, "child-1", { isDone: true }, "owner");
     expect(result?.isDone).toBe(true);
     expect(result?.doneAt).toEqual(expect.any(String));
     expect(child.is_done).toBe(true);
-    const undone = await updateCheckpointStatus(db, "child-1", false, "owner");
+    const undone = await updateCheckpoint(db, "child-1", { isDone: false }, "owner");
     expect(undone?.isDone).toBe(false);
     expect(undone?.doneAt).toBeNull();
   });
 
   it("検証後に別クエストへ移されたチェックポイントは更新しない", async () => {
     const { db, child } = fixture({ reparent: true });
-    expect(await updateCheckpointStatus(db, "child-1", true, "owner")).toBeNull();
+    expect(await updateCheckpoint(db, "child-1", { isDone: true }, "owner")).toBeNull();
     expect(child.is_done).toBe(false);
   });
 
@@ -229,7 +229,7 @@ describe("checkpoint service の所有者境界", () => {
   });
   it.each(["checkpoints", "update"])("更新時の %s エラーを通知する", async (fail) => {
     const { db } = fixture({ fail });
-    await expect(updateCheckpointStatus(db, "child-1", true, "owner")).rejects.toThrow();
+    await expect(updateCheckpoint(db, "child-1", { isDone: true }, "owner")).rejects.toThrow();
   });
 
   it("生成プランは RPC で原子的に置換して階層順に返す", async () => {
@@ -247,5 +247,24 @@ describe("checkpoint service の所有者境界", () => {
     await expect(saveCheckpointPlanToDb(db, "quest-1", { milestones: [] })).rejects.toThrow(
       "原子的置換",
     );
+  });
+});
+
+describe("チェックポイント名の部分更新", () => {
+  it("名前だけ変更し、達成状態と完了日時を保持する", async () => {
+    const { db, child } = fixture();
+    child.is_done = true;
+    child.done_at = date;
+    const result = await updateCheckpoint(db, "child-1", { title: "保存した名前" }, "owner");
+    expect(result?.title).toBe("保存した名前");
+    expect(child.title).toBe("保存した名前");
+    expect(result?.isDone).toBe(true);
+    expect(result?.doneAt).toBe(date);
+  });
+  it("他ユーザーの名前は変更しない", async () => {
+    const { db, child, updates } = fixture({ questOwner: "other" });
+    expect(await updateCheckpoint(db, "child-1", { title: "変更不可" }, "owner")).toBeNull();
+    expect(child.title).toBe("ステップ");
+    expect(updates).not.toHaveBeenCalled();
   });
 });

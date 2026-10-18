@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuestClearScreen } from "./QuestClearScreen";
 
 // next/navigation のモック
@@ -102,5 +102,47 @@ describe("QuestClearScreen", () => {
     );
 
     expect(screen.queryByRole("status", { name: "レベルアップ" })).not.toBeInTheDocument();
+  });
+
+  describe("登場演出", () => {
+    const originalAnimate = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "animate");
+    let animate: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      animate = vi.fn(() => ({ finished: new Promise(() => {}), cancel: vi.fn() }));
+      Object.defineProperty(HTMLElement.prototype, "animate", {
+        value: animate,
+        configurable: true,
+        writable: true,
+      });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      if (originalAnimate) {
+        Object.defineProperty(HTMLElement.prototype, "animate", originalAnimate);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, "animate");
+      }
+    });
+
+    it("宝箱とタイトルをポップさせ、紙吹雪を表示する", () => {
+      vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+      render(<QuestClearScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
+
+      const title = screen.getByText("QUEST CLEAR!");
+      const popTargets = animate.mock.contexts;
+      expect(popTargets).toContain(title);
+      expect(popTargets).toContain(screen.getByLabelText("宝箱").parentElement?.parentElement);
+      expect(screen.getByTestId("confetti-burst")).toBeInTheDocument();
+    });
+
+    it("動きを減らす設定のときは演出しない", () => {
+      vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+      render(<QuestClearScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
+
+      expect(animate).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("confetti-burst")).not.toBeInTheDocument();
+    });
   });
 });

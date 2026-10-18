@@ -1,9 +1,9 @@
-// PATCH チェックポイント達成状態の更新
+// PATCH チェックポイント名・達成状態の更新
 // 担当: @miyagunimikihiro / 仕様: docs/api.md
 import { z } from "zod";
-import { updateCheckpointStatus } from "@/features/checkpoint/service";
+import { updateCheckpoint } from "@/features/checkpoint/service";
 import { apiError, ok, parseJson } from "@/lib/api-response";
-import { UpdateCheckpointRequest } from "@/lib/schemas";
+import { UpdateCheckpointFieldsRequest } from "@/lib/schemas";
 import { getCurrentUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     );
   }
 
-  const parsedBody = await parseJson(request, UpdateCheckpointRequest);
+  const parsedBody = await parseJson(request, UpdateCheckpointFieldsRequest);
   if (!parsedBody.ok) {
     return parsedBody.response;
   }
@@ -37,12 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const supabase = supabaseServer();
 
   try {
-    const updated = await updateCheckpointStatus(
-      supabase,
-      checkpointId,
-      parsedBody.data.isDone,
-      user.id,
-    );
+    const updated = await updateCheckpoint(supabase, checkpointId, parsedBody.data, user.id);
 
     if (!updated) {
       return apiError(404, "not_found", "指定されたチェックポイントが見つかりません");
