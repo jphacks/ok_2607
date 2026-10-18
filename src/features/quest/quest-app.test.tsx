@@ -290,7 +290,7 @@ describe("タスク登録と3択の画面遷移", () => {
           responseGate.resolve(Response.json({ isUrgent: false, candidates: [], inProgressQuest }));
         });
       }
-      fireEvent.click(await screen.findByRole("button", { name: "進行中の冒険を再開する" }));
+      fireEvent.click(await screen.findByRole("button", { name: "進行中のクエストを再開する" }));
       expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
     },
   );
@@ -334,7 +334,7 @@ describe("タスク登録と3択の画面遷移", () => {
 
   it("初回はクエストを表示し、空の状態からタスク名・期限だけの作成画面に進める", async () => {
     render(<QuestApp />);
-    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("今日の冒険を選べ");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("クエストを選べ");
     fireEvent.click(await screen.findByRole("button", { name: "＋ 新しいタスクを追加" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("textbox", { name: /タスク名/ })).toBeVisible();
@@ -349,17 +349,17 @@ describe("タスク登録と3択の画面遷移", () => {
     fireEvent.click(screen.getByRole("button", { name: "タスク" }));
     fireEvent.click(screen.getByRole("button", { name: "新しいタスクを追加" }));
     fireEvent.change(screen.getByRole("textbox", { name: /タスク名/ }), {
-      target: { value: "新しい冒険" },
+      target: { value: "新しいクエスト" },
     });
     fireEvent.click(screen.getByRole("button", { name: "追加する" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const rows = within(screen.getByRole("list", { name: "登録済みタスク" })).getAllByRole(
       "listitem",
     );
-    expect(rows[0]).toHaveTextContent("新しい冒険");
+    expect(rows[0]).toHaveTextContent("新しいクエスト");
     expect(rows[1]).toHaveTextContent("以前のタスク");
     fireEvent.click(screen.getByRole("button", { name: /^クエスト/ }));
-    expect(await screen.findByRole("radio", { name: /新しい冒険/ })).toBeVisible();
+    expect(await screen.findByRole("radio", { name: /新しいクエスト/ })).toBeVisible();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 
@@ -486,7 +486,7 @@ describe("タスク登録と3択の画面遷移", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "ステータスで確認する" }));
     const homeResumeBtn = await screen.findByRole("button", {
-      name: "進行中の冒険を再開する",
+      name: "進行中のクエストを再開する",
     });
     fireEvent.click(homeResumeBtn);
 
@@ -583,7 +583,7 @@ describe("タスク登録と3択の画面遷移", () => {
     render(<QuestApp />);
 
     expect(
-      await screen.findByRole("button", { name: "Google アカウントで冒険を始める" }),
+      await screen.findByRole("button", { name: "Google アカウントでクエストを始める" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "メインメニュー" })).not.toBeInTheDocument();
   });

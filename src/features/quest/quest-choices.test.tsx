@@ -261,7 +261,7 @@ describe("QuestChoices - 選択の強調と再抽選", () => {
 
   it("見出し横の再抽選アイコンで onRetry が呼ばれ、下部の再抽選ボタンは無い", () => {
     const { onRetry } = renderChoices();
-    const heading = screen.getByRole("heading", { name: "今日の冒険を選べ" });
+    const heading = screen.getByRole("heading", { name: "クエストを選べ" });
     const header = heading.parentElement!.parentElement!;
     fireEvent.click(within(header).getByRole("button", { name: "候補を再抽選する" }));
     expect(onRetry).toHaveBeenCalledTimes(1);

@@ -9,7 +9,7 @@ describe("QuestLoading (App Router Loading Boundary)", () => {
 
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByText("LOADING")).toBeInTheDocument();
-    expect(screen.getByText("冒険の書をひらいている…")).toBeInTheDocument();
+    expect(screen.getByText("クエストの書をひらいている…")).toBeInTheDocument();
     expect(screen.getByLabelText("主人公")).toBeInTheDocument();
   });
 });
