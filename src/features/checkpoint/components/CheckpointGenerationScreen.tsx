@@ -124,11 +124,12 @@ export function CheckpointGenerationScreen({
     setEditError(null);
 
     try {
+      const original = checkpoints.find((cp) => cp.id === id);
+      if (!original) throw new Error("チェックポイントが見つかりません。");
+
       let saved: Checkpoint;
       // デモクエストまたはクライアント生成されたチェックポイントの場合はローカル反映のみ
       if (questId === "demo" || id.startsWith("demo-") || id.startsWith("custom-")) {
-        const original = checkpoints.find((cp) => cp.id === id);
-        if (!original) throw new Error("チェックポイントが見つかりません。");
         saved = { ...original, title: parsed.data.title! };
       } else {
         const response = await fetch(`/api/checkpoints/${id}`, {
@@ -151,7 +152,10 @@ export function CheckpointGenerationScreen({
         ) {
           throw new Error("保存結果を確認できませんでした。");
         }
-        saved = result.data.checkpoint;
+        saved = {
+          ...result.data.checkpoint,
+          position: original.position,
+        };
       }
 
       setCheckpoints((previous) => previous.map((cp) => (cp.id === id ? saved : cp)));
@@ -359,7 +363,7 @@ export function CheckpointGenerationScreen({
                                 type="button"
                                 aria-label="上へ移動"
                                 onClick={() => handleMoveUp(idx)}
-                                disabled={isFirst}
+                                disabled={isFirst || editingId !== null || isSavingEdit}
                                 className="border border-line-dim bg-panel px-1.5 py-0.5 text-xs text-muted hover:border-gold-accent hover:text-gold-accent disabled:opacity-30 disabled:cursor-not-allowed active:translate-y-0.5 transition-colors"
                               >
                                 ▲
@@ -368,7 +372,7 @@ export function CheckpointGenerationScreen({
                                 type="button"
                                 aria-label="下へ移動"
                                 onClick={() => handleMoveDown(idx)}
-                                disabled={isLast}
+                                disabled={isLast || editingId !== null || isSavingEdit}
                                 className="border border-line-dim bg-panel px-1.5 py-0.5 text-xs text-muted hover:border-gold-accent hover:text-gold-accent disabled:opacity-30 disabled:cursor-not-allowed active:translate-y-0.5 transition-colors"
                               >
                                 ▼
@@ -377,7 +381,8 @@ export function CheckpointGenerationScreen({
                                 type="button"
                                 aria-label="編集"
                                 onClick={() => handleEditStart(cp)}
-                                className="border border-line-dim bg-panel px-2 py-0.5 text-xs text-gold-accent hover:border-gold-accent hover:bg-gold-accent/10 active:translate-y-0.5 transition-colors"
+                                disabled={editingId !== null || isSavingEdit}
+                                className="border border-line-dim bg-panel px-2 py-0.5 text-xs text-gold-accent hover:border-gold-accent hover:bg-gold-accent/10 disabled:opacity-30 disabled:cursor-not-allowed active:translate-y-0.5 transition-colors"
                               >
                                 ✎ 編集
                               </button>
@@ -401,6 +406,7 @@ export function CheckpointGenerationScreen({
                     <div className="mt-2 space-y-2">
                       <input
                         type="text"
+                        maxLength={200}
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                         onKeyDown={(e) => {

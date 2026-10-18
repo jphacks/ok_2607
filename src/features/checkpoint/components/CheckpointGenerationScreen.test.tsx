@@ -180,6 +180,67 @@ describe("CheckpointGenerationScreen", () => {
     fetchSpy.mockRestore();
   });
 
+  it("並び替えた後に編集・保存しても、並び替えた順序(position)が維持される", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        // API はDB上の古い position: 0 を返してくる想定
+        checkpoint: { ...mockCheckpoints[0], title: "更新されたタイトル", position: 0 },
+      }),
+    } as Response);
+
+    const handleStart = vi.fn();
+    render(
+      <CheckpointGenerationScreen
+        questId={mockQuestId}
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        onStartQuest={handleStart}
+      />,
+    );
+
+    // 1つ目の「下へ」を押して順番を入れ替える (cp-2 が先頭、cp-1 が2番目)
+    const downButtons = screen.getAllByRole("button", { name: "下へ移動" });
+    fireEvent.click(downButtons[0]);
+
+    // 2番目になった cp-1 の編集ボタンを押して編集・保存
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[1]);
+
+    const input = screen.getByDisplayValue("基本画面が完成している");
+    fireEvent.change(input, { target: { value: "更新されたタイトル" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByText("更新されたタイトル")).toBeInTheDocument();
+
+    // クエスト開始時に、入れ替わった順序(cp-2: position 0, cp-1: position 1)が維持されていること
+    fireEvent.click(screen.getByRole("button", { name: "クエストを開始する" }));
+    expect(handleStart).toHaveBeenCalledWith([
+      expect.objectContaining({ id: mockCheckpointId2, position: 0 }),
+      expect.objectContaining({ id: mockCheckpointId1, position: 1, title: "更新されたタイトル" }),
+    ]);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("編集中は移動ボタンが無効化される", () => {
+    render(
+      <CheckpointGenerationScreen
+        questId={mockQuestId}
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[0]);
+
+    const upButtons = screen.getAllByRole("button", { name: "上へ移動" });
+    const downButtons = screen.getAllByRole("button", { name: "下へ移動" });
+    expect(upButtons[0]).toBeDisabled();
+    expect(downButtons[0]).toBeDisabled();
+  });
+
   it("チェックポイント編集中に「キャンセル」ボタンまたは Esc キーを押すと編集前の状態に戻る", () => {
     render(
       <CheckpointGenerationScreen
