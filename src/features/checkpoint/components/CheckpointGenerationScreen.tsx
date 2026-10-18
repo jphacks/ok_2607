@@ -179,7 +179,7 @@ export function CheckpointGenerationScreen({
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-[#101320] text-white">
+    <div className="flex min-h-screen w-full flex-col items-center bg-surface text-text">
       <main className="flex min-h-screen w-full max-w-3xl flex-col justify-between px-5 py-4 font-dotgothic sm:px-8 sm:py-8 lg:px-12 lg:py-10">
         {/* 上部ヘッダー */}
         <div>
@@ -189,12 +189,12 @@ export function CheckpointGenerationScreen({
           {/* 見出し & 魔道士キャラクター */}
           <div className="mt-4 flex items-start justify-between">
             <div className="flex-1 pr-2">
-              <h1 className="text-xl font-bold tracking-wide text-white">AIが冒険の道筋を描く</h1>
+              <h1 className="text-xl font-bold tracking-wide text-text">AIが冒険の道筋を描く</h1>
               <div className="mt-2">
-                <span className="text-[11px] font-bold tracking-wider text-[#f2c36b]">
+                <span className="text-[11px] font-bold tracking-wider text-gold-accent">
                   MAIN QUEST
                 </span>
-                <p className="mt-0.5 text-base font-bold text-white">{taskTitle}</p>
+                <p className="mt-0.5 text-base font-bold text-text">{taskTitle}</p>
               </div>
             </div>
             <div className="flex-shrink-0 pt-1">
@@ -233,13 +233,13 @@ export function CheckpointGenerationScreen({
             )}
 
             {error && (
-              <div className="rounded border border-red-500 bg-red-950/40 p-4 text-center text-sm text-red-200">
+              <div className="rounded border border-danger/60 bg-panel p-4 text-center text-sm text-danger">
                 <p className="font-bold">生成に失敗しました</p>
-                <p className="mt-1 text-xs opacity-90">{error}</p>
+                <p className="mt-1 text-xs text-muted">{error}</p>
                 <button
                   type="button"
                   onClick={() => void generate()}
-                  className="mt-3 border border-red-400 px-3 py-1 text-xs hover:bg-red-900/50"
+                  className="mt-3 border border-danger/80 px-3 py-1 text-xs text-danger hover:bg-panel-active"
                 >
                   再試行する
                 </button>
@@ -256,11 +256,11 @@ export function CheckpointGenerationScreen({
                   <PixelCard
                     key={cp.id}
                     as="div"
-                    className="cursor-pointer transition-colors hover:border-[#ffe18d]"
+                    className="cursor-pointer transition-colors hover:border-gold-hover"
                     onClick={() => !isEditing && handleEditStart(cp)}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="font-dotgothic text-base font-bold text-[#f2c36b]">
+                      <span className="font-dotgothic text-base font-bold text-gold-accent">
                         {stepNum}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -282,13 +282,13 @@ export function CheckpointGenerationScreen({
                               if (e.key === "Escape") cancelEdit();
                             }}
                             autoFocus
-                            className="w-full rounded border border-[#f2c36b] bg-[#101320] px-2 py-0.5 text-sm text-white focus:outline-none"
+                            className="w-full rounded border border-gold-accent bg-field px-2 py-0.5 text-sm text-text focus:outline-none"
                             onClick={(e) => e.stopPropagation()}
                           />
                         ) : (
                           <>
-                            <h2 className="truncate text-sm font-bold text-white">{cp.title}</h2>
-                            <p className="text-[11px] text-[#a8b3cf]">
+                            <h2 className="truncate text-sm font-bold text-text">{cp.title}</h2>
+                            <p className="text-[11px] text-muted">
                               {cp.description || "到達すべき状態"}
                             </p>
                           </>
@@ -317,8 +317,8 @@ export function CheckpointGenerationScreen({
 
           {/* 編集可能ガイダンス */}
           {!isLoading && !error && (
-            <p className="mt-4 flex items-center justify-center gap-1 text-center text-xs text-[#a8b3cf]">
-              <span className="text-[#f2c36b]">✧</span>{" "}
+            <p className="mt-4 flex items-center justify-center gap-1 text-center text-xs text-muted">
+              <span className="text-gold-accent">✧</span>{" "}
               {isFallback
                 ? "基本のマイルストーンはタップして自由に編集できます"
                 : "AIが提案したマイルストーンは編集できます"}

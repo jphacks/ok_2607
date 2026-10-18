@@ -11,13 +11,13 @@ export function PixelHeader({ level = 4, className = "" }: PixelHeaderProps) {
   return (
     <header className={`w-full ${className}`}>
       <div className="flex items-center justify-between py-2 text-sm">
-        <span className="font-dotgothic font-bold tracking-wider text-[#f2c36b]">✦ TriOne</span>
-        <span className="flex items-center gap-1.5 font-dotgothic text-xs text-[#a8b3cf]">
-          <span className="inline-block h-2 w-2 rounded-full bg-[#758ab3]" />
+        <span className="font-dotgothic font-bold tracking-wider text-gold">✦ TriOne</span>
+        <span className="flex items-center gap-1.5 font-dotgothic text-xs text-muted">
+          <span className="inline-block h-2 w-2 rounded-full bg-line" />
           LV. {formattedLevel}
         </span>
       </div>
-      <div className="h-[1px] w-full bg-[#35465d]" />
+      <div className="h-[1px] w-full bg-line-dim" />
     </header>
   );
 }
@@ -30,7 +30,7 @@ export function DecorativeTileBar({ className = "" }: DecorativeTileBarProps) {
       className={`flex w-full items-center justify-between overflow-hidden py-1.5 opacity-80 ${className}`}
     >
       {Array.from({ length: 16 }).map((_, i) => (
-        <span key={i} className="h-2 w-2 flex-shrink-0 bg-[#4c416d]" />
+        <span key={i} className="h-2 w-2 flex-shrink-0 bg-line-dim" />
       ))}
     </div>
   );
