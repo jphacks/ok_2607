@@ -455,7 +455,9 @@ describe("タスク登録と3択の画面遷移", () => {
     fireEvent.click(urgentCandidate);
     expect(urgentCandidate).toBeChecked();
     expect(startButton).toBeEnabled();
-    expect(screen.queryByRole("button", { name: "緊急クエストを発動" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "緊急クエストを発動", hidden: true }),
+    ).not.toBeInTheDocument();
   });
 
   it("未ログイン時はタスクを表示せず、ログイン専用画面を表示する", async () => {
