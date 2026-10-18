@@ -225,23 +225,29 @@ describe("QuestProgressScreen", () => {
       renderFive();
       const locked = screen.getByRole("checkbox", { name: /見直す/ });
       expect(locked).toHaveAttribute("aria-disabled", "true");
+      expect(locked).toBeDisabled();
+      expect(locked).toHaveAttribute("tabindex", "-1");
       fireEvent.click(locked);
       expect(global.fetch).not.toHaveBeenCalled();
       expect(locked).toHaveAttribute("aria-checked", "false");
     });
 
-    it("最後に完了したもの以外の完了済みは外せない", () => {
+    it("最後に完了したもの以外の完了済みは外せず、フォーカス対象からも除外される", () => {
       renderFive();
       const first = screen.getByRole("checkbox", { name: /資料を集める/ });
       expect(first).toHaveAttribute("aria-disabled", "true");
+      expect(first).toBeDisabled();
+      expect(first).toHaveAttribute("tabindex", "-1");
       fireEvent.click(first);
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    it("最後に完了したものは外せて、今やることがそれに戻る", async () => {
+    it("直前の完了済み（戻す可能）項目はフォーカス可能で、外すと今やることがそれに戻る", async () => {
       renderFive();
       const last = screen.getByRole("checkbox", { name: /構成を決める/ });
       expect(last).toHaveAttribute("aria-disabled", "false");
+      expect(last).not.toBeDisabled();
+      expect(last).toHaveAttribute("tabindex", "0");
       fireEvent.click(last);
 
       await waitFor(() => {
@@ -251,6 +257,16 @@ describe("QuestProgressScreen", () => {
         "/api/checkpoints/cp-2",
         expect.objectContaining({ body: JSON.stringify({ isDone: false }) }),
       );
+    });
+
+    it("「今やること」のチェックボックスにタイトルを含むアクセシブルネームが指定され、操作可能である", () => {
+      renderFive();
+      const checkbox = screen.getByRole("checkbox", {
+        name: "本文を書くを完了にする",
+      });
+      expect(checkbox).toBeInTheDocument();
+      expect(checkbox).not.toBeDisabled();
+      expect(checkbox).toHaveAttribute("aria-checked", "false");
     });
 
     it("更新に失敗したら元に戻してエラーを表示する", async () => {
@@ -285,7 +301,7 @@ describe("QuestProgressScreen", () => {
     it("全部終わると完了メッセージを表示する", () => {
       renderFive(fiveCheckpoints.map((cp) => ({ ...cp, isDone: true })));
       expect(screen.queryByRole("group", { name: "今やること" })).not.toBeInTheDocument();
-      expect(screen.getByText("すべてのチェックポイントを達成！")).toBeInTheDocument();
+      expect(screen.getByText("すべてのマイルストーンを達成！")).toBeInTheDocument();
     });
 
     it("7 件以上あるときは完了済みと先の項目を畳む", () => {
@@ -408,5 +424,50 @@ describe("クエスト完了の保存", () => {
     expect(screen.getByRole("button", { name: "完了処理中..." })).toBeDisabled();
     fireEvent.click(screen.getByText("データを保存・読み込みできる"));
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("ヘッダーに指定した level が表示され、省略時はデフォルト Lv. 1 が表示される", () => {
+    const { unmount } = render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        level={3}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*03/)).toBeInTheDocument();
+    unmount();
+
+    render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*01/)).toBeInTheDocument();
+  });
+});
+
+describe("QuestProgressScreen のロードマップ", () => {
+  it("「ロードマップを見る」で全体を開き、閉じると今やること表示に戻る", () => {
+    render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="アプリ"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    const openButton = screen.getByRole("button", { name: /ロードマップを見る/ });
+    openButton.focus();
+    fireEvent.click(openButton);
+    expect(screen.getByRole("dialog", { name: "ロードマップ" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "ロードマップを閉じる" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(openButton).toHaveFocus();
+    expect(screen.getByRole("group", { name: "今やること" })).toBeInTheDocument();
   });
 });

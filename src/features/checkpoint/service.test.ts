@@ -19,6 +19,7 @@ function fixture(
     urgent?: boolean;
     fail?: string;
     reparent?: boolean;
+    checkpoints?: Row[];
   } = {},
 ) {
   const quest: Row = {
@@ -63,7 +64,7 @@ function fixture(
   const tables: Record<string, Row[]> = {
     quests: [quest],
     tasks: [task],
-    checkpoints: [child, parent],
+    checkpoints: options.checkpoints ?? [child, parent],
   };
   const updates = vi.fn();
   const rpc = vi.fn(
@@ -105,6 +106,10 @@ function fixture(
     const query = {
       select: vi.fn().mockImplementation(() => query),
       eq: vi.fn((key: string, value: unknown) => {
+        filters.push([key, value]);
+        return query;
+      }),
+      is: vi.fn((key: string, value: unknown) => {
         filters.push([key, value]);
         return query;
       }),
@@ -157,6 +162,19 @@ describe("checkpoint service の所有者境界", () => {
     expect(child.is_done).toBe(false);
     expect(updates).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("他ユーザーのクエストではチェックポイントを取得しない", async () => {
+    const { db, from } = fixture({ questOwner: "other" });
+
+    expect(await getQuestDetail(db, "quest-1", "owner")).toBeNull();
+    expect(from).not.toHaveBeenCalledWith("checkpoints");
+  });
+
+  it("元タスクの所有者が異なる場合は並行取得のチェックポイントエラーも公開しない", async () => {
+    const { db } = fixture({ taskOwner: "other", fail: "checkpoints" });
+
+    expect(await getQuestDetail(db, "quest-1", "owner")).toBeNull();
   });
 
   it("存在しない対象は取得・更新・完了できない", async () => {
@@ -236,6 +254,88 @@ describe("checkpoint service の所有者境界", () => {
     expect(rpc).toHaveBeenCalledWith("complete_quest", {
       p_quest_id: "quest-1",
       p_xp_earned: xp,
+      p_user_id: "owner",
+    });
+  });
+
+  it("親チェックポイントの完了数のみを対象にして経験値を算出し、子ステップの完了数を加算しない", async () => {
+    const parent1: Row = {
+      id: "parent-1",
+      quest_id: "quest-1",
+      parent_id: null,
+      title: "親1",
+      position: 1,
+      is_done: true,
+      done_at: date,
+    };
+    const parent2: Row = {
+      id: "parent-2",
+      quest_id: "quest-1",
+      parent_id: null,
+      title: "親2",
+      position: 2,
+      is_done: true,
+      done_at: date,
+    };
+    const parent3: Row = {
+      id: "parent-3",
+      quest_id: "quest-1",
+      parent_id: null,
+      title: "親3",
+      position: 3,
+      is_done: false,
+      done_at: null,
+    };
+    const child1: Row = {
+      id: "child-1",
+      quest_id: "quest-1",
+      parent_id: "parent-1",
+      title: "子1",
+      position: 1,
+      is_done: true,
+      done_at: date,
+    };
+    const child2: Row = {
+      id: "child-2",
+      quest_id: "quest-1",
+      parent_id: "parent-2",
+      title: "子2",
+      position: 1,
+      is_done: true,
+      done_at: date,
+    };
+    const child3: Row = {
+      id: "child-3",
+      quest_id: "quest-1",
+      parent_id: "parent-1",
+      title: "子3",
+      position: 2,
+      is_done: false,
+      done_at: null,
+    };
+    const child4: Row = {
+      id: "child-4",
+      quest_id: "quest-1",
+      parent_id: "parent-3",
+      title: "子4",
+      position: 1,
+      is_done: false,
+      done_at: null,
+    };
+
+    const { db, rpc } = fixture({
+      checkpoints: [parent1, parent2, parent3, child1, child2, child3, child4],
+    });
+
+    const result = await completeQuest(db, "quest-1", "owner");
+    expect(result.type).toBe("success");
+    if (result.type === "success") {
+      // 親チェックポイント完了 2 件分: 基本 20 XP + 2 * 10 XP = 40 XP
+      expect(result.data.xpGained).toBe(40);
+    }
+    expect(rpc).toHaveBeenCalledWith("complete_quest", {
+      p_quest_id: "quest-1",
+      p_xp_earned: 40,
       p_user_id: "owner",
     });
   });

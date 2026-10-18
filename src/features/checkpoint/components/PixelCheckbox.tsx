@@ -5,6 +5,7 @@ interface PixelCheckboxProps {
   onChange?: (checked: boolean) => void;
   className?: string;
   disabled?: boolean;
+  ariaLabel?: string;
 }
 
 export function PixelCheckbox({
@@ -12,6 +13,7 @@ export function PixelCheckbox({
   onChange,
   className = "",
   disabled = false,
+  ariaLabel,
 }: PixelCheckboxProps) {
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -25,9 +27,10 @@ export function PixelCheckbox({
       type="button"
       role="checkbox"
       aria-checked={checked}
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={handleClick}
-      className={`relative flex h-6 w-6 flex-shrink-0 items-center justify-center transition-all select-none focus:outline-none ${
+      className={`relative flex h-6 w-6 flex-shrink-0 items-center justify-center transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-accent ${
         checked
           ? "border border-[#8892b0] bg-gradient-to-b from-[#4a5568] to-[#2d3748] shadow-inner"
           : "border-2 border-[#d9b96f] bg-[#1a1f33] hover:border-[#ffe18d]"
