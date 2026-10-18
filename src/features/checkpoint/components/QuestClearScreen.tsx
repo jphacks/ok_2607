@@ -16,6 +16,7 @@ interface QuestClearScreenProps {
   xpGained?: number;
   nextLevelXp?: number;
   level?: number;
+  isLevelUp?: boolean;
   onNextQuest?: () => void;
 }
 
@@ -26,7 +27,8 @@ export function QuestClearScreen({
   totalCheckpointsCount = 5,
   xpGained = 120,
   nextLevelXp = 80,
-  level = 4,
+  level = 1,
+  isLevelUp = false,
   onNextQuest,
 }: QuestClearScreenProps) {
   const router = useRouter();
@@ -59,6 +61,18 @@ export function QuestClearScreen({
               QUEST CLEAR!
             </h1>
             <p className="mt-2 text-xl font-bold tracking-wide text-white">クエスト達成！</p>
+
+            {isLevelUp && (
+              <div
+                role="status"
+                aria-label="レベルアップ"
+                className="mt-4 flex items-center justify-center gap-2 rounded border border-[#f2c36b] bg-[#2a2215] px-4 py-2 font-bold text-[#f2c36b] shadow-[0_0_10px_rgba(242,195,107,0.3)] animate-pulse"
+              >
+                <span aria-hidden="true">★</span>
+                <span className="tracking-wide">LEVEL UP! Lv. {level} に到達！</span>
+                <span aria-hidden="true">★</span>
+              </div>
+            )}
           </div>
 
           {/* リザルトカード */}
