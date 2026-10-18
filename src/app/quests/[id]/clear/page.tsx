@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { getQuestDetail } from "@/features/checkpoint/service";
+import { calculateLevel } from "@/features/checkpoint/xp";
 import { QuestClearScreen } from "@/features/checkpoint/components/QuestClearScreen";
+import { getStats } from "@/features/task/server";
+import { getCurrentUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
 interface PageProps {
@@ -38,9 +41,25 @@ export default async function QuestClearPage({ params }: PageProps) {
     notFound();
   }
 
+  const user = await getCurrentUser();
+  let totalXp = 0;
+  try {
+    const stats = await getStats(user?.id);
+    totalXp = stats.totalXp;
+  } catch {
+    totalXp = questDetail.quest.xpEarned ?? 0;
+  }
+
   const parentCheckpoints = questDetail.checkpoints.filter((cp) => cp.parentId === null);
   const completedCount = parentCheckpoints.filter((cp) => cp.isDone).length;
   const totalCount = parentCheckpoints.length;
+  const xpGained = questDetail.quest.xpEarned ?? 0;
+
+  // クエスト完了前の累積XPと完了後の累積XPを比較してレベルアップ判定
+  const prevTotalXp = Math.max(0, totalXp - xpGained);
+  const prevLevelInfo = calculateLevel(prevTotalXp);
+  const currentLevelInfo = calculateLevel(totalXp);
+  const isLevelUp = currentLevelInfo.level > prevLevelInfo.level;
 
   return (
     <QuestClearScreen
@@ -48,8 +67,10 @@ export default async function QuestClearPage({ params }: PageProps) {
       taskTitle={questDetail.task.title}
       completedCheckpointsCount={completedCount}
       totalCheckpointsCount={totalCount > 0 ? totalCount : 5}
-      xpGained={questDetail.quest.xpEarned ?? 120}
-      nextLevelXp={80}
+      xpGained={xpGained}
+      nextLevelXp={currentLevelInfo.nextLevelXp}
+      level={currentLevelInfo.level}
+      isLevelUp={isLevelUp}
     />
   );
 }
