@@ -189,7 +189,7 @@ export function CheckpointGenerationScreen({
     const newCp: Checkpoint = {
       id:
         typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
+          ? `custom-${crypto.randomUUID()}`
           : `custom-${Date.now()}`,
       questId,
       parentId: null,

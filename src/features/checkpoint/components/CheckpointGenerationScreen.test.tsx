@@ -276,6 +276,41 @@ describe("CheckpointGenerationScreen", () => {
     ]);
   });
 
+  it("新規追加したチェックポイントを編集・保存できる（DBへのリクエストを行わずローカル更新）", () => {
+    const fetchSpy = vi.spyOn(global, "fetch");
+
+    render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+
+    // 追加
+    const addBtn = screen.getByRole("button", { name: /チェックポイントを追加/ });
+    fireEvent.click(addBtn);
+    const addInput = screen.getByPlaceholderText("例: 参考資料を1本選ぶ");
+    fireEvent.change(addInput, { target: { value: "初期タイトル" } });
+    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+
+    expect(screen.getByText("初期タイトル")).toBeInTheDocument();
+
+    // 追加したアイテムの「編集」ボタンをクリック（3つ目）
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[2]);
+
+    const editInput = screen.getByDisplayValue("初期タイトル");
+    fireEvent.change(editInput, { target: { value: "修正後タイトル" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    // DBへの fetch は呼ばれず、画面上に反映されること
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByText("修正後タイトル")).toBeInTheDocument();
+
+    fetchSpy.mockRestore();
+  });
+
   it("自動生成時に isFallback: true が返された場合、基本ステップ作成の案内バナーが表示される", async () => {
     const mockFallbackCheckpoints = [
       {

@@ -209,6 +209,12 @@ describe("checkpoint service の所有者境界", () => {
     expect(child.is_done).toBe(true);
   });
 
+  it("更新項目が空の場合は更新せず null を返す", async () => {
+    const { db } = fixture();
+    const result = await updateCheckpointFields(db, "child-1", {}, "owner");
+    expect(result).toBeNull();
+  });
+
   it("検証後に別クエストへ移されたチェックポイントは更新しない", async () => {
     const { db, child } = fixture({ reparent: true });
     expect(await updateCheckpointStatus(db, "child-1", true, "owner")).toBeNull();

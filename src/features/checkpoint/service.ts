@@ -198,6 +198,10 @@ export async function updateCheckpointFields(
     updates.done_at = fields.isDone ? new Date().toISOString() : null;
   }
 
+  if (Object.keys(updates).length === 0) {
+    return null;
+  }
+
   const { data: updatedRow, error } = await supabase
     .from("checkpoints")
     .update(updates)
