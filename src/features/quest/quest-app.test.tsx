@@ -422,7 +422,8 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(screen.queryByRole("button", { name: "ダミータスクを追加" })).not.toBeInTheDocument();
   });
 
-  it("タスク画面ではデバッグメニューからダミータスク追加を実行できる", async () => {
+  it("ダミータスク追加で仕事・学校・私生活の6件を期限なしで追加し、既存タスクを保持する", async () => {
+    storedTasks = [existing];
     render(<QuestApp />);
     fireEvent.click(await screen.findByRole("button", { name: /^タスク/ }));
 
@@ -433,7 +434,16 @@ describe("タスク登録と3択の画面遷移", () => {
     await waitFor(() => {
       expect(screen.getByText("ダミータスクを追加しました")).toBeInTheDocument();
     });
-    expect(storedTasks.length).toBe(3);
+    expect(storedTasks).toHaveLength(7);
+    expect(storedTasks).toContainEqual(existing);
+    const addedTasks = storedTasks.filter((task) => task.id !== existing.id);
+    expect(addedTasks.every((task) => task.dueAt === null)).toBe(true);
+    for (const category of [/会議|プレゼン/, /課題|英単語/, /買い|掃除/]) {
+      expect(addedTasks.filter((task) => category.test(task.title))).toHaveLength(2);
+    }
+    for (const task of storedTasks) {
+      expect(screen.getByText(task.title)).toBeInTheDocument();
+    }
   });
 
   it("タスク画面から緊急クエスト発動を実行するとクエスト画面に切り替わり緊急クエストが表示される", async () => {
