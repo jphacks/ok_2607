@@ -3,8 +3,8 @@
 @import "./tokens.css";
 
 :root {
-  --background: #0b0d17;
-  --foreground: #ededf4;
+  --background: var(--color-surface);
+  --foreground: var(--color-text);
   --font-dotgothic: "DotGothic16", monospace, sans-serif;
 }
 
@@ -21,6 +21,20 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-dotgothic), Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+}
+
+/* CRT 風の薄い走査線を画面全体に重ねる。文字の読みやすさを優先して不透明度は低くする */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgb(255 255 255 / 0.03) 0 1px,
+    transparent 1px 3px
+  );
 }
 
 button {
@@ -64,6 +78,10 @@ button:disabled {
     color: #352b24;
     font-size: 14px;
     line-height: 22px;
+  }
+  .gold-button:active:not(:disabled),
+  .secondary-button:active:not(:disabled) {
+    transform: translateY(2px);
   }
   .gold-button:hover:not(:disabled) {
     background: #ffda86;
