@@ -184,8 +184,10 @@ describe("タスク登録と3択の画面遷移", () => {
     storedTasks = [existing];
     render(<QuestApp />);
     const radio = await screen.findByRole("radio", { name: new RegExp(existing.title) });
+    await waitFor(() => expect(radio).toBeEnabled());
     fireEvent.click(radio);
     const startButton = screen.getByRole("button", { name: "このクエストに挑戦する" });
+    await waitFor(() => expect(startButton).toBeEnabled());
     fireEvent.click(startButton);
 
     await waitFor(() => {
