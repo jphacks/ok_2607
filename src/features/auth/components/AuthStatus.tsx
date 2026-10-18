@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 interface UserProfile {
   id: string;
@@ -32,19 +31,9 @@ export function AuthStatus() {
     void loadUser();
   }, []);
 
-  const handleSignIn = async () => {
+  const handleSignIn = () => {
     setSigningIn(true);
-    try {
-      const supabase = createClient();
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-    } catch {
-      setSigningIn(false);
-    }
+    window.location.href = "/api/auth/signin";
   };
 
   const handleSignOut = async () => {
