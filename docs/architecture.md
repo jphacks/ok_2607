@@ -34,6 +34,7 @@ src/
 │   ├── quests/[id]/checkpoints/page.tsx # AI チェックポイント生成・確認画面（04）
 │   ├── quests/[id]/page.tsx             # クエスト進行画面（05）
 │   ├── quests/[id]/clear/page.tsx       # クエストクリア画面（06）
+│   ├── quests/[id]/loading.tsx          # クエスト画面の即時ローディング表示（Suspense バウンダリ）
 │   └── api/              # Route Handlers（docs/api.md）
 ├── components/ui/        # 共通 UI 部品（docs/design.md） @ki-mutaku
 ├── features/             # 機能ごとのコンポーネント・ロジック・テスト

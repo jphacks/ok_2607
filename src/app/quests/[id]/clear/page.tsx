@@ -45,6 +45,13 @@ export default async function QuestClearPage({ params }: PageProps) {
     notFound();
   }
 
+  if (questDetail.quest.status === "in_progress") {
+    redirect(`/quests/${id}`);
+  }
+  if (questDetail.quest.status !== "completed") {
+    notFound();
+  }
+
   let totalXp = 0;
   try {
     const stats = await getStats(user.id);
