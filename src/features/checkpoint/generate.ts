@@ -171,3 +171,52 @@ export async function generateCheckpointPlan(
 
   return validationResult.data;
 }
+
+/**
+ * AI 生成が利用できない場合のフォールバック用チェックポイント計画を生成する。
+ */
+export function createFallbackCheckpointPlan(taskTitle: string): CheckpointPlan {
+  const cleanTitle = taskTitle.trim() || "タスク";
+  return {
+    milestones: [
+      {
+        title: "準備と整理",
+        description: "作業環境や必要な情報を整える",
+        steps: [
+          {
+            title: `「${cleanTitle}」のゴールと手順を確認する`,
+            description: "何をもって完了とするかを明確にします",
+          },
+          {
+            title: "必要なツールや資料を開く",
+            description: "作業に集中できる環境を整えます",
+          },
+        ],
+      },
+      {
+        title: "タスクの実行",
+        description: "タスクを集中して進める",
+        steps: [
+          {
+            title: `「${cleanTitle}」の主要な作業を進める`,
+            description: "まずは最初の一区切りまで進めます",
+          },
+          {
+            title: "残りの作業を仕上げる",
+            description: "最後までやり遂げます",
+          },
+        ],
+      },
+      {
+        title: "完了と振り返り",
+        description: "やり残しがないか確認する",
+        steps: [
+          {
+            title: "成果物の確認と最終チェック",
+            description: "不備ややり残しがないか見直します",
+          },
+        ],
+      },
+    ],
+  };
+}
