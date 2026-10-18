@@ -63,6 +63,7 @@ describe("computeCheckpointFocus", () => {
   it("今やるものより後ろにある完了済みはロック扱いにする", () => {
     const focus = computeCheckpointFocus([cp("a", 0, false), cp("b", 1, true)]);
     expect(focus.steps[1]).toMatchObject({ state: "locked", canToggle: false });
+    expect(focus.completedCount).toBe(0);
   });
 
   it("チェックポイントが無ければ完了扱いにしない", () => {

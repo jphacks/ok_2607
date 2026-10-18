@@ -52,7 +52,8 @@ export function computeCheckpointFocus(checkpoints: Checkpoint[]): CheckpointFoc
     return { checkpoint: cp, state: "locked", canToggle: false };
   });
 
-  const completedCount = parents.filter((cp) => cp.isDone).length;
+  // 画面の表示とそろえ、今やるものより前（state が done）の件数を数える
+  const completedCount = steps.filter((step) => step.state === "done").length;
   const totalCount = parents.length;
 
   return {

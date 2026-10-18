@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Checkpoint } from "@/lib/schemas";
 import { type CheckpointStep, childCheckpointsOf, computeCheckpointFocus } from "../order";
@@ -33,6 +33,8 @@ export function QuestProgressScreen({
   const router = useRouter();
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>(initialCheckpoints);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // 同じ描画のあいだの連打も防ぐため、通信中かどうかは ref でも持つ
+  const pendingRef = useRef(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +56,7 @@ export function QuestProgressScreen({
 
   // チェックポイントの完了状態トグル（順番どおりのものだけ）
   const handleToggle = async (step: CheckpointStep) => {
-    if (!step.canToggle || pendingId !== null) {
+    if (!step.canToggle || pendingRef.current) {
       return;
     }
     const { id, isDone: currentStatus } = step.checkpoint;
@@ -72,6 +74,7 @@ export function QuestProgressScreen({
     }
 
     // 通信中は他の操作を受け付けない（連打で順番を飛ばさないため）
+    pendingRef.current = true;
     setPendingId(id);
     try {
       const res = await fetch(`/api/checkpoints/${id}`, {
@@ -89,6 +92,7 @@ export function QuestProgressScreen({
       setStatus(currentStatus);
       setError("通信エラーが発生しました。");
     } finally {
+      pendingRef.current = false;
       setPendingId(null);
     }
   };
@@ -250,7 +254,7 @@ function SmallStepRow({ step, onToggle }: SmallStepRowProps) {
     <button
       type="button"
       role="checkbox"
-      aria-checked={step.checkpoint.isDone}
+      aria-checked={step.state === "done"}
       aria-disabled={!step.canToggle}
       onClick={() => onToggle(step)}
       className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs ${
