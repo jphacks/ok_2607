@@ -16,6 +16,7 @@ const task: Task = {
 };
 
 function renderTaskList({
+  tasks = [task],
   onCreate = vi.fn<(input: CreateTaskRequest) => Promise<void>>().mockResolvedValue(undefined),
   onUpdate = vi
     .fn<(id: string, input: CreateTaskRequest) => Promise<void>>()
@@ -26,7 +27,7 @@ function renderTaskList({
     const [openForm, setOpenForm] = useState(false);
     return (
       <TaskList
-        tasks={[task]}
+        tasks={tasks}
         openForm={openForm}
         onFormChange={setOpenForm}
         onCreate={onCreate}
@@ -68,6 +69,69 @@ afterEach(() => {
   vi.unstubAllGlobals();
   Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
   Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
+});
+
+describe("完了済みタスクのアコーディオン", () => {
+  it("未完了と挑戦中は表示を保ち、完了済みだけを繰り返し開閉する", () => {
+    renderTaskList({
+      tasks: [
+        task,
+        { ...task, id: "progress", title: "挑戦中のタスク", status: "in_quest" },
+        { ...task, id: "done-many", title: "完了したタスクB", status: "done", skippedCount: 4 },
+        { ...task, id: "done-first", title: "完了したタスクA", status: "done", skippedCount: 1 },
+      ],
+    });
+    const summary = screen.getByText("完了済みタスク（2件）");
+    const completed = screen.getByRole("list", { name: "完了済みタスク", hidden: true });
+    const pending = screen.getByRole("list", { name: "登録済みタスク" });
+    expect(
+      within(pending)
+        .getAllByRole("listitem")
+        .map((row) => row.dataset.taskId),
+    ).toEqual([task.id, "progress"]);
+    expect(completed).not.toBeVisible();
+    fireEvent.click(summary);
+    expect(completed).toBeVisible();
+    expect(
+      within(completed)
+        .getAllByRole("listitem")
+        .map((row) => row.dataset.taskId),
+    ).toEqual(["done-first", "done-many"]);
+    fireEvent.click(summary);
+    expect(completed).not.toBeVisible();
+    expect(screen.getByText(task.title)).toBeVisible();
+    expect(screen.getByText("挑戦中のタスク")).toBeVisible();
+    fireEvent.click(summary);
+    expect(completed).toBeVisible();
+  });
+
+  it("完了済みが0件なら空のアコーディオンを表示しない", () => {
+    renderTaskList();
+    expect(screen.queryByText(/完了済みタスク/)).not.toBeInTheDocument();
+    expect(screen.getByText(task.title)).toBeVisible();
+  });
+
+  it("完了済みだけでも開いて編集・削除できる", async () => {
+    const { onUpdate, onDelete } = renderTaskList({ tasks: [{ ...task, status: "done" }] });
+    fireEvent.click(screen.getByText("完了済みタスク（1件）"));
+    openAction("編集");
+    const form = screen.getByRole("form", { name: "タスク編集" });
+    fireEvent.change(within(form).getByLabelText(/タスク名/), {
+      target: { value: "修正した記録" },
+    });
+    fireEvent.submit(form);
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenCalledWith(task.id, {
+        title: "修正した記録",
+        dueAt: task.dueAt,
+      }),
+    );
+    await waitFor(() => expect(form.closest("dialog")).not.toHaveAttribute("open"));
+    openAction("削除");
+    const confirmation = screen.getByRole("dialog", { name: "タスクを削除しますか？" });
+    fireEvent.click(within(confirmation).getByRole("button", { name: "削除する" }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(task.id));
+  });
 });
 
 describe("TaskList のreject回数", () => {
