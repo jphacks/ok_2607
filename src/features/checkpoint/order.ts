@@ -28,8 +28,11 @@ export interface CheckpointFocus {
   isAllCompleted: boolean;
 }
 
+/** 順番の判定に使う項目だけを持つチェックポイント（API では DB の行から作る） */
+export type CheckpointOrderFields = Pick<Checkpoint, "id" | "parentId" | "position" | "isDone">;
+
 /** 親チェックポイントを position 順に並べる */
-export function sortParentCheckpoints(checkpoints: Checkpoint[]): Checkpoint[] {
+export function sortParentCheckpoints<T extends CheckpointOrderFields>(checkpoints: T[]): T[] {
   return checkpoints.filter((cp) => cp.parentId === null).sort((a, b) => a.position - b.position);
 }
 
@@ -70,4 +73,25 @@ export function childCheckpointsOf(checkpoints: Checkpoint[], parentId: string):
   return checkpoints
     .filter((cp) => cp.parentId === parentId)
     .sort((a, b) => a.position - b.position);
+}
+
+/**
+ * isDone を nextIsDone に変える更新を、順番のルール上受け付けてよいか（API での強制用）。
+ * 子チェックポイントと、値が変わらない更新は常に許可する。
+ */
+export function canChangeCheckpointDone(
+  checkpoints: CheckpointOrderFields[],
+  targetId: string,
+  nextIsDone: boolean,
+): boolean {
+  const target = checkpoints.find((cp) => cp.id === targetId);
+  if (!target || target.parentId !== null || target.isDone === nextIsDone) return true;
+
+  const parents = sortParentCheckpoints(checkpoints);
+  const index = parents.findIndex((cp) => cp.id === targetId);
+  const currentIndex = parents.findIndex((cp) => !cp.isDone);
+  if (nextIsDone) return index === currentIndex;
+  // computeCheckpointFocus と同じく、今やるものの直前（全部終わっていれば最後）だけ外せる
+  const undoableIndex = currentIndex === -1 ? parents.length - 1 : currentIndex - 1;
+  return index === undoableIndex;
 }

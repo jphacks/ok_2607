@@ -14,7 +14,16 @@ import {
   mapDbTaskToSchema,
   sortCheckpointsInTreeOrder,
 } from "./types";
+import { canChangeCheckpointDone } from "./order";
 import { calculateQuestXp } from "./xp";
+
+/** 順番のルールに反する達成状態の変更（route で 409 にする） */
+export class CheckpointOrderError extends Error {
+  constructor() {
+    super("チェックポイントは上から順番に達成してください");
+    this.name = "CheckpointOrderError";
+  }
+}
 
 export interface QuestTaskDetail {
   quest: {
@@ -169,6 +178,7 @@ export async function getQuestDetail(
 
 /**
  * チェックポイント名・達成状態を、指定された項目だけ更新する。
+ * 親チェックポイントの達成状態は順番どおりにしか変えられず、違反すると CheckpointOrderError を投げる。
  */
 export async function updateCheckpoint(
   supabase: SupabaseClient,
@@ -187,6 +197,10 @@ export async function updateCheckpoint(
   }
   if (!checkpointRow || !(await getQuestWithTask(supabase, checkpointRow.quest_id, userId))) {
     return null;
+  }
+
+  if (updates.isDone !== undefined) {
+    await assertCheckpointOrder(supabase, checkpointRow.quest_id, checkpointId, updates.isDone);
   }
 
   const { data: updatedRow, error } = await supabase
@@ -214,6 +228,32 @@ export async function updateCheckpoint(
   }
 
   return mapDbCheckpointToSchema(updatedRow);
+}
+
+async function assertCheckpointOrder(
+  supabase: SupabaseClient,
+  questId: string,
+  checkpointId: string,
+  nextIsDone: boolean,
+): Promise<void> {
+  const { data: rows, error } = await supabase
+    .from("checkpoints")
+    .select("id, parent_id, position, is_done")
+    .eq("quest_id", questId);
+
+  if (error) {
+    throw new Error(`チェックポイント一覧の取得に失敗しました: ${error.message}`);
+  }
+
+  const checkpoints = (rows ?? []).map((row) => ({
+    id: row.id as string,
+    parentId: row.parent_id as string | null,
+    position: row.position as number,
+    isDone: row.is_done as boolean,
+  }));
+  if (!canChangeCheckpointDone(checkpoints, checkpointId, nextIsDone)) {
+    throw new CheckpointOrderError();
+  }
 }
 
 export type CompleteQuestResult =
