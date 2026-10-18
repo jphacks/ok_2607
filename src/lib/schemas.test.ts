@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateTaskRequest, UpdateTaskRequest } from "@/lib/schemas";
+import { CreateTaskRequest, RecordQuestCandidatesRequest, UpdateTaskRequest } from "@/lib/schemas";
 
 describe("タスク更新の入力", () => {
   it.each([{}, { unknown: "値" }, { title: undefined }])(
@@ -29,5 +29,24 @@ describe("タスク登録のreject回数", () => {
     expect(CreateTaskRequest.safeParse({ title: "デモ用タスク", skippedCount }).success).toBe(
       false,
     );
+  });
+});
+
+describe("キャッシュから提示した候補の記録", () => {
+  const id = "10000000-0000-4000-8000-000000000001";
+  it.each([
+    [],
+    [id, id],
+    [id, id.replace(/1$/, "2"), id.replace(/1$/, "3"), id.replace(/1$/, "4")],
+    ["不正なID"],
+  ])("空・重複・件数超過・不正IDを拒否する: %j", (...ids) => {
+    expect(RecordQuestCandidatesRequest.safeParse({ shownTaskIds: ids }).success).toBe(false);
+  });
+  it("1件から3件の重複しない候補を受け付ける", () => {
+    expect(RecordQuestCandidatesRequest.parse({ shownTaskIds: [id] })).toEqual({
+      shownTaskIds: [id],
+    });
+    const ids = [id, id.replace(/1$/, "2"), id.replace(/1$/, "3")];
+    expect(RecordQuestCandidatesRequest.parse({ shownTaskIds: ids }).shownTaskIds).toEqual(ids);
   });
 });

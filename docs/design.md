@@ -73,6 +73,10 @@
 | `PixelProgressBar`                                                                                                                                                                  | `PixelProgressBar`                                     |
 | ドット絵（`HeroPixelArt`、`MagePixelArt`、`TreasureChestPixelArt`、`.pixel-wizard` など）は機能固有なので、各機能のフォルダに残してよい。ドット絵の中の色はトークンにしなくてよい。 |
 
+### 実処理の進捗
+
+`OperationProgress` は処理名と `pending` / `running` / `complete` / `error` の段階を受け取る。件数は完了した処理数であり、時間の割合ではない。通信・検証・保存などの実処理が成功してからだけ `complete` にする。所要時間が不明な処理は不定進捗を使い、タイマーで増やす進捗や、失敗・中断を完了扱いにする表示は禁止する。
+
 ### 移行の手順
 
 AI に「`docs/design.md` の移行の手順に従って、<部品名> を移行して」と頼めば進められるように書いている。1 回の PR で 1〜2 部品ずつ進める。デモ直前は見た目が壊れる危険があるので、移行より機能を優先してよい。
