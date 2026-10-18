@@ -47,7 +47,7 @@ export function LoginScreen() {
         </div>
 
         <div className="pixel-panel w-full p-5 text-center">
-          <h2 className="text-sm font-bold text-text">冒険の書を開く</h2>
+          <h2 className="text-sm font-bold text-text">クエストの書を開く</h2>
           <p className="mt-3 text-xs leading-5 text-muted">
             3択から 1 つ選ぶだけで「やること」が決まり、
             <br />
@@ -72,7 +72,9 @@ export function LoginScreen() {
           className="gold-button flex w-full items-center justify-center gap-2 py-4 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           <span aria-hidden="true">⚔</span>
-          <span>{signingIn ? "連携画面を開いています…" : "Google アカウントで冒険を始める"}</span>
+          <span>
+            {signingIn ? "連携画面を開いています…" : "Google アカウントでクエストを始める"}
+          </span>
         </button>
         <p className="mt-4 text-center text-[10px] text-muted">
           Google アカウントを使って安全にサインインします。

@@ -230,7 +230,7 @@ export function QuestApp() {
         if (!signal?.aborted && version === choiceVersion.current) {
           clearCache();
           setChoiceError(
-            cause instanceof Error ? cause.message : "冒険の候補を取得できませんでした。",
+            cause instanceof Error ? cause.message : "クエストの候補を取得できませんでした。",
           );
         }
       } finally {
@@ -249,7 +249,7 @@ export function QuestApp() {
     } catch (cause) {
       if (version === statsVersion.current)
         setStatsError(
-          cause instanceof Error ? cause.message : "冒険の記録を取得できませんでした。",
+          cause instanceof Error ? cause.message : "クエストの記録を取得できませんでした。",
         );
     }
   }, []);
@@ -621,14 +621,7 @@ export function QuestApp() {
   if (authLoading) {
     return (
       <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl items-center justify-center bg-surface text-muted">
-        <OperationProgress
-          title="冒険の書を読み込み中"
-          steps={[
-            { label: "ログイン状態を確認", status: "running" },
-            { label: "タスク一覧を確認", status: "pending" },
-            { label: "最新の候補を確認", status: "pending" },
-          ]}
-        />
+        <p className="font-mono text-xs">クエストの書を読み込み中…</p>
       </div>
     );
   }
@@ -647,7 +640,7 @@ export function QuestApp() {
         </span>
         <span className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-muted">
-            ●　{stats ? `${stats.completedQuests} CLEAR` : "冒険のはじまり"}
+            ●　{stats ? `${stats.completedQuests} CLEAR` : "クエストのはじまり"}
           </span>
           <SoundToggle />
         </span>
@@ -667,7 +660,7 @@ export function QuestApp() {
           (choicePending || taskPending || choiceError || taskError) && (
             <div className="mb-6">
               <OperationProgress
-                title={choiceOperation === "start" ? "クエストを開始" : "冒険の準備"}
+                title={choiceOperation === "start" ? "クエストを開始" : "クエストの準備"}
                 steps={
                   choiceOperation === "start"
                     ? [

@@ -72,7 +72,7 @@ describe("CheckpointGenerationScreen", () => {
 
     // ヘッダー・見出し
     expect(screen.getByText("✦ TriOne")).toBeInTheDocument();
-    expect(screen.getByText("AIが冒険の道筋を描く")).toBeInTheDocument();
+    expect(screen.getByText("AIがクエストの道筋を描く")).toBeInTheDocument();
     expect(screen.getByText("MAIN QUEST")).toBeInTheDocument();
     expect(screen.getByText("Webアプリを完成させる")).toBeInTheDocument();
 

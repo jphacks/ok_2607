@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { HomeScreen } from "./home-screen";
 
-describe("HomeScreen - 冒険の記録とレベル表示", () => {
+describe("HomeScreen - クエストの記録とレベル表示", () => {
   const defaultTasks = [
     {
       id: "task-1",

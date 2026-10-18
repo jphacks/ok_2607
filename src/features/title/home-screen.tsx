@@ -40,10 +40,10 @@ export function HomeScreen({
         <span className="mr-3" aria-hidden="true">
           ⚔
         </span>
-        {current && inProgressQuestId ? "進行中の冒険を再開する" : "今日の冒険を始める"}
+        {current && inProgressQuestId ? "進行中のクエストを再開する" : "クエストを始める"}
       </button>
       <div className="pixel-panel mb-4 p-4">
-        <h2 className="text-sm">冒険の記録</h2>
+        <h2 className="text-sm">クエストの記録</h2>
         {stats ? (
           <>
             {(() => {
@@ -109,7 +109,7 @@ export function HomeScreen({
           {error}
         </p>
       )}
-      <h2 className="mb-3 mt-9 text-base">クリアした冒険</h2>
+      <h2 className="mb-3 mt-9 text-base">クリアしたクエスト</h2>
       {completed.length > 0 ? (
         <ul className="space-y-3">
           {completed.map((task) => (
@@ -120,8 +120,8 @@ export function HomeScreen({
           ))}
         </ul>
       ) : (
-        <p className="pixel-panel p-4 text-xs leading-6 text-muted">
-          冒険の記録はここに残ります。
+        <p className="pixel-panel p-4 text-xs leading-6 text-[#a4a8bc]">
+          クエストの記録はここに残ります。
           <br />
           最初の一歩を踏み出しましょう。
         </p>

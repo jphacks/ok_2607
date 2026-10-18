@@ -9,7 +9,7 @@ interface QuestLoadingScreenProps {
 }
 
 export function QuestLoadingScreen({
-  message = "冒険の書をひらいている…",
+  message = "クエストの書をひらいている…",
   subMessage = "ダンジョンへ向かっています…",
   level = 4,
 }: QuestLoadingScreenProps) {

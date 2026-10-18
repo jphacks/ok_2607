@@ -261,7 +261,9 @@ export function CheckpointGenerationScreen({
           {/* 見出し & 魔道士キャラクター */}
           <div className="mt-4 flex items-start justify-between">
             <div className="flex-1 pr-2">
-              <h1 className="text-xl font-bold tracking-wide text-text">AIが冒険の道筋を描く</h1>
+              <h1 className="text-xl font-bold tracking-wide text-white">
+                AIがクエストの道筋を描く
+              </h1>
               <div className="mt-2">
                 <span className="text-[11px] font-bold tracking-wider text-gold-accent">
                   MAIN QUEST
