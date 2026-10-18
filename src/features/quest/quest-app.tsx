@@ -255,9 +255,12 @@ export function QuestApp() {
 
   async function handleAddDummyTasks() {
     const dummyTitles = [
-      "薬草を採取してポーションを作る",
-      "ダンジョン地下1階を探索する",
-      "鍛冶屋で剣を強化する",
+      "会議の議事録をまとめる",
+      "来週のプレゼン資料を作成する",
+      "数学の課題を提出する",
+      "英単語を20個復習する",
+      "食料品を買いに行く",
+      "部屋の掃除をする",
     ];
     for (const title of dummyTitles) {
       await createTask({ title, dueAt: null });
