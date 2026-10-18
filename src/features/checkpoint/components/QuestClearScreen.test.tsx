@@ -75,4 +75,32 @@ describe("QuestClearScreen", () => {
 
     expect(mockPush).toHaveBeenCalledWith("/");
   });
+
+  it("isLevelUp が true のとき、レベルアップ通知演出（LEVEL UP!）が表示される", () => {
+    render(
+      <QuestClearScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        level={2}
+        isLevelUp={true}
+      />,
+    );
+
+    const banner = screen.getByRole("status", { name: "レベルアップ" });
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent("LEVEL UP! Lv. 2 に到達！");
+  });
+
+  it("isLevelUp が false のとき、レベルアップ通知演出は表示されない", () => {
+    render(
+      <QuestClearScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        level={1}
+        isLevelUp={false}
+      />,
+    );
+
+    expect(screen.queryByRole("status", { name: "レベルアップ" })).not.toBeInTheDocument();
+  });
 });
