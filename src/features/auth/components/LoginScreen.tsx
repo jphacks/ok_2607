@@ -2,31 +2,14 @@
 
 import { useState } from "react";
 import { HeroPixelArt } from "@/features/checkpoint/components/HeroPixelArt";
-import { createClient } from "@/lib/supabase/client";
 
 export function LoginScreen() {
   const [signingIn, setSigningIn] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
-  const handleSignIn = async () => {
+  const handleSignIn = () => {
     setSigningIn(true);
     setErrorMessage("");
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) {
-        setErrorMessage("ログインの開始に失敗しました。もう一度お試しください。");
-        setSigningIn(false);
-      }
-    } catch {
-      setErrorMessage("通信エラーが発生しました。接続を確認してください。");
-      setSigningIn(false);
-    }
+    window.location.href = "/api/auth/signin";
   };
 
   return (

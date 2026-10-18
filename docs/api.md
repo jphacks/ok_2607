@@ -31,23 +31,24 @@ Issue #20のAPI・サーバー画面のデータ分離はPR #72で対応済み�
 
 ## エンドポイント一覧
 
-| メソッド | エンドポイント                          | 用途                           | 担当              |
-| -------- | --------------------------------------- | ------------------------------ | ----------------- |
-| GET      | `/api/auth/me`                          | ログイン中ユーザー情報取得     | @miyagunimikihiro |
-| POST     | `/api/auth/signout`                     | ログアウト                     | @miyagunimikihiro |
-| GET      | `/auth/callback`                        | OAuth コールバック             | @miyagunimikihiro |
-| GET      | `/api/tasks`                            | タスク一覧                     | @lovemeasure      |
-| POST     | `/api/tasks`                            | タスク登録                     | @lovemeasure      |
-| PATCH    | `/api/tasks/{id}`                       | タスク編集                     | @lovemeasure      |
-| DELETE   | `/api/tasks/{id}`                       | タスク削除                     | @lovemeasure      |
-| GET      | `/api/quests/candidates`                | 3択の候補取得                  | @ki-mutaku        |
-| POST     | `/api/quests/candidates`                | キャッシュ抽選の提示記録       | @ki-mutaku        |
-| POST     | `/api/quests`                           | クエスト開始                   | @ki-mutaku        |
-| GET      | `/api/quests/{id}`                      | クエスト詳細（追加）           | @miyagunimikihiro |
-| POST     | `/api/quests/{id}/checkpoints/generate` | AI チェックポイント生成        | @miyagunimikihiro |
-| PATCH    | `/api/checkpoints/{id}`                 | チェックポイント達成状態の更新 | @miyagunimikihiro |
-| POST     | `/api/quests/{id}/complete`             | クエスト完了                   | @miyagunimikihiro |
-| GET      | `/api/stats`                            | 経験値などの集計（追加）       | @lovemeasure      |
+| メソッド   | エンドポイント                          | 用途                           | 担当              |
+| ---------- | --------------------------------------- | ------------------------------ | ----------------- |
+| GET / POST | `/api/auth/signin`                      | Google OAuth サインイン開始    | @miyagunimikihiro |
+| GET        | `/api/auth/me`                          | ログイン中ユーザー情報取得     | @miyagunimikihiro |
+| POST       | `/api/auth/signout`                     | ログアウト                     | @miyagunimikihiro |
+| GET        | `/auth/callback`                        | OAuth コールバック             | @miyagunimikihiro |
+| GET        | `/api/tasks`                            | タスク一覧                     | @lovemeasure      |
+| POST       | `/api/tasks`                            | タスク登録                     | @lovemeasure      |
+| PATCH      | `/api/tasks/{id}`                       | タスク編集                     | @lovemeasure      |
+| DELETE     | `/api/tasks/{id}`                       | タスク削除                     | @lovemeasure      |
+| GET        | `/api/quests/candidates`                | 3択の候補取得                  | @ki-mutaku        |
+| POST       | `/api/quests/candidates`                | キャッシュ抽選の提示記録       | @ki-mutaku        |
+| POST       | `/api/quests`                           | クエスト開始                   | @ki-mutaku        |
+| GET        | `/api/quests/{id}`                      | クエスト詳細（追加）           | @miyagunimikihiro |
+| POST       | `/api/quests/{id}/checkpoints/generate` | AI チェックポイント生成        | @miyagunimikihiro |
+| PATCH      | `/api/checkpoints/{id}`                 | チェックポイント達成状態の更新 | @miyagunimikihiro |
+| POST       | `/api/quests/{id}/complete`             | クエスト完了                   | @miyagunimikihiro |
+| GET        | `/api/stats`                            | 経験値などの集計（追加）       | @lovemeasure      |
 
 「追加」はスライドの API 定義に無かったもの。画面の再読み込みと経験値の表示に必要なため加えた。
 
