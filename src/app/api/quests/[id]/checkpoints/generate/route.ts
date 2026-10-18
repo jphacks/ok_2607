@@ -7,6 +7,7 @@ import {
 } from "@/features/checkpoint/generate";
 import { getQuestWithTask, saveCheckpointPlanToDb } from "@/features/checkpoint/service";
 import { apiError, ok } from "@/lib/api-response";
+import { getCurrentUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const ParamsSchema = z.object({
@@ -14,6 +15,11 @@ const ParamsSchema = z.object({
 });
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return apiError(401, "unauthorized", "ログインが必要です");
+  }
+
   const resolvedParams = await params;
   const parsedParams = ParamsSchema.safeParse(resolvedParams);
 
@@ -31,7 +37,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // クエストとタスクを取得
   let questDetail;
   try {
-    questDetail = await getQuestWithTask(supabase, questId);
+    questDetail = await getQuestWithTask(supabase, questId, user.id);
   } catch {
     return apiError(500, "internal_error", "クエスト情報の取得に失敗しました");
   }

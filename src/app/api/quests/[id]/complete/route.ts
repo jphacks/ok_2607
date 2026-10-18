@@ -11,6 +11,11 @@ const ParamsSchema = z.object({
 });
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return apiError(401, "unauthorized", "ログインが必要です");
+  }
+
   const resolvedParams = await params;
   const parsedParams = ParamsSchema.safeParse(resolvedParams);
 
@@ -26,8 +31,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const supabase = supabaseServer();
 
   try {
-    const user = await getCurrentUser();
-    const result = await completeQuest(supabase, questId, user?.id);
+    const result = await completeQuest(supabase, questId, user.id);
 
     if (result.type === "not_found") {
       return apiError(404, "not_found", "指定されたクエストが見つかりません");
@@ -38,8 +42,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     return ok(result.data);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "クエストの完了処理に失敗しました";
-    return apiError(500, "internal_error", message);
+  } catch {
+    return apiError(500, "internal_error", "クエストの完了処理に失敗しました");
   }
 }

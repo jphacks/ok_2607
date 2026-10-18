@@ -1,6 +1,11 @@
+import type { User } from "@supabase/supabase-js";
+import { getCurrentUser } from "@/lib/auth";
+import { supabaseServer } from "@/lib/supabase/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AiGenerationError } from "@/features/checkpoint/generate";
 import { POST } from "./route";
+
+vi.mock("@/lib/auth", () => ({ getCurrentUser: vi.fn() }));
 
 vi.mock("@/lib/supabase/server", () => ({
   supabaseServer: vi.fn(),
@@ -24,7 +29,43 @@ import { getQuestWithTask, saveCheckpointPlanToDb } from "@/features/checkpoint/
 
 describe("POST /api/quests/[id]/checkpoints/generate", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: "authenticated-user" } as User);
+  });
+
+  it("未認証なら入力検証前に 401 を返し DB とサービスを呼ばない", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
+    const response = await POST(
+      new Request("http://localhost/api?userId=other", { method: "POST" }),
+      {
+        params: Promise.resolve({ id: "invalid" }),
+      },
+    );
+    expect(response.status).toBe(401);
+    expect((await response.json()).error.code).toBe("unauthorized");
+    expect(supabaseServer).not.toHaveBeenCalled();
+    expect(getQuestWithTask).not.toHaveBeenCalled();
+    expect(generateCheckpointPlan).not.toHaveBeenCalled();
+    expect(saveCheckpointPlanToDb).not.toHaveBeenCalled();
+  });
+
+  it("他ユーザーまたは不存在の対象は同じ 404 とし Cookie のユーザー ID を渡す", async () => {
+    vi.mocked(getQuestWithTask).mockResolvedValueOnce(null);
+    const request = new Request("http://localhost/api?userId=other", {
+      method: "POST",
+      body: JSON.stringify({ userId: "other" }),
+    });
+    const response = await POST(request, {
+      params: Promise.resolve({ id: "11111111-1111-4111-a111-111111111111" }),
+    });
+    expect(response.status).toBe(404);
+    expect(getQuestWithTask).toHaveBeenCalledWith(
+      undefined,
+      "11111111-1111-4111-a111-111111111111",
+      "authenticated-user",
+    );
+    expect(generateCheckpointPlan).not.toHaveBeenCalled();
+    expect(saveCheckpointPlanToDb).not.toHaveBeenCalled();
   });
 
   it("無効な UUID の場合は 400 validation_error を返す", async () => {

@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getQuestDetail } from "@/features/checkpoint/service";
 import { CheckpointGenerationScreen } from "@/features/checkpoint/components/CheckpointGenerationScreen";
+import { getCurrentUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
 interface PageProps {
@@ -73,11 +74,15 @@ export default async function QuestCheckpointsPage({ params }: PageProps) {
     );
   }
 
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/");
+  }
   const supabase = supabaseServer();
 
   let questDetail = null;
   try {
-    questDetail = await getQuestDetail(supabase, id);
+    questDetail = await getQuestDetail(supabase, id, user.id);
   } catch {
     // クエスト取得エラー時は下流でハンドリング
   }

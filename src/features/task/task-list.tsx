@@ -36,6 +36,8 @@ export function TaskList({
     () => [...tasks].sort((a, b) => a.skippedCount - b.skippedCount),
     [tasks],
   );
+  const pendingTasks = sortedTasks.filter((task) => task.status !== "done");
+  const completedTasks = sortedTasks.filter((task) => task.status === "done");
 
   useLayoutEffect(() => {
     if (openForm && !dialog.current?.open) dialog.current?.showModal();
@@ -132,6 +134,83 @@ export function TaskList({
       setSaving(false);
     }
   }
+
+  const renderTask = (task: Task) => (
+    <li
+      key={task.id}
+      data-task-id={task.id}
+      className="pixel-panel flex min-h-[84px] items-center gap-3 px-4 py-3"
+    >
+      <span
+        aria-hidden="true"
+        className={`h-[18px] w-[18px] shrink-0 border border-[#e9c874] ${task.status === "done" ? "bg-[#e9c874]" : ""}`}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="break-words text-sm leading-6">{task.title}</p>
+        <p className="mt-1 text-xs text-[#a4a8bc]">
+          {task.dueAt
+            ? `期限 ${new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(new Date(task.dueAt))}`
+            : "期限なし"}
+          <span className="ml-3 text-muted" aria-label={`reject回数 ${task.skippedCount}回`}>
+            ❌{task.skippedCount}
+          </span>
+          {task.status === "in_quest" && <span className="ml-3 text-[#a5d4be]">挑戦中</span>}
+          {task.status === "done" && <span className="ml-3 text-[#a5d4be]">完了</span>}
+        </p>
+      </div>
+      <details
+        name="task-actions"
+        className="relative shrink-0"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector("summary")?.focus();
+          }
+        }}
+      >
+        <summary
+          aria-label={`${task.title}のメニュー`}
+          className="flex h-10 w-8 cursor-pointer list-none items-center justify-center text-2xl text-gold-text hover:bg-panel-active [&::-webkit-details-marker]:hidden"
+        >
+          <span aria-hidden="true">⋮</span>
+        </summary>
+        <div className="absolute right-0 top-10 z-20 w-28 border border-gold-border bg-panel p-1 shadow-xl">
+          <button
+            type="button"
+            disabled={saving || deleting}
+            className="block min-h-11 w-full px-3 py-2 text-left text-sm hover:bg-panel-active"
+            onClick={(event) => {
+              event.currentTarget.closest("details")?.removeAttribute("open");
+              const date = task.dueAt ? new Date(task.dueAt) : null;
+              const dateValue = date
+                ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+                : "";
+              initialDueDate.current = dateValue;
+              setEditingTask(task);
+              setTitle(task.title);
+              setDueDate(dateValue);
+              setError("");
+              onFormChange(true);
+            }}
+          >
+            編集
+          </button>
+          <button
+            type="button"
+            disabled={saving || deleting}
+            className="block min-h-11 w-full px-3 py-2 text-left text-sm text-danger hover:bg-panel-active"
+            onClick={(event) => {
+              event.currentTarget.closest("details")?.removeAttribute("open");
+              setDeleteError("");
+              setDeletingTask(task);
+            }}
+          >
+            削除
+          </button>
+        </div>
+      </details>
+    </li>
+  );
 
   return (
     <section aria-labelledby="tasks-heading">
@@ -288,83 +367,21 @@ export function TaskList({
         aria-live="polite"
         aria-relevant="additions"
       >
-        {sortedTasks.map((task) => (
-          <li
-            key={task.id}
-            data-task-id={task.id}
-            className="pixel-panel flex min-h-[84px] items-center gap-3 px-4 py-3"
-          >
-            <span
-              aria-hidden="true"
-              className={`h-[18px] w-[18px] shrink-0 border border-[#e9c874] ${task.status === "done" ? "bg-[#e9c874]" : ""}`}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="break-words text-sm leading-6">{task.title}</p>
-              <p className="mt-1 text-xs text-[#a4a8bc]">
-                {task.dueAt
-                  ? `期限 ${new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(new Date(task.dueAt))}`
-                  : "期限なし"}
-                <span className="ml-3 text-muted" aria-label={`reject回数 ${task.skippedCount}回`}>
-                  ❌{task.skippedCount}
-                </span>
-                {task.status === "in_quest" && <span className="ml-3 text-[#a5d4be]">挑戦中</span>}
-                {task.status === "done" && <span className="ml-3 text-[#a5d4be]">完了</span>}
-              </p>
-            </div>
-            <details
-              name="task-actions"
-              className="relative shrink-0"
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.currentTarget.open = false;
-                  event.currentTarget.querySelector("summary")?.focus();
-                }
-              }}
-            >
-              <summary
-                aria-label={`${task.title}のメニュー`}
-                className="flex h-10 w-8 cursor-pointer list-none items-center justify-center text-2xl text-gold-text hover:bg-panel-active [&::-webkit-details-marker]:hidden"
-              >
-                <span aria-hidden="true">⋮</span>
-              </summary>
-              <div className="absolute right-0 top-10 z-20 w-28 border border-gold-border bg-panel p-1 shadow-xl">
-                <button
-                  type="button"
-                  disabled={saving || deleting}
-                  className="block min-h-11 w-full px-3 py-2 text-left text-sm hover:bg-panel-active"
-                  onClick={(event) => {
-                    event.currentTarget.closest("details")?.removeAttribute("open");
-                    const date = task.dueAt ? new Date(task.dueAt) : null;
-                    const dateValue = date
-                      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-                      : "";
-                    initialDueDate.current = dateValue;
-                    setEditingTask(task);
-                    setTitle(task.title);
-                    setDueDate(dateValue);
-                    setError("");
-                    onFormChange(true);
-                  }}
-                >
-                  編集
-                </button>
-                <button
-                  type="button"
-                  disabled={saving || deleting}
-                  className="block min-h-11 w-full px-3 py-2 text-left text-sm text-danger hover:bg-panel-active"
-                  onClick={(event) => {
-                    event.currentTarget.closest("details")?.removeAttribute("open");
-                    setDeleteError("");
-                    setDeletingTask(task);
-                  }}
-                >
-                  削除
-                </button>
-              </div>
-            </details>
-          </li>
-        ))}
+        {pendingTasks.map(renderTask)}
       </ul>
+      {completedTasks.length > 0 && (
+        <details className="group/completed mt-6">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 border-b border-line py-3 text-sm text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-success [&::-webkit-details-marker]:hidden">
+            <span>完了済みタスク（{completedTasks.length}件）</span>
+            <span aria-hidden="true" className="group-open/completed:rotate-180">
+              ▼
+            </span>
+          </summary>
+          <ul className="mt-3 space-y-3" aria-label="完了済みタスク">
+            {completedTasks.map(renderTask)}
+          </ul>
+        </details>
+      )}
       {tasks.length === 0 && !openForm && (
         <p className="pixel-panel p-5 text-sm leading-7 text-[#a4a8bc]">
           まだタスクがありません。

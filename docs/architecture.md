@@ -21,8 +21,8 @@
                                        └──▶ Gemini API
 ```
 
-- ブラウザから Supabase や Gemini を**直接呼ばない**。必ず Route Handler を経由する
-- DB には service_role キーでサーバーからだけアクセスする。全テーブルで RLS を有効にし、ポリシーを作らないことで anon キーからのアクセスを拒否している
+- ブラウザの Supabase 利用は既存の Auth / OAuth 操作だけとし、DB 更新と Gemini 呼び出しは必ず Route Handler を経由する
+- DB 更新は service_role キーでサーバーからだけ行う。4テーブルの INSERT / UPDATE / DELETE は PUBLIC・anon・authenticated から取り消し、本人名義のクエストに他人のタスクを結び付ける直接操作を防ぐ。全テーブルの RLS は維持し、authenticated の SELECT は既存ポリシーで本人のデータに限定する。anon にはデータ参照を許可しない
 - サーバー専用のモジュール（`src/lib/env.ts`、`src/lib/supabase/server.ts`、`src/lib/gemini.ts`）は `import "server-only"` 付き。クライアントコンポーネントから import するとビルドエラーになる
 
 ## ディレクトリ
@@ -85,10 +85,21 @@ tasks 1 ──── * quests 1 ──── * checkpoints（parent_id で 2 階
 DB は snake_case、API と TypeScript は camelCase。変換は Route Handler（またはその下の関数）で行う。
 
 レコメンドは `1 / (skipped_count + 1)` の正規化確率で行い、旧 `weight` カラムは新規マイグレーションで削除。既存DBには全マイグレーションを順に適用する。
-`20261018024935_fix_authenticated_start_quest_without_weight.sql` で認証対応の `start_quest(uuid, uuid[], uuid)` も旧 `weight` 列を更新しないよう修正する。旧2引数オーバーロードは削除し、2引数での呼び出しは `p_user_id` の既定値 `null` を使う。同じRPCで認証ユーザー・未ログインの両方を扱い、実行権限は引き続き `service_role` のみ。
+`20261018024935_fix_authenticated_start_quest_without_weight.sql` で認証対応の `start_quest(uuid, uuid[], uuid)` も旧 `weight` 列を更新しないよう修正する。旧2引数オーバーロードは削除し、2引数での呼び出しは `p_user_id` の既定値 `null` を使う。続く `20261018032252_enforce_quest_ownership.sql` で、認証ユーザーは本人のタスクだけ、`p_user_id = null` の旧互換呼び出しは所有者未設定のタスクだけを扱うようにする。実行権限は引き続き `service_role` のみ。
 
 クエスト開始のDB回帰テストは、分離したローカルDBに対し `psql -v ON_ERROR_STOP=1 -f supabase/tests/start_quest.sql` で実行する（テスト内の全件削除はロールバックする。リモートDBには実行しない）。全マイグレーション適用後に実行し、2引数互換呼び出し・認証ユーザーの3引数呼び出し・reject回数・不正入力と状態競合時のロールバック・RPC実行権限を検証する。
+
+`20261018032252_enforce_quest_ownership.sql` は既存の Auth / OAuth を変更せず、データ更新の境界を強化する。旧 `complete_quest(uuid, integer)` は削除し、3引数版では `p_user_id` を必須とする。NULL、他人、所有者未設定のクエスト・タスクは完了できず、クエストと元タスクの所有者が両方一致した場合だけ更新する。合計経験値にも同じユーザーの完了クエストだけを含める。既存の不正な関連付けがあっても、他人のタスクの完了には利用できない。
+
+所有者境界のDB回帰テストは、分離したローカルDBに全マイグレーションを適用してから `psql -v ON_ERROR_STOP=1 -f supabase/tests/quest_ownership.sql` で実行する。本人名義と他人タスクの関連付け、所有者未設定データ、通常の本人完了・経験値集計、直接DMLとRPCの権限を検証する。既存の `supabase/tests/start_quest.sql` も続けて実行する。テストはトランザクションをロールバックするが、全件削除を含むためリモートDBには実行しない。
 
 ## 環境変数
 
 `.env.example` を参照。Supabase Auth の OAuth 連携のために `NEXT_PUBLIC_SUPABASE_URL` と `NEXT_PUBLIC_SUPABASE_ANON_KEY`（公開用 anon key）を使用する。機密情報（`SUPABASE_SERVICE_ROLE_KEY` や `GEMINI_API_KEY`）はサーバー専用。Vercel にも同じ名前で設定する。
+
+### チェックポイントとクエスト画面の所有者検証
+
+- 詳細取得・生成・達成更新・完了の API は入力検証より先に Cookie の認証を確認し、未認証は `401 unauthorized` を返す。所有者 ID は認証済みユーザーからのみ取得する。
+- サービス層はクエストと元タスクの両方を `user_id` で絞り、他ユーザー・所有者なし・不存在を同じ未検出として扱う。チェックポイント更新は所有関係を検証してから、ID と検証済みクエスト ID の両方で絞る。
+- 完了 RPC には必ず認証ユーザー ID を渡す。DB 側もクエストと元タスクの所有者を検証し、内部エラーの詳細は API 応答に含めない。
+- 進行・生成・クリア画面の実データは認証後に本人のデータだけを取得する。未認証は `/` へ戻し、他ユーザー・不存在は 404。`demo` は個人データを使用しない公開固定データのままとする。

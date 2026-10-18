@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getQuestDetail } from "@/features/checkpoint/service";
 import { apiError, ok } from "@/lib/api-response";
+import { getCurrentUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const ParamsSchema = z.object({
@@ -10,6 +11,11 @@ const ParamsSchema = z.object({
 });
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return apiError(401, "unauthorized", "ログインが必要です");
+  }
+
   const resolvedParams = await params;
   const parsedParams = ParamsSchema.safeParse(resolvedParams);
 
@@ -25,7 +31,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const supabase = supabaseServer();
 
   try {
-    const detail = await getQuestDetail(supabase, questId);
+    const detail = await getQuestDetail(supabase, questId, user.id);
     if (!detail) {
       return apiError(404, "not_found", "指定されたクエストが見つかりません");
     }
