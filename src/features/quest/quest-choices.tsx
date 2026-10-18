@@ -85,7 +85,7 @@ export function QuestChoices({
               </button>
             )}
             <button className="secondary-button w-full" onClick={onHome}>
-              ホームで確認する
+              ステータスで確認する
             </button>
           </div>
         </div>
