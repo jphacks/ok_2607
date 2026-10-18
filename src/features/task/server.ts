@@ -1,6 +1,12 @@
 import "server-only";
 import { z } from "zod";
-import { StatsResponse, Task, type CreateTaskRequest, type TaskStatus } from "@/lib/schemas";
+import {
+  StatsResponse,
+  Task,
+  type CreateTaskRequest,
+  type TaskStatus,
+  type UpdateTaskRequest,
+} from "@/lib/schemas";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const TaskRow = z
@@ -68,6 +74,40 @@ export async function createTask(input: CreateTaskRequest, userId?: string | nul
     .single();
   if (error) throw new Error("タスクを登録できませんでした");
   return taskFromRow(data);
+}
+
+export async function updateTask(
+  id: string,
+  input: UpdateTaskRequest,
+  userId: string,
+): Promise<Task | null> {
+  const patch: { title?: string; due_at?: string | null; status?: TaskStatus } = {};
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.dueAt !== undefined) patch.due_at = input.dueAt;
+  if (input.status !== undefined) patch.status = input.status;
+  const { data, error } = await supabaseServer()
+    .from("tasks")
+    .update(patch)
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select(taskColumns)
+    .maybeSingle();
+  if (error) throw new Error("タスクを更新できませんでした");
+  return data === null ? null : taskFromRow(data);
+}
+
+export async function deleteTask(id: string, userId: string): Promise<boolean> {
+  const { data, error } = await supabaseServer()
+    .from("tasks")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error("タスクを削除できませんでした");
+  if (data === null) return false;
+  z.object({ id: Task.shape.id }).parse(data);
+  return true;
 }
 
 const CompletedQuestRow = z.object({
