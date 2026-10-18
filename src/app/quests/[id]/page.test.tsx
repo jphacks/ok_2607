@@ -71,7 +71,11 @@ describe.each([
     expect(notFound).not.toHaveBeenCalled();
   });
   it("認証済み本人の ID でのみ取得する", async () => {
-    vi.mocked(getQuestDetail).mockResolvedValueOnce(detail);
+    vi.mocked(getQuestDetail).mockResolvedValueOnce(
+      page === QuestClearPage
+        ? { ...detail, quest: { ...detail.quest, status: "completed" } }
+        : detail,
+    );
     const result = await page({ params: Promise.resolve({ id: "quest-1" }) });
     expect(getQuestDetail).toHaveBeenCalledWith(undefined, "quest-1", "owner");
     expect(result.props.taskTitle).toBe("本人のタスク");

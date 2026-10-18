@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Checkpoint } from "@/lib/schemas";
+import { ApiError, type Checkpoint } from "@/lib/schemas";
 import { type CheckpointStep, childCheckpointsOf, computeCheckpointFocus } from "../order";
 import { DecorativeTileBar, PixelHeader } from "./PixelHeader";
 import { HeroPixelArt } from "./HeroPixelArt";
@@ -99,6 +99,7 @@ export function QuestProgressScreen({
 
   // クエスト完了
   const handleComplete = async () => {
+    if (pendingRef.current || !isAllCompleted) return;
     if (onCompleteQuest) {
       onCompleteQuest();
       return;
@@ -110,8 +111,10 @@ export function QuestProgressScreen({
       return;
     }
 
+    pendingRef.current = true;
     setIsCompleting(true);
     setError(null);
+    let completed = false;
 
     try {
       const res = await fetch(`/api/quests/${questId}/complete`, {
@@ -119,15 +122,24 @@ export function QuestProgressScreen({
       });
 
       if (res.ok) {
+        completed = true;
         router.push(`/quests/${questId}/clear`);
       } else {
-        // API 未実装または失敗時でもクリア画面へ進む（デモ・フォールバック対応）
-        router.push(`/quests/${questId}/clear`);
+        const body: unknown = await res.json().catch(() => null);
+        const parsed = ApiError.safeParse(body);
+        setError(
+          parsed.success
+            ? parsed.data.error.message
+            : "完了を保存できませんでした。もう一度お試しください。",
+        );
       }
     } catch {
-      router.push(`/quests/${questId}/clear`);
+      setError("通信に失敗しました。接続を確認して、もう一度お試しください。");
     } finally {
-      setIsCompleting(false);
+      if (!completed) {
+        pendingRef.current = false;
+        setIsCompleting(false);
+      }
     }
   };
 
@@ -183,7 +195,7 @@ export function QuestProgressScreen({
                   </h2>
                   <PixelCheckbox
                     checked={false}
-                    disabled={pendingId !== null}
+                    disabled={pendingId !== null || isCompleting}
                     onChange={() => currentStep && void handleToggle(currentStep)}
                   />
                 </div>
@@ -230,7 +242,7 @@ export function QuestProgressScreen({
         <div className="mt-4 pb-1">
           <PixelButton
             onClick={handleComplete}
-            disabled={isCompleting || !isAllCompleted}
+            disabled={pendingId !== null || isCompleting || !isAllCompleted}
             className={isAllCompleted ? "motion-safe:animate-pulse" : ""}
           >
             {isCompleting ? "完了処理中..." : "クエストを完了する"}
