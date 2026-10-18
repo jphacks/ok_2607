@@ -35,11 +35,13 @@ export interface QuestTaskDetail {
 export async function getQuestWithTask(
   supabase: SupabaseClient,
   questId: string,
+  userId: string,
 ): Promise<QuestTaskDetail | null> {
   const { data: questRow, error: questError } = await supabase
     .from("quests")
     .select("id, task_id, status, is_urgent, xp_earned, started_at, completed_at")
     .eq("id", questId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (questError) {
@@ -53,6 +55,7 @@ export async function getQuestWithTask(
     .from("tasks")
     .select("id, title, due_at, status")
     .eq("id", questRow.task_id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (taskError) {
@@ -110,11 +113,13 @@ export async function saveCheckpointPlanToDb(
 export async function getQuestDetail(
   supabase: SupabaseClient,
   questId: string,
+  userId: string,
 ): Promise<QuestDetailResponse | null> {
   const { data: questRow, error: questError } = await supabase
     .from("quests")
     .select("id, task_id, status, is_urgent, xp_earned, started_at, completed_at")
     .eq("id", questId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (questError) {
@@ -128,6 +133,7 @@ export async function getQuestDetail(
     .from("tasks")
     .select("id, title, due_at, status, shown_count, skipped_count, created_at, updated_at")
     .eq("id", questRow.task_id)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (taskError) {
@@ -163,7 +169,21 @@ export async function updateCheckpointStatus(
   supabase: SupabaseClient,
   checkpointId: string,
   isDone: boolean,
+  userId: string,
 ): Promise<Checkpoint | null> {
+  const { data: checkpointRow, error: checkpointError } = await supabase
+    .from("checkpoints")
+    .select("quest_id")
+    .eq("id", checkpointId)
+    .maybeSingle();
+
+  if (checkpointError) {
+    throw new Error(`チェックポイントの取得に失敗しました: ${checkpointError.message}`);
+  }
+  if (!checkpointRow || !(await getQuestWithTask(supabase, checkpointRow.quest_id, userId))) {
+    return null;
+  }
+
   const { data: updatedRow, error } = await supabase
     .from("checkpoints")
     .update({
@@ -171,6 +191,7 @@ export async function updateCheckpointStatus(
       done_at: isDone ? new Date().toISOString() : null,
     })
     .eq("id", checkpointId)
+    .eq("quest_id", checkpointRow.quest_id)
     .select("id, quest_id, parent_id, title, description, position, is_done, done_at")
     .maybeSingle();
 
@@ -197,21 +218,14 @@ export type CompleteQuestResult =
 export async function completeQuest(
   supabase: SupabaseClient,
   questId: string,
-  userId?: string | null,
+  userId: string,
 ): Promise<CompleteQuestResult> {
-  // 1. クエストの存在とステータスを確認
-  let questQuery = supabase.from("quests").select("id, status, is_urgent").eq("id", questId);
-  if (userId) {
-    questQuery = questQuery.eq("user_id", userId);
-  }
-  const { data: questRow, error: questError } = await questQuery.maybeSingle();
-
-  if (questError) {
-    throw new Error(`クエストの取得に失敗しました: ${questError.message}`);
-  }
-  if (!questRow) {
+  // 元タスクも含め、認証済みユーザーの所有物だけを操作する。
+  const detail = await getQuestWithTask(supabase, questId, userId);
+  if (!detail) {
     return { type: "not_found" };
   }
+  const questRow = detail.quest;
   if (questRow.status !== "in_progress") {
     return {
       type: "conflict",
@@ -233,19 +247,16 @@ export async function completeQuest(
 
   // 3. 経験値を計算
   const xpEarned = calculateQuestXp({
-    isUrgent: questRow.is_urgent,
+    isUrgent: questRow.isUrgent,
     completedCheckpointsCount: completedCheckpoints,
   });
 
   // 4. ストアドプロシージャ complete_quest を呼び出して原子的更新
-  const rpcParams: { p_quest_id: string; p_xp_earned: number; p_user_id?: string | null } = {
+  const { data: rpcData, error: rpcError } = await supabase.rpc("complete_quest", {
     p_quest_id: questId,
     p_xp_earned: xpEarned,
-  };
-  if (userId !== undefined) {
-    rpcParams.p_user_id = userId;
-  }
-  const { data: rpcData, error: rpcError } = await supabase.rpc("complete_quest", rpcParams);
+    p_user_id: userId,
+  });
 
   if (rpcError) {
     throw new Error(`クエストの完了処理に失敗しました: ${rpcError.message}`);

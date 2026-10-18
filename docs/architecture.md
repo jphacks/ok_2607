@@ -96,3 +96,10 @@ DB は snake_case、API と TypeScript は camelCase。変換は Route Handler�
 ## 環境変数
 
 `.env.example` を参照。Supabase Auth の OAuth 連携のために `NEXT_PUBLIC_SUPABASE_URL` と `NEXT_PUBLIC_SUPABASE_ANON_KEY`（公開用 anon key）を使用する。機密情報（`SUPABASE_SERVICE_ROLE_KEY` や `GEMINI_API_KEY`）はサーバー専用。Vercel にも同じ名前で設定する。
+
+### チェックポイントとクエスト画面の所有者検証
+
+- 詳細取得・生成・達成更新・完了の API は入力検証より先に Cookie の認証を確認し、未認証は `401 unauthorized` を返す。所有者 ID は認証済みユーザーからのみ取得する。
+- サービス層はクエストと元タスクの両方を `user_id` で絞り、他ユーザー・所有者なし・不存在を同じ未検出として扱う。チェックポイント更新は所有関係を検証してから、ID と検証済みクエスト ID の両方で絞る。
+- 完了 RPC には必ず認証ユーザー ID を渡す。DB 側もクエストと元タスクの所有者を検証し、内部エラーの詳細は API 応答に含めない。
+- 進行・生成・クリア画面の実データは認証後に本人のデータだけを取得する。未認証は `/` へ戻し、他ユーザー・不存在は 404。`demo` は個人データを使用しない公開固定データのままとする。

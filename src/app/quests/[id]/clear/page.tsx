@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getQuestDetail } from "@/features/checkpoint/service";
 import { calculateLevel } from "@/features/checkpoint/xp";
 import { QuestClearScreen } from "@/features/checkpoint/components/QuestClearScreen";
@@ -28,11 +28,15 @@ export default async function QuestClearPage({ params }: PageProps) {
     );
   }
 
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/");
+  }
   const supabase = supabaseServer();
 
   let questDetail = null;
   try {
-    questDetail = await getQuestDetail(supabase, id);
+    questDetail = await getQuestDetail(supabase, id, user.id);
   } catch {
     // クエスト取得エラー時は下流でハンドリング
   }
@@ -41,10 +45,9 @@ export default async function QuestClearPage({ params }: PageProps) {
     notFound();
   }
 
-  const user = await getCurrentUser();
   let totalXp = 0;
   try {
-    const stats = await getStats(user?.id);
+    const stats = await getStats(user.id);
     totalXp = stats.totalXp;
   } catch {
     totalXp = questDetail.quest.xpEarned ?? 0;
