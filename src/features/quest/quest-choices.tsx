@@ -149,6 +149,9 @@ export function QuestChoices({
                         <span>
                           {choices.isUrgent ? "緊急クエスト ・ 締切間近" : "今日のクエスト候補"}
                         </span>
+                        <span aria-label={`reject回数 ${task.skippedCount}回`}>
+                          ❌{task.skippedCount}
+                        </span>
                         {task.dueAt && (
                           <span className="text-success/90">
                             期限{" "}

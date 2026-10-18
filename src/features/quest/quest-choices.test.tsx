@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuestChoices } from "./quest-choices";
 import type { QuestCandidatesResponse, Task } from "@/lib/schemas";
@@ -31,6 +31,32 @@ const mockChoices: QuestCandidatesResponse = {
   isUrgent: false,
   inProgressQuest: null,
 };
+
+describe("QuestChoices のreject回数", () => {
+  it.each([false, true])("緊急クエスト=%sでもカードごとの回数を表示する", (isUrgent) => {
+    const candidates = mockCandidates.map((task, index) => ({
+      ...task,
+      skippedCount: index * 12,
+    }));
+    render(
+      <QuestChoices
+        choices={{ ...mockChoices, candidates, isUrgent }}
+        pending={false}
+        error=""
+        onAddTask={vi.fn()}
+        onHome={vi.fn()}
+        onRetry={vi.fn()}
+        onStart={vi.fn()}
+      />,
+    );
+    for (const task of candidates) {
+      const card = screen.getByRole("radio", { name: new RegExp(task.title) }).closest("label")!;
+      expect(within(card).getByLabelText(`reject回数 ${task.skippedCount}回`)).toHaveTextContent(
+        `❌${task.skippedCount}`,
+      );
+    }
+  });
+});
 
 describe("QuestChoices - ファースト・インプレッション（直感チョイス）", () => {
   beforeEach(() => {
