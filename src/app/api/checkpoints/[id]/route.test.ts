@@ -10,11 +10,12 @@ vi.mock("@/lib/supabase/server", () => ({
   supabaseServer: vi.fn(),
 }));
 
-vi.mock("@/features/checkpoint/service", () => ({
+vi.mock("@/features/checkpoint/service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/checkpoint/service")>()),
   updateCheckpoint: vi.fn(),
 }));
 
-import { updateCheckpoint } from "@/features/checkpoint/service";
+import { CheckpointOrderError, updateCheckpoint } from "@/features/checkpoint/service";
 
 function createJsonRequest(body: string) {
   return new Request("http://localhost:3000/api/checkpoints/test", {
@@ -202,6 +203,18 @@ describe("PATCH /api/checkpoints/[id]", () => {
     expect(response.status).toBe(500);
     const body = await response.json();
     expect(body.error.code).toBe("internal_error");
+  });
+});
+
+describe("チェックポイントの順番", () => {
+  it("順番に反する達成状態の変更は 409 conflict を返す", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: "owner" } as User);
+    vi.mocked(updateCheckpoint).mockRejectedValue(new CheckpointOrderError());
+    const response = await PATCH(createJsonRequest(JSON.stringify({ isDone: true })), {
+      params: Promise.resolve({ id: "11111111-1111-4111-a111-111111111111" }),
+    });
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe("conflict");
   });
 });
 

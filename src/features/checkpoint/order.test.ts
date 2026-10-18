@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Checkpoint } from "@/lib/schemas";
-import { childCheckpointsOf, computeCheckpointFocus, sortParentCheckpoints } from "./order";
+import {
+  canChangeCheckpointDone,
+  childCheckpointsOf,
+  computeCheckpointFocus,
+  sortParentCheckpoints,
+} from "./order";
 
 function cp(id: string, position: number, isDone: boolean, parentId: string | null = null) {
   return {
@@ -80,5 +85,32 @@ describe("childCheckpointsOf", () => {
       "p",
     );
     expect(result.map((c) => c.id)).toEqual(["x", "y"]);
+  });
+});
+
+describe("canChangeCheckpointDone", () => {
+  const list = [cp("a", 0, true), cp("b", 1, true), cp("c", 2, false), cp("d", 3, false)];
+
+  it("達成にできるのは今やるもの（最初の未完了）だけ", () => {
+    expect(canChangeCheckpointDone(list, "c", true)).toBe(true);
+    expect(canChangeCheckpointDone(list, "d", true)).toBe(false);
+  });
+
+  it("外せるのは今やるものの直前の完了済みだけ", () => {
+    expect(canChangeCheckpointDone(list, "b", false)).toBe(true);
+    expect(canChangeCheckpointDone(list, "a", false)).toBe(false);
+  });
+
+  it("全部終わっていれば最後の 1 つだけ外せる", () => {
+    const done = [cp("a", 0, true), cp("b", 1, true)];
+    expect(canChangeCheckpointDone(done, "b", false)).toBe(true);
+    expect(canChangeCheckpointDone(done, "a", false)).toBe(false);
+  });
+
+  it("値が変わらない更新・子チェックポイント・見つからない対象は許可する", () => {
+    expect(canChangeCheckpointDone(list, "a", true)).toBe(true);
+    expect(canChangeCheckpointDone(list, "d", false)).toBe(true);
+    expect(canChangeCheckpointDone([...list, cp("x", 0, false, "d")], "x", true)).toBe(true);
+    expect(canChangeCheckpointDone(list, "missing", true)).toBe(true);
   });
 });

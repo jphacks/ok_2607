@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 import {
+  CheckpointOrderError,
   completeQuest,
   getQuestDetail,
   getQuestWithTask,
@@ -137,7 +138,15 @@ function fixture(
     };
     return query;
   });
-  return { db: { from, rpc } as unknown as SupabaseClient, from, rpc, updates, child, parent };
+  return {
+    db: { from, rpc } as unknown as SupabaseClient,
+    from,
+    rpc,
+    updates,
+    child,
+    parent,
+    tables,
+  };
 }
 
 describe("checkpoint service の所有者境界", () => {
@@ -196,6 +205,34 @@ describe("checkpoint service の所有者境界", () => {
     const undone = await updateCheckpoint(db, "child-1", { isDone: false }, "owner");
     expect(undone?.isDone).toBe(false);
     expect(undone?.doneAt).toBeNull();
+  });
+
+  it("親チェックポイントの達成状態は順番どおりにしか変えられない", async () => {
+    const { db, tables, updates } = fixture();
+    const second = { ...tables.checkpoints[1], id: "parent-2", position: 2, is_done: false };
+    const third = { ...second, id: "parent-3", position: 3 };
+    tables.checkpoints.push(second, third);
+
+    await expect(updateCheckpoint(db, "parent-3", { isDone: true }, "owner")).rejects.toThrow(
+      CheckpointOrderError,
+    );
+    expect(updates).not.toHaveBeenCalled();
+    expect((await updateCheckpoint(db, "parent-2", { isDone: true }, "owner"))?.isDone).toBe(true);
+    await expect(updateCheckpoint(db, "parent-1", { isDone: false }, "owner")).rejects.toThrow(
+      CheckpointOrderError,
+    );
+    expect((await updateCheckpoint(db, "parent-2", { isDone: false }, "owner"))?.isDone).toBe(
+      false,
+    );
+  });
+
+  it("名前だけの更新は順番を検証しない", async () => {
+    const { db, tables } = fixture();
+    tables.checkpoints.push({ ...tables.checkpoints[1], id: "parent-2", position: 2 });
+    tables.checkpoints[1].is_done = false;
+    expect((await updateCheckpoint(db, "parent-2", { title: "新しい名前" }, "owner"))?.title).toBe(
+      "新しい名前",
+    );
   });
 
   it("名前のみ更新した場合は達成状態と完了日時を保持する", async () => {
