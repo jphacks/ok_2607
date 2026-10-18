@@ -311,3 +311,102 @@ describe("QuestProgressScreen", () => {
     });
   });
 });
+
+describe("クエスト完了の保存", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function renderCompleted() {
+    return render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="保存するタスク"
+        initialCheckpoints={mockCheckpoints.map((cp) => ({ ...cp, isDone: true }))}
+      />,
+    );
+  }
+
+  it.each([401, 409, 500])(
+    "HTTP %s では進行を保持し再試行で成功したときだけ遷移する",
+    async (status) => {
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ error: { code: "error", message: "保存に失敗しました" } }),
+            { status },
+          ),
+        )
+        .mockResolvedValueOnce(new Response("{}"));
+      renderCompleted();
+      fireEvent.click(screen.getByRole("button", { name: "クエストを完了する" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存に失敗しました");
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "クエストを完了する" })).toBeEnabled();
+      fireEvent.click(screen.getByRole("button", { name: "クエストを完了する" }));
+      await waitFor(() =>
+        expect(mockPush).toHaveBeenCalledExactlyOnceWith("/quests/quest-1/clear"),
+      );
+    },
+  );
+
+  it.each(["通信失敗", "JSON以外のエラー応答"])("%s でもクリア画面に進まない", async (kind) => {
+    global.fetch =
+      kind === "通信失敗"
+        ? vi.fn().mockRejectedValue(new TypeError("offline"))
+        : vi.fn().mockResolvedValue(new Response("unavailable", { status: 502 }));
+    renderCompleted();
+    fireEvent.click(screen.getByRole("button", { name: "クエストを完了する" }));
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "クエストを完了する" })).toBeEnabled();
+  });
+
+  it("最後のチェックポイント保存中は追加更新と完了を受け付けず、失敗時に戻す", async () => {
+    let finish!: (response: Response) => void;
+    global.fetch = vi.fn().mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="保存中"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+    fireEvent.click(screen.getByText("データを保存・読み込みできる"));
+    expect(screen.getByRole("button", { name: "クエストを完了する" })).toBeDisabled();
+    fireEvent.click(screen.getByText("データを保存・読み込みできる"));
+    fireEvent.click(screen.getByRole("button", { name: "クエストを完了する" }));
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    finish(new Response("{}", { status: 500 }));
+    await screen.findByRole("alert");
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "クエストを完了する" })).toBeDisabled();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("完了保存中の二重送信とチェックポイント更新を防ぐ", async () => {
+    let finish!: (response: Response) => void;
+    global.fetch = vi.fn().mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderCompleted();
+    fireEvent.click(screen.getByRole("button", { name: "クエストを完了する" }));
+    fireEvent.click(screen.getByRole("button", { name: "完了処理中..." }));
+    fireEvent.click(screen.getByText("データを保存・読み込みできる"));
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    finish(new Response("{}"));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledExactlyOnceWith("/quests/quest-1/clear"));
+    expect(screen.getByRole("button", { name: "完了処理中..." })).toBeDisabled();
+    fireEvent.click(screen.getByText("データを保存・読み込みできる"));
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
