@@ -26,6 +26,7 @@ let rejectCreation: boolean;
 let rejectDeletion: boolean;
 let inProgressQuest: Quest | null;
 let pendingCandidateResponse: Promise<Response> | null;
+let pendingStatsResponse: Promise<Response> | null;
 
 beforeEach(() => {
   mockPush.mockClear();
@@ -34,6 +35,7 @@ beforeEach(() => {
   rejectDeletion = false;
   inProgressQuest = null;
   pendingCandidateResponse = null;
+  pendingStatsResponse = null;
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
   // jsdom に未実装のネイティブダイアログAPIだけを補う。
   Object.defineProperties(HTMLDialogElement.prototype, {
@@ -104,7 +106,8 @@ beforeEach(() => {
         return Response.json({ quest: newQuest }, { status: 201 });
       }
 
-      if (url === "/api/stats") return Response.json({ totalXp: 0, completedQuests: 0 });
+      if (url === "/api/stats")
+        return pendingStatsResponse ?? Response.json({ totalXp: 0, completedQuests: 0 });
       throw new Error(`想定外のリクエスト: ${url}`);
     }),
   );
@@ -119,6 +122,44 @@ afterEach(() => {
 });
 
 describe("タスク登録と3択の画面遷移", () => {
+  it.each(["再取得前", "再取得後", "古い取得の失敗"] as const)(
+    "完了タスク削除後は削除前の集計応答を反映しない（%s）",
+    async (timing) => {
+      storedTasks = [{ ...existing, status: "done" }];
+      const stale = Promise.withResolvers<Response>();
+      pendingStatsResponse = stale.promise;
+      render(<QuestApp />);
+      await screen.findByRole("radio");
+      fireEvent.click(screen.getByRole("button", { name: "ホーム" }));
+      await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/stats", { cache: "no-store" }));
+      fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+      fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
+      fireEvent.click(screen.getByRole("button", { name: "削除" }));
+      fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      pendingStatsResponse = null;
+      const deliverStale = async () => {
+        await act(async () => {
+          stale.resolve(
+            timing === "古い取得の失敗"
+              ? Response.json(
+                  { error: { code: "internal_error", message: "削除前の集計エラー" } },
+                  { status: 500 },
+                )
+              : Response.json({ totalXp: 100, completedQuests: 1 }),
+          );
+        });
+      };
+      if (timing === "再取得前") await deliverStale();
+      fireEvent.click(screen.getByRole("button", { name: "ホーム" }));
+      expect(await screen.findByText(/EXP\s+0$/)).toBeVisible();
+      if (timing !== "再取得前") await deliverStale();
+      expect(screen.getByText(/EXP\s+0$/)).toBeVisible();
+      expect(screen.getByText(/クリアしたクエスト\s+0 件/)).toBeVisible();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
+
   it.each([
     { operation: "編集", delayed: false },
     { operation: "別タスク削除", delayed: false },

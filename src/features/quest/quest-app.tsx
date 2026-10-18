@@ -69,6 +69,7 @@ export function QuestApp() {
   const [openForm, setOpenForm] = useState(false);
   const choiceVersion = useRef(0);
   const inProgressVersion = useRef(0);
+  const statsVersion = useRef(0);
   const needsChoices = useRef(false);
 
   const loadTasks = useCallback(async (signal?: AbortSignal) => {
@@ -111,11 +112,16 @@ export function QuestApp() {
   }, []);
 
   const loadStats = useCallback(async () => {
+    const version = ++statsVersion.current;
     setStatsError("");
     try {
-      setStats(await requestJson("/api/stats", StatsResponse, { cache: "no-store" }));
+      const result = await requestJson("/api/stats", StatsResponse, { cache: "no-store" });
+      if (version === statsVersion.current) setStats(result);
     } catch (cause) {
-      setStatsError(cause instanceof Error ? cause.message : "冒険の記録を取得できませんでした。");
+      if (version === statsVersion.current)
+        setStatsError(
+          cause instanceof Error ? cause.message : "冒険の記録を取得できませんでした。",
+        );
     }
   }, []);
 
@@ -174,7 +180,9 @@ export function QuestApp() {
     setTasks((previous) => previous?.filter((task) => task.id !== id) ?? null);
     setInProgressQuest((previous) => (previous?.taskId === id ? null : previous));
     invalidateChoices();
+    statsVersion.current += 1;
     setStats(null);
+    setStatsError("");
   }
 
   async function startQuest(task: Task) {
