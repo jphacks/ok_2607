@@ -72,6 +72,7 @@ export function QuestApp() {
   const choiceVersion = useRef(0);
   const inProgressVersion = useRef(0);
   const statsVersion = useRef(0);
+  const taskVersion = useRef(0);
   const needsChoices = useRef(false);
 
   // 認証状態の確認
@@ -106,12 +107,13 @@ export function QuestApp() {
   }, []);
 
   const loadTasks = useCallback(async (signal?: AbortSignal) => {
+    const version = ++taskVersion.current;
     setTaskError("");
     try {
       const result = await requestJson("/api/tasks", TasksResponse, { signal, cache: "no-store" });
-      setTasks(result.tasks);
+      if (version === taskVersion.current) setTasks(result.tasks);
     } catch (cause) {
-      if (!signal?.aborted)
+      if (!signal?.aborted && version === taskVersion.current)
         setTaskError(cause instanceof Error ? cause.message : "タスクを取得できませんでした。");
     }
   }, []);
@@ -169,10 +171,17 @@ export function QuestApp() {
   function switchTab(next: Tab) {
     setTab(next);
     if (next === "quest" && needsChoices.current) void loadChoices();
-    if (next === "status" && !stats) void loadStats();
+    if (next === "status") {
+      void loadStats();
+      void loadTasks();
+    }
+    if (next === "tasks") {
+      void loadTasks();
+    }
   }
 
   async function createTask(input: CreateTaskRequest) {
+    taskVersion.current += 1;
     const result = await requestJson("/api/tasks", CreateTaskResponse, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -192,6 +201,7 @@ export function QuestApp() {
   }
 
   async function updateTask(id: string, input: CreateTaskRequest) {
+    taskVersion.current += 1;
     const result = await requestJson(`/api/tasks/${id}`, UpdateTaskResponse, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -202,6 +212,7 @@ export function QuestApp() {
   }
 
   async function deleteTask(id: string) {
+    taskVersion.current += 1;
     const response = await requestApi(`/api/tasks/${id}`, { method: "DELETE" });
     if (response.status !== 204) throw new Error("タスクの削除結果を確認できませんでした。");
     if (
@@ -228,6 +239,7 @@ export function QuestApp() {
         shownTaskIds: choices.candidates.map((candidate) => candidate.id),
       }),
     });
+    taskVersion.current += 1;
     inProgressVersion.current += 1;
     setInProgressQuest(result.quest);
     setTasks(
@@ -237,8 +249,6 @@ export function QuestApp() {
     );
     setChoices(null);
     needsChoices.current = true;
-    void loadTasks();
-    void loadStats();
 
     // クエスト開始後、AI チェックポイント生成画面（04）へ直接遷移
     router.push(`/quests/${result.quest.id}/checkpoints`);
@@ -270,7 +280,7 @@ export function QuestApp() {
   async function handleTriggerUrgentQuest() {
     const twoHoursLater = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     await createTask({
-      title: "【緊急】魔王軍の斥候を撃退せよ",
+      title: "【緊急】大学のレポートを提出する",
       dueAt: twoHoursLater,
     });
     switchTab("quest");
@@ -305,7 +315,10 @@ export function QuestApp() {
       <div className="pixel-divider shrink-0" aria-hidden="true" />
       <main
         id="main-content"
-        className="flex-1 px-[22px] pb-32 pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pt-10"
+        className={`flex-1 px-[22px] pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pt-10 ${
+          // 3択はスクロールなしで収めたいので、ボトムナビの分だけ余白を取る
+          tab === "quest" ? "pb-24" : "pb-32"
+        }`}
         tabIndex={-1}
       >
         {tab === "quest" && (
