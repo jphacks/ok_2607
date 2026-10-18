@@ -279,7 +279,7 @@ export function QuestApp() {
   // 認証チェック中はローディング
   if (authLoading) {
     return (
-      <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-[390px] items-center justify-center bg-surface text-muted">
+      <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl items-center justify-center bg-surface text-muted">
         <p className="font-mono text-xs">冒険の書を読み込み中…</p>
       </div>
     );
@@ -291,8 +291,8 @@ export function QuestApp() {
   }
 
   return (
-    <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-[390px] flex-col bg-[#111321] text-[#ededf4] shadow-2xl">
-      <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px]">
+    <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl flex-col bg-[#111321] text-[#ededf4] shadow-2xl">
+      <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px] sm:px-8 lg:px-12">
         <span className="flex items-center gap-2 text-[#f3ca70]">
           <span aria-hidden="true">✦</span>
           <span className="font-mono text-sm tracking-[-1px]">TriOne</span>
@@ -303,7 +303,11 @@ export function QuestApp() {
       </header>
       <AuthStatus />
       <div className="pixel-divider shrink-0" aria-hidden="true" />
-      <main id="main-content" className="flex-1 px-[22px] pb-32 pt-6" tabIndex={-1}>
+      <main
+        id="main-content"
+        className="flex-1 px-[22px] pb-32 pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pt-10"
+        tabIndex={-1}
+      >
         {tab === "quest" && (
           <QuestChoices
             choices={choices}
