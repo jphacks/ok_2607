@@ -254,16 +254,16 @@ export function QuestApp() {
   }
 
   async function handleAddDummyTasks() {
-    const dummyTitles = [
-      "会議の議事録をまとめる",
-      "来週のプレゼン資料を作成する",
-      "数学の課題を提出する",
-      "英単語を20個復習する",
-      "食料品を買いに行く",
-      "部屋の掃除をする",
+    const dummyTasks = [
+      { title: "会議の議事録をまとめる", skippedCount: 0 },
+      { title: "来週のプレゼン資料を作成する", skippedCount: 1 },
+      { title: "数学の課題を提出する", skippedCount: 2 },
+      { title: "英単語を20個復習する", skippedCount: 3 },
+      { title: "食料品を買いに行く", skippedCount: 5 },
+      { title: "部屋の掃除をする", skippedCount: 10 },
     ];
-    for (const title of dummyTitles) {
-      await createTask({ title, dueAt: null });
+    for (const task of dummyTasks) {
+      await createTask({ ...task, dueAt: null });
     }
   }
 
