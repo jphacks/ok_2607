@@ -76,7 +76,7 @@ export default async function QuestClearPage({ params }: PageProps) {
       questId={id}
       taskTitle={questDetail.task.title}
       completedCheckpointsCount={completedCount}
-      totalCheckpointsCount={totalCount > 0 ? totalCount : 5}
+      totalCheckpointsCount={totalCount}
       xpGained={xpGained}
       nextLevelXp={currentLevelInfo.nextLevelXp}
       level={currentLevelInfo.level}

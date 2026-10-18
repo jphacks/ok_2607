@@ -50,6 +50,41 @@ describe("QuestClearScreen", () => {
     expect(homeLink).toHaveAttribute("href", "/");
   });
 
+  it("チェックポイント数が 0 件の場合に「✓ マイルストーン 0 / 0」と表示される", () => {
+    render(
+      <QuestClearScreen
+        questId="quest-zero"
+        taskTitle="チェックポイントなしタスク"
+        completedCheckpointsCount={0}
+        totalCheckpointsCount={0}
+      />,
+    );
+
+    expect(screen.getByText(/マイルストーン 0 \/ 0/)).toBeInTheDocument();
+    expect(screen.queryByText(/5/)).not.toBeInTheDocument();
+  });
+
+  it("チェックポイント数が 3 件の場合に「✓ マイルストーン 3 / 3」と表示される", () => {
+    render(
+      <QuestClearScreen
+        questId="quest-three"
+        taskTitle="3件タスク"
+        completedCheckpointsCount={3}
+        totalCheckpointsCount={3}
+      />,
+    );
+
+    expect(screen.getByText(/マイルストーン 3 \/ 3/)).toBeInTheDocument();
+  });
+
+  it("デフォルトプロップスでレンダリングしたときに進捗と獲得XPが0基準で表示される", () => {
+    render(<QuestClearScreen questId="quest-default" taskTitle="デフォルトタスク" />);
+
+    expect(screen.getByText(/マイルストーン 0 \/ 0/)).toBeInTheDocument();
+    expect(screen.getByText("＋ 0 XP")).toBeInTheDocument();
+    expect(screen.getByText("次のレベルまであと 0 XP")).toBeInTheDocument();
+  });
+
   it("「次のクエストへ」ボタンをクリックすると onNextQuest が呼ばれる", () => {
     const handleNextQuest = vi.fn();
     render(

@@ -55,11 +55,42 @@ describe("クリア画面の保存状態確認", () => {
         expect(notFound).toHaveBeenCalled();
       } else {
         expect((await result).props.xpGained).toBe(30);
+        expect((await result).props.totalCheckpointsCount).toBe(0);
+        expect((await result).props.completedCheckpointsCount).toBe(0);
         expect(redirect).not.toHaveBeenCalled();
         expect(notFound).not.toHaveBeenCalled();
       }
     },
   );
+
+  it("チェックポイントを持たない（親チェックポイントが0件の）完了クエストで totalCheckpointsCount が 0 となる（5 にフォールバックしない）", async () => {
+    vi.mocked(getQuestDetail).mockResolvedValue({
+      quest: {
+        id: "q-zero",
+        taskId: "t",
+        status: "completed",
+        isUrgent: false,
+        xpEarned: 50,
+        startedAt: "2026-10-18T00:00:00Z",
+        completedAt: "2026-10-18T01:00:00Z",
+      },
+      task: {
+        id: "t",
+        title: "タスク",
+        status: "done",
+        dueAt: null,
+        shownCount: 0,
+        skippedCount: 0,
+        createdAt: "2026-10-18T00:00:00Z",
+        updatedAt: "2026-10-18T00:00:00Z",
+      },
+      checkpoints: [],
+    });
+
+    const page = await QuestClearPage({ params: Promise.resolve({ id: "q-zero" }) });
+    expect(page.props.totalCheckpointsCount).toBe(0);
+    expect(page.props.completedCheckpointsCount).toBe(0);
+  });
 
   it("親チェックポイントの完了数に基づいて完了数・全数・獲得XPがクリア画面に渡される", async () => {
     vi.mocked(getQuestDetail).mockResolvedValue({
