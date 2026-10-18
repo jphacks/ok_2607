@@ -243,17 +243,20 @@ export async function completeQuest(
     };
   }
 
-  // 2. 完了しているチェックポイント数を取得
+  // 2. 完了している親チェックポイント数を取得（parent_id IS NULL）
   const { data: checkpointRows, error: checkpointError } = await supabase
     .from("checkpoints")
-    .select("id, is_done")
-    .eq("quest_id", questId);
+    .select("id, is_done, parent_id")
+    .eq("quest_id", questId)
+    .is("parent_id", null);
 
   if (checkpointError) {
     throw new Error(`チェックポイント一覧の取得に失敗しました: ${checkpointError.message}`);
   }
 
-  const completedCheckpoints = (checkpointRows ?? []).filter((cp) => cp.is_done).length;
+  const completedCheckpoints = (checkpointRows ?? []).filter(
+    (cp) => cp.is_done && cp.parent_id === null,
+  ).length;
 
   // 3. 経験値を計算
   const xpEarned = calculateQuestXp({
