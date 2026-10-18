@@ -7,8 +7,14 @@ on:
 
 jobs:
   check:
+    needs: database
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
+      - name: DB検証の成功を必須にする
+        env:
+          DATABASE_RESULT: ${{ needs.database.result }}
+        run: test "$DATABASE_RESULT" = success
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -20,3 +26,39 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: trione_test
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d trione_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGDATABASE: trione_test
+      PGPASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - name: CI専用DBの初期化
+        run: psql -X -v ON_ERROR_STOP=1 -f supabase/tests/ci/bootstrap.sql
+      - name: 全マイグレーションを順に適用
+        run: |
+          for migration in supabase/migrations/*.sql; do
+            psql -X -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: DB回帰テスト
+        run: |
+          for regression in supabase/tests/*.sql; do
+            psql -X -v ON_ERROR_STOP=1 -f "$regression"
+          done

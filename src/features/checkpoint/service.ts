@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Checkpoint, CompleteQuestResponse, QuestDetailResponse } from "@/lib/schemas";
+import type {
+  Checkpoint,
+  CompleteQuestResponse,
+  QuestDetailResponse,
+  UpdateCheckpointFieldsRequest,
+} from "@/lib/schemas";
 import type { CheckpointPlan } from "./generate";
 import {
   type DbCheckpointRow,
@@ -162,18 +167,13 @@ export async function getQuestDetail(
   };
 }
 
-export interface UpdateCheckpointFieldsInput {
-  title?: string;
-  isDone?: boolean;
-}
-
 /**
- * チェックポイントの項目（title / isDone / doneAt）を更新する。
+ * チェックポイント名・達成状態を、指定された項目だけ更新する。
  */
-export async function updateCheckpointFields(
+export async function updateCheckpoint(
   supabase: SupabaseClient,
   checkpointId: string,
-  fields: UpdateCheckpointFieldsInput,
+  updates: UpdateCheckpointFieldsRequest,
   userId: string,
 ): Promise<Checkpoint | null> {
   const { data: checkpointRow, error: checkpointError } = await supabase
@@ -189,22 +189,21 @@ export async function updateCheckpointFields(
     return null;
   }
 
-  const updates: Record<string, unknown> = {};
-  if (fields.title !== undefined) {
-    updates.title = fields.title;
-  }
-  if (fields.isDone !== undefined) {
-    updates.is_done = fields.isDone;
-    updates.done_at = fields.isDone ? new Date().toISOString() : null;
-  }
-
-  if (Object.keys(updates).length === 0) {
+  if (updates.title === undefined && updates.isDone === undefined) {
     return null;
   }
 
   const { data: updatedRow, error } = await supabase
     .from("checkpoints")
-    .update(updates)
+    .update({
+      ...(updates.title !== undefined ? { title: updates.title } : {}),
+      ...(updates.isDone !== undefined
+        ? {
+            is_done: updates.isDone,
+            done_at: updates.isDone ? new Date().toISOString() : null,
+          }
+        : {}),
+    })
     .eq("id", checkpointId)
     .eq("quest_id", checkpointRow.quest_id)
     .select("id, quest_id, parent_id, title, description, position, is_done, done_at")
@@ -230,7 +229,7 @@ export async function updateCheckpointStatus(
   isDone: boolean,
   userId: string,
 ): Promise<Checkpoint | null> {
-  return updateCheckpointFields(supabase, checkpointId, { isDone }, userId);
+  return updateCheckpoint(supabase, checkpointId, { isDone }, userId);
 }
 
 export type CompleteQuestResult =

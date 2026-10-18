@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Checkpoint } from "@/lib/schemas";
+import { z } from "zod";
+import { ApiError, Checkpoint, UpdateCheckpointFieldsRequest } from "@/lib/schemas";
 import { DecorativeTileBar, PixelHeader } from "./PixelHeader";
 import { MagePixelArt } from "./MagePixelArt";
 import { PixelButton } from "./PixelButton";
@@ -34,6 +35,8 @@ export function CheckpointGenerationScreen({
   const [editTitle, setEditTitle] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const activeEdit = useRef<string | null>(null);
+  const savingEdit = useRef(false);
 
   // 追加モード関連のステート
   const [isAdding, setIsAdding] = useState(false);
@@ -84,6 +87,7 @@ export function CheckpointGenerationScreen({
   }, [questId, initialCheckpoints.length]);
 
   const handleStart = () => {
+    if (activeEdit.current !== null || savingEdit.current) return;
     if (onStartQuest) {
       onStartQuest(parentCheckpoints);
     } else {
@@ -92,58 +96,77 @@ export function CheckpointGenerationScreen({
   };
 
   const handleEditStart = (cp: Checkpoint) => {
+    if (activeEdit.current !== null || savingEdit.current) return;
+    activeEdit.current = cp.id;
     setEditingId(cp.id);
     setEditTitle(cp.title);
     setEditError(null);
   };
 
-  const handleEditCancel = () => {
+  const cancelEdit = () => {
+    if (savingEdit.current) return;
+    activeEdit.current = null;
     setEditingId(null);
     setEditTitle("");
     setEditError(null);
   };
 
   const handleEditSave = async (id: string) => {
-    const trimmedTitle = editTitle.trim();
-    if (!trimmedTitle) {
-      setEditError("タイトルを入力してください");
+    if (activeEdit.current !== id || savingEdit.current) return;
+    const parsed = UpdateCheckpointFieldsRequest.safeParse({ title: editTitle });
+    if (!parsed.success) {
+      setEditError("名前は空白を除いて1〜200文字で入力してください。");
       return;
     }
 
-    // デモクエストまたはクライアント生成されたチェックポイントの場合はローカル反映のみ
-    if (questId === "demo" || id.startsWith("demo-") || id.startsWith("custom-")) {
-      setCheckpoints((prev) =>
-        prev.map((cp) => (cp.id === id ? { ...cp, title: trimmedTitle } : cp)),
-      );
-      setEditingId(null);
-      setEditTitle("");
-      setEditError(null);
-      return;
-    }
-
+    savingEdit.current = true;
     setIsSavingEdit(true);
     setEditError(null);
-    try {
-      const res = await fetch(`/api/checkpoints/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: trimmedTitle }),
-      });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error?.message || "保存に失敗しました");
+    try {
+      let saved: Checkpoint;
+      // デモクエストまたはクライアント生成されたチェックポイントの場合はローカル反映のみ
+      if (questId === "demo" || id.startsWith("demo-") || id.startsWith("custom-")) {
+        const original = checkpoints.find((cp) => cp.id === id);
+        if (!original) throw new Error("チェックポイントが見つかりません。");
+        saved = { ...original, title: parsed.data.title! };
+      } else {
+        const response = await fetch(`/api/checkpoints/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(parsed.data),
+        });
+        const body: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          const failure = ApiError.safeParse(body);
+          throw new Error(
+            failure.success ? failure.data.error.message : "名前を保存できませんでした。",
+          );
+        }
+        const result = z.object({ checkpoint: Checkpoint }).safeParse(body);
+        if (
+          !result.success ||
+          result.data.checkpoint.id !== id ||
+          result.data.checkpoint.questId !== questId
+        ) {
+          throw new Error("保存結果を確認できませんでした。");
+        }
+        saved = result.data.checkpoint;
       }
 
-      setCheckpoints((prev) =>
-        prev.map((cp) => (cp.id === id ? { ...cp, title: trimmedTitle } : cp)),
-      );
+      setCheckpoints((previous) => previous.map((cp) => (cp.id === id ? saved : cp)));
+      activeEdit.current = null;
       setEditingId(null);
-      setEditTitle("");
-      setEditError(null);
-    } catch (err) {
-      setEditError(err instanceof Error ? err.message : "保存に失敗しました");
+    } catch (cause) {
+      setEditError(
+        cause instanceof TypeError
+          ? "通信に失敗しました。接続を確認して、もう一度保存してください。"
+          : cause instanceof Error
+            ? cause.message
+            : "通信に失敗しました。",
+      );
     } finally {
+      savingEdit.current = false;
       setIsSavingEdit(false);
     }
   };
@@ -239,7 +262,7 @@ export function CheckpointGenerationScreen({
                 <span>✦</span> 基本ステップを作成しました
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                AIに接続できなかったため定型プランを用意しました。各ステップを自由に編集・カスタマイズできます。
+                AIに接続できなかったため定型プランを用意しました。各ステップを自由に追加・編集・並び替えできます。
               </p>
             </div>
           )}
@@ -285,25 +308,28 @@ export function CheckpointGenerationScreen({
                           <div className="space-y-2">
                             <input
                               type="text"
+                              aria-label="チェックポイント名"
+                              maxLength={200}
+                              disabled={isSavingEdit}
                               value={editTitle}
                               onChange={(e) => setEditTitle(e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") handleEditSave(cp.id);
-                                if (e.key === "Escape") handleEditCancel();
+                                if (e.nativeEvent.isComposing) return;
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void handleEditSave(cp.id);
+                                }
+                                if (e.key === "Escape") cancelEdit();
                               }}
                               autoFocus
                               className="w-full rounded border border-gold-accent bg-field px-2.5 py-1 text-sm text-text focus:outline-none"
                               placeholder="チェックポイントのタイトル"
                             />
-                            {editError && (
-                              <p className="text-xs text-danger" role="alert">
-                                {editError}
-                              </p>
-                            )}
+                            {editError && <p className="text-xs text-danger">{editError}</p>}
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => handleEditSave(cp.id)}
+                                onClick={() => void handleEditSave(cp.id)}
                                 disabled={isSavingEdit}
                                 className="border border-gold-accent bg-gold-accent/20 px-3 py-0.5 text-xs font-bold text-gold-accent hover:bg-gold-accent hover:text-gold-ink active:translate-y-0.5 transition-colors"
                               >
@@ -311,7 +337,7 @@ export function CheckpointGenerationScreen({
                               </button>
                               <button
                                 type="button"
-                                onClick={handleEditCancel}
+                                onClick={cancelEdit}
                                 disabled={isSavingEdit}
                                 className="border border-line-dim bg-panel px-3 py-0.5 text-xs text-muted hover:text-text active:translate-y-0.5 transition-colors"
                               >
@@ -378,6 +404,7 @@ export function CheckpointGenerationScreen({
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                         onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing) return;
                           if (e.key === "Enter") handleAddCheckpoint();
                           if (e.key === "Escape") {
                             setIsAdding(false);
@@ -423,6 +450,21 @@ export function CheckpointGenerationScreen({
             )}
           </div>
 
+          {editError && (
+            <div className="mt-4 space-y-2">
+              <p role="alert" className="text-sm text-danger">
+                {editError}
+              </p>
+              <PixelButton
+                variant="secondary"
+                disabled={isSavingEdit}
+                onClick={() => editingId && void handleEditSave(editingId)}
+              >
+                もう一度保存する
+              </PixelButton>
+            </div>
+          )}
+
           {/* 編集可能ガイダンス */}
           {!isLoading && !error && (
             <p className="mt-4 flex items-center justify-center gap-1 text-center text-xs text-muted">
@@ -438,7 +480,13 @@ export function CheckpointGenerationScreen({
         <div className="mt-6 pb-2">
           <PixelButton
             onClick={handleStart}
-            disabled={isLoading || Boolean(error) || parentCheckpoints.length === 0}
+            disabled={
+              isLoading ||
+              Boolean(error) ||
+              editingId !== null ||
+              isSavingEdit ||
+              parentCheckpoints.length === 0
+            }
           >
             クエストを開始する
           </PixelButton>
