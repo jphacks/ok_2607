@@ -77,6 +77,10 @@
 
 `status: "discarded"` が「手放す」操作。
 
+更新項目は1つ以上必須。空の更新（未知のキーだけの入力を含む）は `400 validation_error`。
+成功応答の型は `UpdateTaskResponse`。`dueAt: null` は期限の解除を表す。
+UI・保存処理の復旧に先行して、共通スキーマを定義する（Issue #48）。
+
 ### DELETE /api/tasks/{id}
 
 `204`（本文なし）。
