@@ -248,7 +248,8 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveTextContent("タスク");
     expect(buttons[1]).toHaveTextContent("クエスト");
-    expect(buttons[1]).toHaveTextContent("クエストを開始");
+    expect(buttons[1]).not.toHaveTextContent("クエストを開始");
+    expect(buttons[1]).not.toHaveTextContent("冒険を開始する");
     expect(buttons[2]).toHaveTextContent("ステータス");
 
     // 初期表示はクエストタブがアクティブ
