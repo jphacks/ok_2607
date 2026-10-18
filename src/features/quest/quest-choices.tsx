@@ -1,6 +1,7 @@
-import { useState } from "react";
-import type { QuestCandidatesResponse, Task } from "@/lib/schemas";
+"use client";
 
+import { useEffect, useRef, useState } from "react";
+import type { QuestCandidatesResponse, Task } from "@/lib/schemas";
 export function QuestChoices({
   choices,
   pending,
@@ -23,9 +24,24 @@ export function QuestChoices({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
-  const selected =
-    choices?.candidates.find((task) => task.id === selectedId) ?? choices?.candidates[0];
+  const [isInstantChoice, setIsInstantChoice] = useState(false);
+  const renderTimeRef = useRef<number>(Date.now());
 
+  useEffect(() => {
+    renderTimeRef.current = Date.now();
+    setIsInstantChoice(false);
+    setSelectedId(null);
+  }, [choices]);
+
+  const selected = choices?.candidates.find((task) => task.id === selectedId) ?? null;
+
+  function handleSelectTask(taskId: string) {
+    if (starting || pending) return;
+    const elapsed = Date.now() - renderTimeRef.current;
+    setIsInstantChoice(elapsed <= 3000);
+    setSelectedId(taskId);
+    setStartError("");
+  }
   async function start() {
     if (!selected || starting) return;
     setStarting(true);
@@ -51,7 +67,7 @@ export function QuestChoices({
               ? "まずは挑戦中のクエストに集中しよう"
               : choices?.isUrgent
                 ? "締切の近い冒険も含めて、挑戦するタスクを選択"
-                : "3つの運命から、挑戦するタスクを選択"}
+                : "直感を信じて、最初に目が留まったものをタップ！"}
           </p>
         </div>
         <span className="pixel-slime" aria-hidden="true" />
@@ -85,7 +101,7 @@ export function QuestChoices({
               </button>
             )}
             <button className="secondary-button w-full" onClick={onHome}>
-              ホームで確認する
+              ステータスで確認する
             </button>
           </div>
         </div>
@@ -106,16 +122,20 @@ export function QuestChoices({
           <fieldset className="space-y-3.5" disabled={starting || pending}>
             <legend className="sr-only">挑戦するタスクを1つ選ぶ</legend>
             {choices.candidates.map((task, index) => {
-              const checked = selected?.id === task.id;
+              const checked = selectedId === task.id;
               return (
                 <label
                   key={task.id}
-                  className={`pixel-panel block min-h-[128px] cursor-pointer px-4 py-4 transition-colors hover:bg-[#2a3047] ${checked ? "quest-selected" : ""}`}
+                  onClick={() => handleSelectTask(task.id)}
+                  style={{ animationDelay: `${index * 80}ms` }}
+                  className={`pixel-panel animate-card-draw relative block min-h-[120px] cursor-pointer px-5 py-4 transition-all hover:bg-panel-active active:scale-[0.99] ${
+                    checked ? "quest-selected shadow-[0_0_12px_var(--color-gold-accent)]" : ""
+                  }`}
                 >
-                  <div className="flex gap-4">
+                  <div className="flex items-start gap-4">
                     <span
                       aria-hidden="true"
-                      className="w-6 shrink-0 pt-1 text-center text-[26px] leading-none text-[#f3ca70]"
+                      className="w-7 shrink-0 pt-0.5 text-center text-[28px] leading-none text-gold-accent"
                     >
                       {choices.isUrgent && index === 0
                         ? "♨"
@@ -126,33 +146,48 @@ export function QuestChoices({
                             : "✧"}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="break-words text-sm leading-6">{task.title}</p>
-                      <p className="mt-1 text-xs text-[#a4a8bc]">
-                        {choices.isUrgent && index === 0
-                          ? "緊急クエスト ・ 締切間近"
-                          : task.dueAt
-                            ? "期限ありクエスト"
-                            : "あなたが選ぶ、今日のクエスト"}
+                      {/* タイトルを中央に大きく太字で配置（直感ファースト） */}
+                      <p className="break-words font-dotgothic text-base font-bold leading-6 text-text">
+                        {task.title}
                       </p>
-                      <p className="mt-2 text-xs text-[#a5d4be]">
-                        {task.dueAt
-                          ? `期限 ${new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(new Date(task.dueAt))}`
-                          : "期限なし"}
-                      </p>
-                      <span className="mt-2 flex items-center gap-2 text-xs text-[#e6c875]">
-                        <input
-                          type="radio"
-                          name="quest"
-                          value={task.id}
-                          checked={checked}
-                          onChange={() => {
-                            setSelectedId(task.id);
-                            setStartError("");
-                          }}
-                          className="h-3 w-3 accent-[#f3ca70]"
-                        />
-                        {checked ? "選択中" : "選択する"}
-                      </span>
+                      {/* 詳細・メタ情報はトーンを抑えて配置 */}
+                      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted/80">
+                        <span>
+                          {choices.isUrgent && index === 0
+                            ? "緊急クエスト ・ 締切間近"
+                            : "今日のクエスト候補"}
+                        </span>
+                        {task.dueAt && (
+                          <span className="text-success/90">
+                            期限{" "}
+                            {new Intl.DateTimeFormat("ja-JP", {
+                              month: "numeric",
+                              day: "numeric",
+                            }).format(new Date(task.dueAt))}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-2 text-gold-text">
+                          <input
+                            type="radio"
+                            name="quest"
+                            value={task.id}
+                            checked={checked}
+                            onChange={() => handleSelectTask(task.id)}
+                            className="h-3.5 w-3.5 accent-gold-accent"
+                          />
+                          {checked ? "選択中" : "選択する"}
+                        </span>
+                        {checked && isInstantChoice && (
+                          <span
+                            data-testid="instant-choice-badge"
+                            className="animate-pulse font-dotgothic text-xs font-bold text-gold"
+                          >
+                            ⚡ 直感即決！
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </label>
@@ -166,7 +201,7 @@ export function QuestChoices({
           )}
           <button
             className="gold-button mt-8 w-full text-left"
-            disabled={starting || pending}
+            disabled={starting || pending || !selected}
             onClick={start}
           >
             {starting ? "クエストを開始中…" : "このクエストに挑戦する"}

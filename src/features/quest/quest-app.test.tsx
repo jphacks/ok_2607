@@ -130,7 +130,7 @@ describe("タスク登録と3択の画面遷移", () => {
       pendingStatsResponse = stale.promise;
       render(<QuestApp />);
       await screen.findByRole("radio");
-      fireEvent.click(screen.getByRole("button", { name: "ホーム" }));
+      fireEvent.click(screen.getByRole("button", { name: "ステータス" }));
       await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/stats", { cache: "no-store" }));
       fireEvent.click(screen.getByRole("button", { name: "タスク" }));
       fireEvent.click(screen.getByLabelText(`${existing.title}のメニュー`));
@@ -151,7 +151,7 @@ describe("タスク登録と3択の画面遷移", () => {
         });
       };
       if (timing === "再取得前") await deliverStale();
-      fireEvent.click(screen.getByRole("button", { name: "ホーム" }));
+      fireEvent.click(screen.getByRole("button", { name: "ステータス" }));
       expect(await screen.findByText(/EXP\s+0$/)).toBeVisible();
       if (timing !== "再取得前") await deliverStale();
       expect(screen.getByText(/EXP\s+0$/)).toBeVisible();
@@ -166,7 +166,7 @@ describe("タスク登録と3択の画面遷移", () => {
     { operation: "編集", delayed: true },
     { operation: "別タスク削除", delayed: true },
   ])(
-    "$operation（初回取得遅延: $delayed）後もホームから進行中クエストを直接再開できる",
+    "$operation（初回取得遅延: $delayed）後もステータスから進行中クエストを直接再開できる",
     async ({ operation, delayed }) => {
       storedTasks = [
         { ...existing, status: "in_quest" },
@@ -184,7 +184,7 @@ describe("タスク登録と3択の画面遷移", () => {
       const responseGate = delayed ? Promise.withResolvers<Response>() : null;
       if (responseGate) pendingCandidateResponse = responseGate.promise;
       render(<QuestApp />);
-      if (!delayed) await screen.findByRole("button", { name: "ホームで確認する" });
+      if (!delayed) await screen.findByRole("button", { name: "ステータスで確認する" });
       fireEvent.click(screen.getByRole("button", { name: "タスク" }));
       await screen.findByText(existing.title);
       if (operation === "編集") {
@@ -204,7 +204,7 @@ describe("タスク登録と3択の画面遷移", () => {
         fireEvent.click(screen.getByRole("button", { name: "削除する" }));
       }
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-      fireEvent.click(screen.getByRole("button", { name: "ホーム" }));
+      fireEvent.click(screen.getByRole("button", { name: "ステータス" }));
       if (responseGate) {
         pendingCandidateResponse = null;
         await act(async () => {
@@ -230,7 +230,7 @@ describe("タスク登録と3択の画面遷移", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.getByRole("listitem")).toHaveTextContent("編集したタスク");
     expect(Date.parse(storedTasks[0].dueAt ?? "")).toBe(Date.parse("2026-11-01T09:15:00Z"));
-    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    fireEvent.click(screen.getByRole("button", { name: /クエスト/ }));
     expect(await screen.findByRole("radio", { name: /編集したタスク/ })).toBeVisible();
   });
 
@@ -255,11 +255,11 @@ describe("タスク登録と3択の画面遷移", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
     expect(storedTasks).toEqual([]);
-    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    fireEvent.click(screen.getByRole("button", { name: /クエスト/ }));
     expect(await screen.findByRole("button", { name: "＋ 新しいタスクを追加" })).toBeVisible();
   });
 
-  it("進行中は開始・再抽選を表示せずホームで現在のタスクを確認できる", async () => {
+  it("進行中は開始・再抽選を表示せずステータスで現在のタスクを確認できる", async () => {
     storedTasks = [{ ...existing, status: "in_quest" }];
     inProgressQuest = {
       id: "10000000-0000-4000-8000-000000000003",
@@ -272,11 +272,18 @@ describe("タスク登録と3択の画面遷移", () => {
     };
     render(<QuestApp />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "ホームで確認する" }));
+    fireEvent.click(await screen.findByRole("button", { name: "ステータスで確認する" }));
 
-    expect(screen.getByRole("button", { name: "ホーム" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "ステータス" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(await screen.findByText(existing.title)).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "メインメニュー" })).getByRole("button", {
+        name: /クエスト/,
+      }),
+    );
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "このクエストに挑戦する" }),
@@ -310,7 +317,7 @@ describe("タスク登録と3択の画面遷移", () => {
     );
     expect(rows[0]).toHaveTextContent("新しい冒険");
     expect(rows[1]).toHaveTextContent("以前のタスク");
-    fireEvent.click(screen.getByRole("button", { name: "クエスト" }));
+    fireEvent.click(screen.getByRole("button", { name: /クエスト/ }));
     expect(await screen.findByRole("radio", { name: /新しい冒険/ })).toBeVisible();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
@@ -369,7 +376,7 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
   });
 
-  it("ホーム画面で進行中のクエストがある場合、再開ボタンで画面05へ遷移する", async () => {
+  it("ステータス画面で進行中のクエストがある場合、再開ボタンで画面05へ遷移する", async () => {
     storedTasks = [{ ...existing, status: "in_quest" }];
     inProgressQuest = {
       id: "10000000-0000-4000-8000-000000000003",
@@ -382,12 +389,29 @@ describe("タスク登録と3択の画面遷移", () => {
     };
     render(<QuestApp />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "ホームで確認する" }));
+    fireEvent.click(await screen.findByRole("button", { name: "ステータスで確認する" }));
     const homeResumeBtn = await screen.findByRole("button", {
       name: "進行中の冒険を再開する",
     });
     fireEvent.click(homeResumeBtn);
 
     expect(mockPush).toHaveBeenCalledWith("/quests/10000000-0000-4000-8000-000000000003");
+  });
+
+  it("3タブ（タスク / クエスト / ステータス）が表示され、中央のクエストが強調される", async () => {
+    render(<QuestApp />);
+
+    const nav = screen.getByRole("navigation", { name: "メインメニュー" });
+    expect(nav).toBeInTheDocument();
+
+    const buttons = within(nav).getAllByRole("button");
+    expect(buttons).toHaveLength(3);
+    expect(buttons[0]).toHaveTextContent("タスク");
+    expect(buttons[1]).toHaveTextContent("クエスト");
+    expect(buttons[1]).toHaveTextContent("クエストを開始");
+    expect(buttons[2]).toHaveTextContent("ステータス");
+
+    // 初期表示はクエストタブがアクティブ
+    expect(buttons[1]).toHaveAttribute("aria-current", "page");
   });
 });

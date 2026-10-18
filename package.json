@@ -1,5 +1,6 @@
 {
-  "name": "ok-2607",
+  "name": "trione",
+  "description": "3択から選ぶだけで、やることとやらないことが決まるタスク管理アプリ",
   "version": "0.1.0",
   "private": true,
   "scripts": {

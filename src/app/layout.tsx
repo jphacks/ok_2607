@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TODO ROGUE",
+  title: "TriOne",
   description: "3択から選ぶだけで、やることとやらないことが決まるタスク管理アプリ",
 };
 

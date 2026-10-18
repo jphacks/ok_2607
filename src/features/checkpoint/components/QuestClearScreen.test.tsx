@@ -30,7 +30,7 @@ describe("QuestClearScreen", () => {
     );
 
     // ヘッダー & 見出し
-    expect(screen.getByText("✦ TODO ROGUE")).toBeInTheDocument();
+    expect(screen.getByText("✦ TriOne")).toBeInTheDocument();
     expect(screen.getByText("QUEST CLEAR!")).toBeInTheDocument();
     expect(screen.getByText("クエスト達成！")).toBeInTheDocument();
 
