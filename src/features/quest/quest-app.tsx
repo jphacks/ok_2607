@@ -8,6 +8,8 @@ import { TaskList } from "@/features/task/task-list";
 import { QuestChoices } from "@/features/quest/quest-choices";
 import { PixelBottomNav, type NavTabId } from "@/components/ui/PixelBottomNav";
 import { DebugActions } from "@/features/quest/debug-actions";
+import { AuthStatus } from "@/features/auth/components/AuthStatus";
+import { LoginScreen } from "@/features/auth/components/LoginScreen";
 import {
   ApiError,
   CreateTaskResponse,
@@ -45,6 +47,9 @@ async function requestJson<S extends z.ZodType>(
 
 export function QuestApp() {
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<{ id: string; email?: string } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [tab, setTab] = useState<Tab>("quest");
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [taskError, setTaskError] = useState("");
@@ -56,6 +61,37 @@ export function QuestApp() {
   const [openForm, setOpenForm] = useState(false);
   const choiceVersion = useRef(0);
   const needsChoices = useRef(false);
+
+  // 認証状態の確認
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { user: { id: string; email?: string } | null };
+          setCurrentUser(data.user);
+        } else {
+          setCurrentUser(null);
+        }
+      } catch {
+        setCurrentUser(null);
+      } finally {
+        clearTimeout(timeoutId);
+        setAuthLoading(false);
+      }
+    }
+    void checkAuth();
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, []);
 
   const loadTasks = useCallback(async (signal?: AbortSignal) => {
     setTaskError("");
@@ -100,12 +136,14 @@ export function QuestApp() {
     }
   }, []);
 
+  // ログイン済みの場合のみタスク・候補を取得
   useEffect(() => {
+    if (!currentUser) return;
     const controller = new AbortController();
     void loadTasks(controller.signal);
     void loadChoices(controller.signal);
     return () => controller.abort();
-  }, [loadTasks, loadChoices]);
+  }, [currentUser, loadTasks, loadChoices]);
 
   function switchTab(next: Tab) {
     setTab(next);
@@ -177,6 +215,20 @@ export function QuestApp() {
     switchTab("quest");
   }
 
+  // 認証チェック中はローディング
+  if (authLoading) {
+    return (
+      <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-[390px] items-center justify-center bg-surface text-muted">
+        <p className="font-mono text-xs">冒険の書を読み込み中…</p>
+      </div>
+    );
+  }
+
+  // 未ログイン時はログイン専用画面を表示
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-[390px] flex-col bg-[#111321] text-[#ededf4] shadow-2xl">
       <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px]">
@@ -188,6 +240,7 @@ export function QuestApp() {
           ●　{stats ? `${stats.completedQuests} CLEAR` : "冒険のはじまり"}
         </span>
       </header>
+      <AuthStatus />
       <div className="pixel-divider shrink-0" aria-hidden="true" />
       <main id="main-content" className="flex-1 px-[22px] pb-32 pt-6" tabIndex={-1}>
         {tab === "quest" && (

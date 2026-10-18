@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { completeQuest } from "@/features/checkpoint/service";
 import { apiError, ok } from "@/lib/api-response";
+import { getCurrentUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const ParamsSchema = z.object({
@@ -25,7 +26,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const supabase = supabaseServer();
 
   try {
-    const result = await completeQuest(supabase, questId);
+    const user = await getCurrentUser();
+    const result = await completeQuest(supabase, questId, user?.id);
 
     if (result.type === "not_found") {
       return apiError(404, "not_found", "指定されたクエストが見つかりません");
