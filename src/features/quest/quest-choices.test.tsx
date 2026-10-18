@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuestChoices } from "@/features/quest/quest-choices";
 import type { QuestCandidatesResponse, Task } from "@/lib/schemas";
 
+const sound = vi.hoisted(() => ({ playSfx: vi.fn(), vibrate: vi.fn() }));
+vi.mock("@/components/ui/sound", () => sound);
+
 const mockCandidates: Task[] = [
   {
     id: "task-1",
@@ -91,7 +94,7 @@ describe("QuestChoices - ファースト・インプレッション（直感チ�
     expect(screen.getByTestId("instant-choice-badge")).toBeVisible();
   });
 
-  it("先頭の候補を3秒以内に選択したときに『⚡ 直感即決！』バッジが表示される", () => {
+  it("先頭の候補を3秒以内に選択したときに『即決!!』バッジが表示される", () => {
     render(
       <QuestChoices
         choices={mockChoices}
@@ -109,10 +112,10 @@ describe("QuestChoices - ファースト・インプレッション（直感チ�
     const radio = screen.getByRole("radio", { name: /Webアプリを完成させる/ });
     fireEvent.click(radio);
 
-    expect(screen.getByTestId("instant-choice-badge")).toHaveTextContent("⚡ 直感即決！");
+    expect(screen.getByTestId("instant-choice-badge")).toHaveTextContent("即決!!");
   });
 
-  it("カード表示から3秒以内に選択すると『⚡ 直感即決！』バッジが表示される", () => {
+  it("カード表示から3秒以内に選択すると『即決!!』バッジが表示される", () => {
     render(
       <QuestChoices
         choices={mockChoices}
@@ -130,7 +133,7 @@ describe("QuestChoices - ファースト・インプレッション（直感チ�
     const radio = screen.getByRole("radio", { name: /レポートを提出する/ });
     fireEvent.click(radio);
 
-    expect(screen.getByTestId("instant-choice-badge")).toHaveTextContent("⚡ 直感即決！");
+    expect(screen.getByTestId("instant-choice-badge")).toHaveTextContent("即決!!");
   });
 
   it("カード表示から3秒以上経過して選択した場合は直感バッジが表示されない", () => {
@@ -171,7 +174,7 @@ describe("QuestChoices - ファースト・インプレッション（直感チ�
     vi.advanceTimersByTime(1000);
     const radio1 = screen.getByRole("radio", { name: /Webアプリを完成させる/ });
     fireEvent.click(radio1);
-    expect(screen.getByTestId("instant-choice-badge")).toHaveTextContent("⚡ 直感即決！");
+    expect(screen.getByTestId("instant-choice-badge")).toHaveTextContent("即決!!");
 
     // さらに3秒経過（合計4秒）した後に2番目を選択し直す
     vi.advanceTimersByTime(3000);
@@ -312,5 +315,120 @@ describe("QuestChoices - 選択の強調と再抽選", () => {
     );
     expect(screen.getByText("緊急クエスト ・ 締切間近")).toBeInTheDocument();
     expect(screen.queryByText("今日のクエスト候補")).not.toBeInTheDocument();
+  });
+});
+
+describe("QuestChoices - レア度と演出", () => {
+  beforeEach(() => {
+    sound.playSfx.mockClear();
+    sound.vibrate.mockClear();
+  });
+
+  function renderChoices(choices: QuestCandidatesResponse, onStart = vi.fn()) {
+    render(
+      <QuestChoices
+        choices={choices}
+        pending={false}
+        error=""
+        onAddTask={vi.fn()}
+        onHome={vi.fn()}
+        onRetry={vi.fn()}
+        onStart={onStart}
+      />,
+    );
+  }
+
+  function cardOf(title: string) {
+    return screen.getByRole("radio", { name: new RegExp(title) }).closest("label")!;
+  }
+
+  it("reject回数 3 のカードに「レア」、5 に「幻」を表示し、0 には出さない", () => {
+    const candidates = [
+      { ...mockCandidates[0], skippedCount: 0 },
+      { ...mockCandidates[1], skippedCount: 3 },
+      { ...mockCandidates[1], id: "task-3", title: "部屋を片付ける", skippedCount: 5 },
+    ];
+    renderChoices({ ...mockChoices, candidates });
+
+    expect(within(cardOf("Webアプリ")).queryByText("レア")).not.toBeInTheDocument();
+    expect(within(cardOf("Webアプリ")).queryByText("幻")).not.toBeInTheDocument();
+    expect(within(cardOf("レポート")).getByText("レア")).toBeInTheDocument();
+    expect(within(cardOf("部屋を片付ける")).getByText("幻")).toBeInTheDocument();
+    expect(cardOf("部屋を片付ける")).toHaveAttribute("data-rarity", "mythic");
+  });
+
+  it("緊急クエストは reject回数が多くても「緊急」の見た目になる", () => {
+    renderChoices({
+      ...mockChoices,
+      isUrgent: true,
+      candidates: [{ ...mockCandidates[0], skippedCount: 6 }],
+    });
+    const card = cardOf("Webアプリ");
+    expect(card).toHaveAttribute("data-rarity", "urgent");
+    expect(within(card).queryByText("幻")).not.toBeInTheDocument();
+    expect(card.className).toContain("animate-urgent-pulse");
+  });
+
+  it("カードを表示すると効果音を 1 回鳴らす", () => {
+    renderChoices(mockChoices);
+    expect(sound.playSfx).toHaveBeenCalledTimes(1);
+    expect(sound.playSfx).toHaveBeenCalledWith("flip");
+  });
+
+  it("カードを選ぶと選択音と振動を返す", () => {
+    renderChoices(mockChoices);
+    fireEvent.click(screen.getByRole("radio", { name: /レポート/ }));
+    expect(sound.playSfx).toHaveBeenCalledWith("select");
+    expect(sound.vibrate).toHaveBeenCalledWith(20);
+  });
+
+  it("挑戦ボタンを押すと、選ばなかったカードが崩れて消える", () => {
+    renderChoices(
+      mockChoices,
+      vi.fn(() => new Promise<void>(() => {})),
+    );
+    fireEvent.click(screen.getByRole("radio", { name: /Webアプリ/ }));
+    fireEvent.click(screen.getByRole("button", { name: "このクエストに挑戦する" }));
+
+    expect(cardOf("レポート").className).toContain("animate-dissolve");
+    expect(cardOf("Webアプリ").className).not.toContain("animate-dissolve");
+  });
+});
+
+describe("QuestChoices - 提示保存と演出の両立", () => {
+  it("提示保存中に選んだカードは保存応答後も選択と即決表示を保持する", () => {
+    const props = {
+      presentationId: 1,
+      error: "",
+      onAddTask: vi.fn(),
+      onHome: vi.fn(),
+      onRetry: vi.fn(),
+      onStart: vi.fn(),
+    };
+    sound.playSfx.mockClear();
+    const { rerender } = render(
+      <QuestChoices {...props} choices={mockChoices} pending startReady={false} />,
+    );
+    const radio = screen.getByRole("radio", { name: /Webアプリ/ });
+    expect(radio).not.toBeDisabled();
+    fireEvent.click(radio);
+    expect(radio).toBeChecked();
+    expect(screen.getByText("即決!!")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "このクエストに挑戦する" })).toBeDisabled();
+
+    const saved = {
+      ...mockChoices,
+      candidates: mockCandidates.map((task) => ({ ...task, shownCount: task.shownCount + 1 })),
+    };
+    rerender(<QuestChoices {...props} choices={saved} pending={false} startReady />);
+    expect(screen.getByRole("radio", { name: /Webアプリ/ })).toBeChecked();
+    expect(screen.getByText("即決!!")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "このクエストに挑戦する" })).not.toBeDisabled();
+    expect(sound.playSfx.mock.calls.filter(([name]) => name === "flip")).toHaveLength(1);
+
+    rerender(<QuestChoices {...props} presentationId={2} choices={saved} pending={false} />);
+    expect(screen.getByRole("radio", { name: /Webアプリ/ })).not.toBeChecked();
+    expect(screen.queryByText("即決!!")).not.toBeInTheDocument();
+    expect(sound.playSfx.mock.calls.filter(([name]) => name === "flip")).toHaveLength(2);
   });
 });
