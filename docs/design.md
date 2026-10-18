@@ -85,7 +85,7 @@
 
 同じ役割の部品が 2 系統あり、色も 16 進数で直接書かれている。
 
-- **CSS クラス**（PR #6、`globals.css`）: `.pixel-panel`、`.gold-button`、`.secondary-button`、`.pixel-input`、`.pixel-divider`、`.screen-heading`、`.quest-selected`。ホーム・タスク一覧・3択（`src/features/title/`、`task/`、`quest/`）で使用
+- **CSS クラス**（PR #6、`globals.css`）: `.pixel-panel`、`.gold-button`、`.secondary-button`、`.pixel-input`、`.pixel-divider`、`.screen-heading`。ホーム・タスク一覧・3択（`src/features/title/`、`task/`、`quest/`）で使用
 - **React 部品**（PR #7 以降、`src/features/checkpoint/components/`）: `PixelButton`、`PixelCard`、`PixelHeader`、`PixelCheckbox`、`PixelProgressBar`。チェックポイント生成・進行・クリア画面で使用
 - 16 進数の直書き: `src/features/` の画面コンポーネント 15 ファイル（ドット絵を含む）
 
