@@ -60,9 +60,15 @@ export async function listTasks(status?: TaskStatus, userId?: string | null): Pr
 }
 
 export async function createTask(input: CreateTaskRequest, userId?: string | null): Promise<Task> {
-  const insertPayload: { title: string; due_at: string | null; user_id?: string | null } = {
+  const insertPayload: {
+    title: string;
+    due_at: string | null;
+    skipped_count: number;
+    user_id?: string | null;
+  } = {
     title: input.title,
     due_at: input.dueAt ?? null,
+    skipped_count: input.skippedCount ?? 0,
   };
   if (userId) {
     insertPayload.user_id = userId;
