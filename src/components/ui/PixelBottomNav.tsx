@@ -80,7 +80,7 @@ function StatusIcon({ className = "h-7 w-7" }: { className?: string }) {
       aria-hidden="true"
       data-testid="status-icon"
     >
-      <path d="M11 3h2v2h-2V3zm-2 2h6v2H9V5zm-2 2h10v2H7V7zm-2 2h14v2H5V9zm-2 2h18v2H3v-2zm2 2h5v8H5v-8zm9 0h5v8h-5v-8zm-4 0h4v2h-4v-2z" />
+      <path d="M10 2h4v2h2v6h-2v2h-4v-2H8V4h2V2zm-3 12h10v2h3v2h2v4H2v-4h2v-2h3v-2z" />
     </svg>
   );
 }
