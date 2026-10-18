@@ -261,9 +261,17 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(buttons[1]).toHaveAttribute("aria-current", "page");
   });
 
-  it("デバッグメニューからダミータスク追加を実行できる", async () => {
+  it("クエスト画面ではデバッグメニューが表示されない", () => {
     render(<QuestApp />);
+    expect(screen.queryByText("🛠 デバッグ操作")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ダミータスクを追加" })).not.toBeInTheDocument();
+  });
 
+  it("タスク画面ではデバッグメニューからダミータスク追加を実行できる", async () => {
+    render(<QuestApp />);
+    fireEvent.click(screen.getByRole("button", { name: /^タスク/ }));
+
+    expect(screen.getByText("🛠 デバッグ操作")).toBeInTheDocument();
     const dummyBtn = screen.getByRole("button", { name: "ダミータスクを追加" });
     fireEvent.click(dummyBtn);
 
@@ -273,16 +281,16 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(storedTasks.length).toBe(3);
   });
 
-  it("デバッグメニューから緊急クエスト発動を実行するとクエスト画面に緊急クエストが表示される", async () => {
+  it("タスク画面から緊急クエスト発動を実行するとクエスト画面に切り替わり緊急クエストが表示される", async () => {
     render(<QuestApp />);
+    fireEvent.click(screen.getByRole("button", { name: /^タスク/ }));
 
     const urgentBtn = screen.getByRole("button", { name: "緊急クエストを発動" });
     fireEvent.click(urgentBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText("緊急クエストを発動しました")).toBeInTheDocument();
-    });
     expect(await screen.findByText(/期限が迫っています/)).toBeInTheDocument();
     expect(screen.getByText("【緊急】魔王軍の斥候を撃退せよ")).toBeInTheDocument();
+    // クエスト画面へ切り替わったため、デバッグメニューは非表示になる
+    expect(screen.queryByText("🛠 デバッグ操作")).not.toBeInTheDocument();
   });
 });

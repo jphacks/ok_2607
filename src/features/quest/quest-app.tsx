@@ -235,12 +235,14 @@ export function QuestApp() {
             onResumeQuest={handleResumeQuest}
           />
         )}
-        <div className="mt-8">
-          <DebugActions
-            onAddDummyTasks={handleAddDummyTasks}
-            onTriggerUrgentQuest={handleTriggerUrgentQuest}
-          />
-        </div>
+        {tab !== "quest" && (
+          <div className="mt-8">
+            <DebugActions
+              onAddDummyTasks={handleAddDummyTasks}
+              onTriggerUrgentQuest={handleTriggerUrgentQuest}
+            />
+          </div>
+        )}
       </main>
       <PixelBottomNav currentTab={tab} onSelectTab={switchTab} />
     </div>
