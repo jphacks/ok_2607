@@ -4,6 +4,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "TriOne",
   description: "3択から選ぶだけで、やることとやらないことが決まるタスク管理アプリ",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
