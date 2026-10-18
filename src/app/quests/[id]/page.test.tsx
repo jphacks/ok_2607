@@ -76,19 +76,43 @@ describe.each([
         ? { ...detail, quest: { ...detail.quest, status: "completed" } }
         : detail,
     );
+    vi.mocked(getStats).mockResolvedValueOnce({ totalXp: 120, completedQuests: 1 });
     const result = await page({ params: Promise.resolve({ id: "quest-1" }) });
     expect(getQuestDetail).toHaveBeenCalledWith(undefined, "quest-1", "owner");
+    expect(getStats).toHaveBeenCalledWith("owner");
     expect(result.props.taskTitle).toBe("本人のタスク");
+    expect(result.props.level).toBe(3);
   });
   it("他ユーザーまたは不存在なら notFound にする", async () => {
     vi.mocked(getQuestDetail).mockResolvedValueOnce(null);
     await expect(page({ params: Promise.resolve({ id: "quest-1" }) })).rejects.toThrow("notFound");
     expect(notFound).toHaveBeenCalledOnce();
   });
+  it("累計経験値が 0 XP（Lv. 1）のとき level に 1 が渡される", async () => {
+    vi.mocked(getQuestDetail).mockResolvedValueOnce(
+      page === QuestClearPage
+        ? { ...detail, quest: { ...detail.quest, status: "completed" } }
+        : detail,
+    );
+    vi.mocked(getStats).mockResolvedValueOnce({ totalXp: 0, completedQuests: 0 });
+    const result = await page({ params: Promise.resolve({ id: "quest-1" }) });
+    expect(result.props.level).toBe(1);
+  });
+  it("getStats が失敗してもデフォルト Lv. 1 でフォールバック表示できる", async () => {
+    vi.mocked(getQuestDetail).mockResolvedValueOnce(
+      page === QuestClearPage
+        ? { ...detail, quest: { ...detail.quest, status: "completed" } }
+        : detail,
+    );
+    vi.mocked(getStats).mockRejectedValueOnce(new Error("stats error"));
+    const result = await page({ params: Promise.resolve({ id: "quest-1" }) });
+    expect(result.props.level).toBe(1);
+  });
   it("公開デモは固定データを表示し認証と DB を呼ばない", async () => {
     vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
     const result = await page({ params: Promise.resolve({ id: "demo" }) });
     expect(result.props.questId).toBe("demo");
+    expect(result.props.level).toBe(4);
     expect(getCurrentUser).not.toHaveBeenCalled();
     expect(supabaseServer).not.toHaveBeenCalled();
     expect(getQuestDetail).not.toHaveBeenCalled();

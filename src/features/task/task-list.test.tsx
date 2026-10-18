@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskList } from "@/features/task/task-list";
 import { TASK_TITLE_MAX_LENGTH, type CreateTaskRequest, type Task } from "@/lib/schemas";
 
+const sound = vi.hoisted(() => ({ playSfx: vi.fn(), vibrate: vi.fn() }));
+vi.mock("@/components/ui/sound", () => sound);
+
 const task: Task = {
   id: "task-1",
   title: "レポートを提出する",
@@ -405,5 +408,73 @@ describe("タスク名の文字数上限", () => {
     const form = screen.getByRole("form", { name: "タスク編集" });
     expect(within(form).getByLabelText(/タスク名/)).toHaveAttribute("maxLength", "30");
     expect(within(form).getByText(`${task.title.length}/30`)).toBeInTheDocument();
+  });
+});
+
+describe("タスク登録の演出", () => {
+  const originalAnimate = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "animate");
+  let animate: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    sound.playSfx.mockClear();
+    animate = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "animate", {
+      value: animate,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    if (originalAnimate) {
+      Object.defineProperty(HTMLElement.prototype, "animate", originalAnimate);
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, "animate");
+    }
+  });
+
+  type CreateMock = ReturnType<typeof vi.fn<(input: CreateTaskRequest) => Promise<void>>>;
+
+  function submitNewTask(onCreate: CreateMock) {
+    renderTaskList({ tasks: [], onCreate });
+    fireEvent.click(screen.getByRole("button", { name: "新しいタスクを追加" }));
+    const form = screen.getByRole("form", { name: "タスク作成" });
+    fireEvent.change(within(form).getByLabelText(/タスク名/), { target: { value: "新しい冒険" } });
+    fireEvent.submit(form);
+  }
+
+  it("登録に成功すると効果音を鳴らす", async () => {
+    submitNewTask(
+      vi.fn<(input: CreateTaskRequest) => Promise<void>>().mockResolvedValue(undefined),
+    );
+    await waitFor(() => expect(sound.playSfx).toHaveBeenCalledWith("select"));
+  });
+
+  it("登録に失敗したときは効果音を鳴らさない", async () => {
+    submitNewTask(
+      vi
+        .fn<(input: CreateTaskRequest) => Promise<void>>()
+        .mockRejectedValue(new Error("保存できませんでした")),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("保存できませんでした");
+    expect(sound.playSfx).not.toHaveBeenCalled();
+  });
+
+  it("新しく追加されたタスクはポンと拡大して出てくる", () => {
+    const props = {
+      openForm: false,
+      onFormChange: vi.fn(),
+      onCreate: vi.fn(),
+      onUpdate: vi.fn(),
+      onDelete: vi.fn(),
+    };
+    const { rerender } = render(<TaskList tasks={[task]} {...props} />);
+    const added: Task = { ...task, id: "task-new", title: "新しい冒険" };
+    rerender(<TaskList tasks={[added, task]} {...props} />);
+
+    const newItem = screen.getByText("新しい冒険").closest("[data-task-id]");
+    const call = animate.mock.calls.find((_, i) => animate.mock.contexts[i] === newItem);
+    expect(call).toBeDefined();
+    expect(JSON.stringify(call![0])).toContain("scale(");
   });
 });

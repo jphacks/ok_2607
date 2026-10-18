@@ -39,7 +39,7 @@ describe("QuestClearScreen", () => {
 
     // リザルトカード
     expect(screen.getByText("Webアプリを完成させる")).toBeInTheDocument();
-    expect(screen.getByText(/チェックポイント 5 \/ 5/)).toBeInTheDocument();
+    expect(screen.getByText(/マイルストーン 5 \/ 5/)).toBeInTheDocument();
     expect(screen.getByText("＋ 120 XP")).toBeInTheDocument();
     expect(screen.getByText("次のレベルまであと 80 XP")).toBeInTheDocument();
 

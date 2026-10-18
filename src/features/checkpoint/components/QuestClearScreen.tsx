@@ -67,7 +67,7 @@ export function QuestClearScreen({
   return (
     <div
       data-quest-id={questId}
-      className="flex min-h-dvh w-full flex-col items-center bg-[#101320] text-white"
+      className="flex min-h-dvh w-full flex-col items-center bg-surface text-text"
     >
       <ConfettiBurst />
       <main className="flex min-h-dvh w-full max-w-3xl flex-col justify-between px-5 py-4 font-dotgothic sm:px-8 sm:py-8 lg:px-12 lg:py-10">
@@ -84,17 +84,17 @@ export function QuestClearScreen({
 
             <h1
               ref={title}
-              className="mt-4 text-3xl font-bold tracking-wider text-[#f2c36b] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              className="mt-4 text-3xl font-bold tracking-wider text-gold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
             >
               QUEST CLEAR!
             </h1>
-            <p className="mt-2 text-xl font-bold tracking-wide text-white">クエスト達成！</p>
+            <p className="mt-2 text-xl font-bold tracking-wide text-text">クエスト達成！</p>
 
             {isLevelUp && (
               <div
                 role="status"
                 aria-label="レベルアップ"
-                className="mt-4 flex items-center justify-center gap-2 rounded border border-[#f2c36b] bg-[#2a2215] px-4 py-2 font-bold text-[#f2c36b] shadow-[0_0_10px_rgba(242,195,107,0.3)] animate-pulse"
+                className="mt-4 flex items-center justify-center gap-2 rounded border border-gold-border bg-panel px-4 py-2 font-bold text-gold-accent shadow-[0_0_10px_var(--color-gold-accent)] animate-pulse"
               >
                 <span aria-hidden="true">★</span>
                 <span className="tracking-wide">LEVEL UP! Lv. {level} に到達！</span>
@@ -107,18 +107,16 @@ export function QuestClearScreen({
           <div className="mt-5 sm:mt-8">
             <PixelCard as="div" className="px-5 py-5 sm:py-6">
               <div className="space-y-4">
-                <h2 className="line-clamp-2 text-base font-bold text-white">{taskTitle}</h2>
+                <h2 className="line-clamp-2 text-base font-bold text-text">{taskTitle}</h2>
 
-                <p className="flex items-center gap-2 text-sm font-bold text-[#83d9b2]">
-                  <span>✓</span> チェックポイント {completedCheckpointsCount} /{" "}
+                <p className="flex items-center gap-2 text-sm font-bold text-success">
+                  <span>✓</span> マイルストーン {completedCheckpointsCount} /{" "}
                   {totalCheckpointsCount}
                 </p>
 
                 <div className="pt-2">
-                  <div className="text-2xl font-bold tracking-wide text-[#f2c36b]">
-                    ＋ {xpGained} XP
-                  </div>
-                  <p className="mt-1 text-xs text-[#a9b6c9]">次のレベルまであと {nextLevelXp} XP</p>
+                  <div className="text-2xl font-bold tracking-wide text-gold">＋ {xpGained} XP</div>
+                  <p className="mt-1 text-xs text-muted">次のレベルまであと {nextLevelXp} XP</p>
                 </div>
               </div>
             </PixelCard>
@@ -129,7 +127,7 @@ export function QuestClearScreen({
         <div className="mt-5 flex flex-col items-center space-y-3 pb-2 sm:mt-8 sm:space-y-4">
           <PixelButton onClick={handleNextQuest}>次のクエストへ</PixelButton>
 
-          <Link href="/" className="text-sm text-[#a9b6c9] transition-colors hover:text-white">
+          <Link href="/" className="text-sm text-muted transition-colors hover:text-text">
             ホームに戻る
           </Link>
 
