@@ -63,6 +63,11 @@ beforeEach(() => {
         storedTasks = [task, ...storedTasks];
         return Response.json({ task }, { status: 201 });
       }
+      if (url === "/api/auth/me") {
+        return Response.json({
+          user: { id: "test-user-id", email: "hero@example.com", name: "勇者" },
+        });
+      }
       if (url === "/api/tasks") return Response.json({ tasks: storedTasks });
       if (url === "/api/quests/candidates") {
         const urgent = storedTasks.find((t) => Boolean(t.dueAt));
@@ -136,7 +141,7 @@ describe("タスク登録と3択の画面遷移", () => {
 
   it("初回はクエストを表示し、空の状態からタスク名・期限だけの作成画面に進める", async () => {
     render(<QuestApp />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("今日の冒険を選べ");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("今日の冒険を選べ");
     fireEvent.click(await screen.findByRole("button", { name: "＋ 新しいタスクを追加" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("textbox", { name: /タスク名/ })).toBeVisible();
@@ -246,7 +251,7 @@ describe("タスク登録と3択の画面遷移", () => {
   it("3タブ（タスク / クエスト / ステータス）が表示され、中央のクエストが強調される", async () => {
     render(<QuestApp />);
 
-    const nav = screen.getByRole("navigation", { name: "メインメニュー" });
+    const nav = await screen.findByRole("navigation", { name: "メインメニュー" });
     expect(nav).toBeInTheDocument();
 
     const buttons = within(nav).getAllByRole("button");
@@ -261,15 +266,16 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(buttons[1]).toHaveAttribute("aria-current", "page");
   });
 
-  it("クエスト画面ではデバッグメニューが表示されない", () => {
+  it("クエスト画面ではデバッグメニューが表示されない", async () => {
     render(<QuestApp />);
+    await screen.findByRole("navigation", { name: "メインメニュー" });
     expect(screen.queryByText("🛠 デバッグ操作")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "ダミータスクを追加" })).not.toBeInTheDocument();
   });
 
   it("タスク画面ではデバッグメニューからダミータスク追加を実行できる", async () => {
     render(<QuestApp />);
-    fireEvent.click(screen.getByRole("button", { name: /^タスク/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^タスク/ }));
 
     expect(screen.getByText("🛠 デバッグ操作")).toBeInTheDocument();
     const dummyBtn = screen.getByRole("button", { name: "ダミータスクを追加" });
@@ -283,7 +289,7 @@ describe("タスク登録と3択の画面遷移", () => {
 
   it("タスク画面から緊急クエスト発動を実行するとクエスト画面に切り替わり緊急クエストが表示される", async () => {
     render(<QuestApp />);
-    fireEvent.click(screen.getByRole("button", { name: /^タスク/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^タスク/ }));
 
     const urgentBtn = screen.getByRole("button", { name: "緊急クエストを発動" });
     fireEvent.click(urgentBtn);
@@ -292,5 +298,24 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(screen.getByText("【緊急】魔王軍の斥候を撃退せよ")).toBeInTheDocument();
     // クエスト画面へ切り替わったため、デバッグメニューは非表示になる
     expect(screen.queryByText("🛠 デバッグ操作")).not.toBeInTheDocument();
+  });
+
+  it("未ログイン時はタスクを表示せず、ログイン専用画面を表示する", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/api/auth/me") {
+          return Response.json({ user: null });
+        }
+        return Response.json({});
+      }),
+    );
+
+    render(<QuestApp />);
+
+    expect(
+      await screen.findByRole("button", { name: "Google アカウントで冒険を始める" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "メインメニュー" })).not.toBeInTheDocument();
   });
 });

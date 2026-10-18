@@ -4,6 +4,9 @@ import { GET, POST } from "@/app/api/tasks/route";
 
 const { databaseFetch } = vi.hoisted(() => ({ databaseFetch: vi.fn<typeof fetch>() }));
 
+vi.mock("@/lib/auth", () => ({
+  getCurrentUser: vi.fn().mockResolvedValue({ id: "test-user-id", email: "test@example.com" }),
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/server", () => ({
   supabaseServer: () =>
@@ -97,5 +100,21 @@ describe("タスク API のエラー境界", () => {
     expect(await response.json()).toEqual({
       error: { code: "internal_error", message: "タスク一覧を取得できませんでした" },
     });
+  });
+
+  it("未ログイン時は 401 unauthorized を返す", async () => {
+    const { getCurrentUser } = await import("@/lib/auth");
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
+
+    const getRes = await GET(new Request("http://localhost/api/tasks"));
+    expect(getRes.status).toBe(401);
+    const getBody = await getRes.json();
+    expect(getBody.error.code).toBe("unauthorized");
+
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
+    const postRes = await post({ title: "本を読む" });
+    expect(postRes.status).toBe(401);
+    const postBody = await postRes.json();
+    expect(postBody.error.code).toBe("unauthorized");
   });
 });

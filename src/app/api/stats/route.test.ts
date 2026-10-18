@@ -4,6 +4,9 @@ import { GET } from "@/app/api/stats/route";
 
 const { databaseFetch } = vi.hoisted(() => ({ databaseFetch: vi.fn<typeof fetch>() }));
 
+vi.mock("@/lib/auth", () => ({
+  getCurrentUser: vi.fn().mockResolvedValue({ id: "test-user-id", email: "test@example.com" }),
+}));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/server", () => ({
   supabaseServer: () =>
@@ -69,4 +72,14 @@ describe("経験値の集計 API", () => {
       });
     },
   );
+
+  it("未ログイン時は 401 unauthorized を返す", async () => {
+    const { getCurrentUser } = await import("@/lib/auth");
+    vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
+
+    const response = await GET();
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body.error.code).toBe("unauthorized");
+  });
 });
