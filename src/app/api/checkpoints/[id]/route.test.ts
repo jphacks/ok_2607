@@ -49,6 +49,7 @@ describe("PATCH /api/checkpoints/[id]", () => {
     vi.mocked(updateCheckpoint).mockResolvedValueOnce(null);
     const request = new Request("http://localhost/api?userId=other", {
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isDone: true }),
     });
     const response = await PATCH(request, {
@@ -98,6 +99,30 @@ describe("PATCH /api/checkpoints/[id]", () => {
     expect(body.error.code).toBe("validation_error");
   });
 
+  it("タイトルが空文字または空白のみの場合は 400 validation_error を返す", async () => {
+    const validUuid = "11111111-1111-4111-a111-111111111111";
+    const request = createJsonRequest(JSON.stringify({ title: "   " }));
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: validUuid }),
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+  });
+
+  it("更新項目が空の場合は 400 validation_error を返す", async () => {
+    const validUuid = "11111111-1111-4111-a111-111111111111";
+    const request = createJsonRequest(JSON.stringify({}));
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: validUuid }),
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+  });
+
   it("チェックポイントが存在しない場合は 404 not_found を返す", async () => {
     const validUuid = "11111111-1111-4111-a111-111111111111";
     vi.mocked(updateCheckpoint).mockResolvedValueOnce(null);
@@ -134,6 +159,36 @@ describe("PATCH /api/checkpoints/[id]", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toEqual({ checkpoint: mockCheckpoint });
+  });
+
+  it("タイトルのみ正常に更新できる", async () => {
+    const validUuid = "11111111-1111-4111-a111-111111111111";
+    const mockCheckpoint = {
+      id: validUuid,
+      questId: "quest-1",
+      parentId: null,
+      title: "参考文献を探す",
+      description: null,
+      position: 1,
+      isDone: false,
+      doneAt: null,
+    };
+    vi.mocked(updateCheckpoint).mockResolvedValueOnce(mockCheckpoint);
+
+    const request = createJsonRequest(JSON.stringify({ title: "  参考文献を探す  " }));
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: validUuid }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({ checkpoint: mockCheckpoint });
+    expect(updateCheckpoint).toHaveBeenCalledWith(
+      undefined,
+      validUuid,
+      { title: "参考文献を探す" },
+      "authenticated-user",
+    );
   });
 
   it("DB 処理等で例外が発生した場合は 500 internal_error を返す", async () => {

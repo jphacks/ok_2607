@@ -15,6 +15,7 @@ import {
 } from "@/features/quest/cache";
 import { OperationProgress } from "@/components/ui/OperationProgress";
 import { PixelBottomNav, type NavTabId } from "@/components/ui/PixelBottomNav";
+import { SoundToggle } from "@/components/ui/SoundToggle";
 import { DebugActions } from "@/features/quest/debug-actions";
 import { AuthStatus } from "@/features/auth/components/AuthStatus";
 import { LoginScreen } from "@/features/auth/components/LoginScreen";
@@ -638,14 +639,17 @@ export function QuestApp() {
   }
 
   return (
-    <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl flex-col bg-[#111321] text-[#ededf4] shadow-2xl">
+    <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl flex-col bg-surface text-text shadow-2xl">
       <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px] sm:px-8 lg:px-12">
-        <span className="flex items-center gap-2 text-[#f3ca70]">
+        <span className="flex items-center gap-2 text-gold-accent">
           <span aria-hidden="true">✦</span>
           <span className="font-mono text-sm tracking-[-1px]">TriOne</span>
         </span>
-        <span className="font-mono text-[10px] text-[#a4a8bc]">
-          ●　{stats ? `${stats.completedQuests} CLEAR` : "冒険のはじまり"}
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-muted">
+            ●　{stats ? `${stats.completedQuests} CLEAR` : "冒険のはじまり"}
+          </span>
+          <SoundToggle />
         </span>
       </header>
       <AuthStatus />
@@ -730,7 +734,7 @@ export function QuestApp() {
           (taskError ? (
             <div className="pixel-panel p-5">
               <h1 className="mb-4 text-xl">タスクリスト</h1>
-              <p role="alert" className="text-sm leading-6 text-[#ffb5a9]">
+              <p role="alert" className="text-sm leading-6 text-danger">
                 {taskError}
               </p>
               <button className="secondary-button mt-4 w-full" onClick={() => void loadTasks()}>
@@ -747,7 +751,7 @@ export function QuestApp() {
               onDelete={deleteTask}
             />
           ) : (
-            <p role="status" className="text-sm text-[#a4a8bc]">
+            <p role="status" className="text-sm text-muted">
               タスクを読み込んでいます…
             </p>
           ))}

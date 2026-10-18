@@ -12,10 +12,15 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const mockQuestId = "11111111-1111-4111-a111-111111111111";
+const mockCheckpointId1 = "22222222-2222-4222-a222-222222222221";
+const mockCheckpointId2 = "22222222-2222-4222-a222-222222222222";
+const mockSubCheckpointId = "22222222-2222-4222-a222-222222222223";
+
 const mockCheckpoints: Checkpoint[] = [
   {
-    id: "cp-1",
-    questId: "quest-1",
+    id: mockCheckpointId1,
+    questId: mockQuestId,
     parentId: null,
     title: "基本画面が完成している",
     description: "到達すべき状態",
@@ -24,8 +29,8 @@ const mockCheckpoints: Checkpoint[] = [
     doneAt: null,
   },
   {
-    id: "cp-2",
-    questId: "quest-1",
+    id: mockCheckpointId2,
+    questId: mockQuestId,
     parentId: null,
     title: "主要機能が1つ動作する",
     description: "到達すべき状態",
@@ -34,9 +39,9 @@ const mockCheckpoints: Checkpoint[] = [
     doneAt: null,
   },
   {
-    id: "cp-sub-1",
-    questId: "quest-1",
-    parentId: "cp-1", // 子チェックポイント（全体像一覧には表示されない）
+    id: mockSubCheckpointId,
+    questId: mockQuestId,
+    parentId: mockCheckpointId1, // 子チェックポイント（全体像一覧には表示されない）
     title: "子タスク1",
     description: null,
     position: 0,
@@ -81,7 +86,9 @@ describe("CheckpointGenerationScreen", () => {
     expect(screen.getByText("02")).toBeInTheDocument();
 
     // 注釈
-    expect(screen.getByText(/AIが提案したマイルストーンは編集できます/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/AIが提案したチェックポイントは自由に追加・編集・並び替えできます/),
+    ).toBeInTheDocument();
   });
 
   it("「クエストを開始する」ボタンを押すと onStartQuest または router.push が呼ばれる", () => {
@@ -99,29 +106,287 @@ describe("CheckpointGenerationScreen", () => {
     fireEvent.click(button);
 
     expect(handleStart).toHaveBeenCalledTimes(1);
+    expect(handleStart).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ title: "基本画面が完成している" }),
+        expect.objectContaining({ title: "主要機能が1つ動作する" }),
+      ]),
+    );
   });
 
-  it("チェックポイントカードをクリックしてタイトルを編集できる", () => {
+  it("「▲」または「▼」ボタンを押すとステップの順番が入れ替わり、ステップ番号が正しく更新され、クエスト開始時にも反映される", () => {
+    const handleStart = vi.fn();
     render(
       <CheckpointGenerationScreen
-        questId="demo"
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        onStartQuest={handleStart}
+      />,
+    );
+
+    const downButtons = screen.getAllByRole("button", { name: "下へ移動" });
+    const upButtons = screen.getAllByRole("button", { name: "上へ移動" });
+
+    // 先頭の「上へ」と末尾の「下へ」は disabled
+    expect(upButtons[0]).toBeDisabled();
+    expect(downButtons[1]).toBeDisabled();
+
+    // 1 つ目の「下へ」を押す
+    fireEvent.click(downButtons[0]);
+
+    // 順序が入れ替わっていることを確認
+    const headings = screen.getAllByRole("heading", { level: 2 });
+    expect(headings[0]).toHaveTextContent("主要機能が1つ動作する");
+    expect(headings[1]).toHaveTextContent("基本画面が完成している");
+
+    // クエスト開始ボタンを押すと、入れ替わった順序で渡されること
+    const startButton = screen.getByRole("button", { name: "クエストを開始する" });
+    fireEvent.click(startButton);
+
+    expect(handleStart).toHaveBeenCalledWith([
+      expect.objectContaining({ title: "主要機能が1つ動作する", position: 0 }),
+      expect.objectContaining({ title: "基本画面が完成している", position: 1 }),
+    ]);
+  });
+
+  it("「編集」ボタンを押すと編集状態になり、タイトルを変更して「保存」を押すと画面とDBに反映される", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        checkpoint: { ...mockCheckpoints[0], title: "UIプロトタイプが完成している" },
+      }),
+    } as Response);
+
+    render(
+      <CheckpointGenerationScreen
+        questId={mockQuestId}
         taskTitle="Webアプリを完成させる"
         initialCheckpoints={mockCheckpoints}
       />,
     );
 
-    // カードをクリックして編集モードにする
-    const cardTitle = screen.getByText("基本画面が完成している");
-    fireEvent.click(cardTitle);
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[0]);
 
     const input = screen.getByDisplayValue("基本画面が完成している");
     expect(input).toBeInTheDocument();
 
-    // 編集して Enter
+    // 編集して「保存」ボタンをクリック
     fireEvent.change(input, { target: { value: "UIプロトタイプが完成している" } });
-    fireEvent.keyDown(input, { key: "Enter" });
+    const saveButton = screen.getByRole("button", { name: "保存" });
+    fireEvent.click(saveButton);
 
-    expect(screen.getByText("UIプロトタイプが完成している")).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `/api/checkpoints/${mockCheckpointId1}`,
+      expect.objectContaining({
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "UIプロトタイプが完成している" }),
+      }),
+    );
+
+    expect(await screen.findByText("UIプロトタイプが完成している")).toBeInTheDocument();
+    fetchSpy.mockRestore();
+  });
+
+  it("並び替えた後に編集・保存しても、並び替えた順序(position)が維持される", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        // API はDB上の古い position: 0 を返してくる想定
+        checkpoint: { ...mockCheckpoints[0], title: "更新されたタイトル", position: 0 },
+      }),
+    } as Response);
+
+    const handleStart = vi.fn();
+    render(
+      <CheckpointGenerationScreen
+        questId={mockQuestId}
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        onStartQuest={handleStart}
+      />,
+    );
+
+    // 1つ目の「下へ」を押して順番を入れ替える (cp-2 が先頭、cp-1 が2番目)
+    const downButtons = screen.getAllByRole("button", { name: "下へ移動" });
+    fireEvent.click(downButtons[0]);
+
+    // 2番目になった cp-1 の編集ボタンを押して編集・保存
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[1]);
+
+    const input = screen.getByDisplayValue("基本画面が完成している");
+    fireEvent.change(input, { target: { value: "更新されたタイトル" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByText("更新されたタイトル")).toBeInTheDocument();
+
+    // クエスト開始時に、入れ替わった順序(cp-2: position 0, cp-1: position 1)が維持されていること
+    fireEvent.click(screen.getByRole("button", { name: "クエストを開始する" }));
+    expect(handleStart).toHaveBeenCalledWith([
+      expect.objectContaining({ id: mockCheckpointId2, position: 0 }),
+      expect.objectContaining({ id: mockCheckpointId1, position: 1, title: "更新されたタイトル" }),
+    ]);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("編集中は移動ボタンが無効化される", () => {
+    render(
+      <CheckpointGenerationScreen
+        questId={mockQuestId}
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[0]);
+
+    const upButtons = screen.getAllByRole("button", { name: "上へ移動" });
+    const downButtons = screen.getAllByRole("button", { name: "下へ移動" });
+    expect(upButtons[0]).toBeDisabled();
+    expect(downButtons[0]).toBeDisabled();
+  });
+
+  it("チェックポイント編集中に「キャンセル」ボタンまたは Esc キーを押すと編集前の状態に戻る", () => {
+    render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[0]);
+
+    const input = screen.getByDisplayValue("基本画面が完成している");
+    fireEvent.change(input, { target: { value: "途中の変更" } });
+
+    // キャンセルボタンを押す
+    const cancelButton = screen.getByRole("button", { name: "キャンセル" });
+    fireEvent.click(cancelButton);
+
+    expect(screen.queryByDisplayValue("途中の変更")).not.toBeInTheDocument();
+    expect(screen.getByText("基本画面が完成している")).toBeInTheDocument();
+
+    // Esc キーでもキャンセルできることを確認
+    fireEvent.click(screen.getAllByRole("button", { name: "編集" })[0]);
+    const input2 = screen.getByDisplayValue("基本画面が完成している");
+    fireEvent.change(input2, { target: { value: "別の変更" } });
+    fireEvent.keyDown(input2, { key: "Escape" });
+
+    expect(screen.queryByDisplayValue("別の変更")).not.toBeInTheDocument();
+    expect(screen.getByText("基本画面が完成している")).toBeInTheDocument();
+  });
+
+  it("編集保存に失敗した場合はエラーを表示し、入力内容を保持する", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({
+        error: { code: "INTERNAL_ERROR", message: "ネットワークエラー" },
+      }),
+    } as Response);
+
+    render(
+      <CheckpointGenerationScreen
+        questId={mockQuestId}
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[0]);
+
+    const input = screen.getByDisplayValue("基本画面が完成している");
+    fireEvent.change(input, { target: { value: "新しい名前" } });
+    const saveButton = screen.getByRole("button", { name: "保存" });
+    fireEvent.click(saveButton);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("ネットワークエラー");
+    expect(screen.getByDisplayValue("新しい名前")).toBeInTheDocument();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("「＋ チェックポイントを追加」ボタンを押し、タイトルを入力して確定すると末尾に追加され、クエスト開始時にも反映される", () => {
+    const handleStart = vi.fn();
+    render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        onStartQuest={handleStart}
+      />,
+    );
+
+    // 最初は 2 件
+    expect(screen.getByText("01")).toBeInTheDocument();
+    expect(screen.getByText("02")).toBeInTheDocument();
+    expect(screen.queryByText("03")).not.toBeInTheDocument();
+
+    // 追加ボタンを押す
+    const addBtn = screen.getByRole("button", { name: /チェックポイントを追加/ });
+    fireEvent.click(addBtn);
+
+    const input = screen.getByPlaceholderText("例: 参考資料を1本選ぶ");
+    fireEvent.change(input, { target: { value: "新しいステップ3" } });
+
+    const confirmBtn = screen.getByRole("button", { name: "追加" });
+    fireEvent.click(confirmBtn);
+
+    // 一覧の末尾に 03 として追加されている
+    expect(screen.getByText("03")).toBeInTheDocument();
+    expect(screen.getByText("新しいステップ3")).toBeInTheDocument();
+
+    // クエスト開始時にも反映される
+    const startButton = screen.getByRole("button", { name: "クエストを開始する" });
+    fireEvent.click(startButton);
+
+    expect(handleStart).toHaveBeenCalledWith([
+      expect.objectContaining({ title: "基本画面が完成している" }),
+      expect.objectContaining({ title: "主要機能が1つ動作する" }),
+      expect.objectContaining({ title: "新しいステップ3" }),
+    ]);
+  });
+
+  it("新規追加したチェックポイントを編集・保存できる（DBへのリクエストを行わずローカル更新）", () => {
+    const fetchSpy = vi.spyOn(global, "fetch");
+
+    render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+
+    // 追加
+    const addBtn = screen.getByRole("button", { name: /チェックポイントを追加/ });
+    fireEvent.click(addBtn);
+    const addInput = screen.getByPlaceholderText("例: 参考資料を1本選ぶ");
+    fireEvent.change(addInput, { target: { value: "初期タイトル" } });
+    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+
+    expect(screen.getByText("初期タイトル")).toBeInTheDocument();
+
+    // 追加したアイテムの「編集」ボタンをクリック（3つ目）
+    const editButtons = screen.getAllByRole("button", { name: "編集" });
+    fireEvent.click(editButtons[2]);
+
+    const editInput = screen.getByDisplayValue("初期タイトル");
+    fireEvent.change(editInput, { target: { value: "修正後タイトル" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    // DBへの fetch は呼ばれず、画面上に反映されること
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByText("修正後タイトル")).toBeInTheDocument();
+
+    fetchSpy.mockRestore();
   });
 
   it("自動生成時に isFallback: true が返された場合、基本ステップ作成の案内バナーが表示される", async () => {
@@ -154,7 +419,7 @@ describe("CheckpointGenerationScreen", () => {
     expect(screen.getByText("基本のロードマップを作成しました")).toBeInTheDocument();
     expect(screen.getByText("準備と整理")).toBeInTheDocument();
     expect(
-      screen.getByText(/基本のマイルストーンはタップして自由に編集できます/),
+      screen.getByText(/基本ステップは自由に追加・編集・並び替えできます/),
     ).toBeInTheDocument();
     expect(screen.getByText("すべての処理が完了しました")).toBeInTheDocument();
     expect(screen.getByText("完了した処理: 2 / 2 件")).toBeInTheDocument();
@@ -279,6 +544,97 @@ describe("CheckpointGenerationScreen", () => {
     expect(screen.queryByText("すべての処理が完了しました")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeDisabled();
   });
+
+  it("エラー表示時に「再試行する」をクリックするとインラインで再試行され、成功するとチェックポイントが表示される", async () => {
+    let resolveRetry!: (res: Response) => void;
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "通信エラーが発生しました" },
+        }),
+      } as Response)
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRetry = resolve;
+          }),
+      );
+
+    render(
+      <CheckpointGenerationScreen
+        questId={generatedCheckpoint.questId}
+        taskTitle="Webアプリを完成させる"
+      />,
+    );
+
+    // 1回目のエラー
+    expect(await screen.findByText("生成に失敗しました")).toBeInTheDocument();
+    expect(screen.getByText("通信エラーが発生しました")).toBeInTheDocument();
+
+    const retryButton = screen.getByRole("button", { name: "再試行する" });
+    fireEvent.click(retryButton);
+
+    // インラインで再試行が走り、エラーが消えてローディングが表示される
+    expect(screen.queryByText("生成に失敗しました")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: "AIによる道筋の生成・保存：処理中" }),
+    ).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenLastCalledWith(
+      `/api/quests/${generatedCheckpoint.questId}/checkpoints/generate`,
+      {
+        method: "POST",
+      },
+    );
+
+    // 成功レスポンスを返す
+    resolveRetry({
+      ok: true,
+      json: async () => ({
+        checkpoints: [generatedCheckpoint],
+        isFallback: false,
+      }),
+    } as Response);
+
+    // 生成されたチェックポイントが表示され、クエスト開始ボタンが有効になる
+    expect(await screen.findByText(generatedCheckpoint.title)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("progressbar", { name: "AIによる道筋の生成・保存：処理中" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeEnabled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("再試行が再び失敗した場合、新しいエラーメッセージが表示されて再度再試行可能", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "初回エラー" },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "2回目のエラー" },
+        }),
+      } as Response);
+
+    render(<CheckpointGenerationScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
+
+    expect(await screen.findByText("初回エラー")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "再試行する" }));
+
+    expect(await screen.findByText("2回目のエラー")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行する" })).toBeInTheDocument();
+
+    fetchSpy.mockRestore();
+  });
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -299,8 +655,8 @@ function renderEditor() {
       initialCheckpoints={[editableCheckpoint]}
     />,
   );
-  fireEvent.click(screen.getByText(editableCheckpoint.title));
-  return screen.getByRole("textbox", { name: "マイルストーン名" });
+  fireEvent.click(screen.getByRole("button", { name: "編集" }));
+  return screen.getByRole("textbox", { name: "チェックポイント名" });
 }
 function savedResponse(title: string) {
   return new Response(JSON.stringify({ checkpoint: { ...editableCheckpoint, title } }));
@@ -370,6 +726,28 @@ describe("チェックポイント名の保存", () => {
     await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
     expect(screen.getByText(editableCheckpoint.title)).toBeVisible();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("ヘッダーに指定した level が表示され、省略時はデフォルト Lv. 1 が表示される", () => {
+    const { unmount } = render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        level={3}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*03/)).toBeInTheDocument();
+    unmount();
+
+    render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*01/)).toBeInTheDocument();
   });
 });
 

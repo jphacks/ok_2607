@@ -7,6 +7,7 @@ import {
   getQuestWithTask,
   saveCheckpointPlanToDb,
   updateCheckpoint,
+  updateCheckpointStatus,
 } from "./service";
 
 type Row = Record<string, unknown>;
@@ -19,6 +20,7 @@ function fixture(
     urgent?: boolean;
     fail?: string;
     reparent?: boolean;
+    checkpoints?: Row[];
   } = {},
 ) {
   const quest: Row = {
@@ -63,7 +65,7 @@ function fixture(
   const tables: Record<string, Row[]> = {
     quests: [quest],
     tasks: [task],
-    checkpoints: [child, parent],
+    checkpoints: options.checkpoints ?? [child, parent],
   };
   const updates = vi.fn();
   const rpc = vi.fn(
@@ -108,6 +110,10 @@ function fixture(
         filters.push([key, value]);
         return query;
       }),
+      is: vi.fn((key: string, value: unknown) => {
+        filters.push([key, value]);
+        return query;
+      }),
       update: vi.fn((value: Row) => {
         if (options.reparent) child.quest_id = "foreign-quest";
         patch = value;
@@ -132,7 +138,15 @@ function fixture(
     };
     return query;
   });
-  return { db: { from, rpc } as unknown as SupabaseClient, from, rpc, updates, child, tables };
+  return {
+    db: { from, rpc } as unknown as SupabaseClient,
+    from,
+    rpc,
+    updates,
+    child,
+    parent,
+    tables,
+  };
 }
 
 describe("checkpoint service の所有者境界", () => {
@@ -221,6 +235,41 @@ describe("checkpoint service の所有者境界", () => {
     );
   });
 
+  it("名前のみ更新した場合は達成状態と完了日時を保持する", async () => {
+    const { db, parent } = fixture();
+    expect(parent.is_done).toBe(true);
+    expect(parent.done_at).toBe(date);
+
+    const result = await updateCheckpoint(db, "parent-1", { title: "新しい名前" }, "owner");
+    expect(result?.title).toBe("新しい名前");
+    expect(result?.isDone).toBe(true);
+    expect(result?.doneAt).toBe(date);
+    expect(parent.title).toBe("新しい名前");
+    expect(parent.is_done).toBe(true);
+    expect(parent.done_at).toBe(date);
+  });
+
+  it("名前と達成状態を同時に更新できる", async () => {
+    const { db, child } = fixture();
+    const result = await updateCheckpoint(
+      db,
+      "child-1",
+      { title: "更新後ステップ", isDone: true },
+      "owner",
+    );
+    expect(result?.title).toBe("更新後ステップ");
+    expect(result?.isDone).toBe(true);
+    expect(result?.doneAt).toEqual(expect.any(String));
+    expect(child.title).toBe("更新後ステップ");
+    expect(child.is_done).toBe(true);
+  });
+
+  it("更新項目が空の場合は更新せず null を返す", async () => {
+    const { db } = fixture();
+    const result = await updateCheckpoint(db, "child-1", {}, "owner");
+    expect(result).toBeNull();
+  });
+
   it("検証後に別クエストへ移されたチェックポイントは更新しない", async () => {
     const { db, child } = fixture({ reparent: true });
     expect(await updateCheckpoint(db, "child-1", { isDone: true }, "owner")).toBeNull();
@@ -242,6 +291,88 @@ describe("checkpoint service の所有者境界", () => {
     expect(rpc).toHaveBeenCalledWith("complete_quest", {
       p_quest_id: "quest-1",
       p_xp_earned: xp,
+      p_user_id: "owner",
+    });
+  });
+
+  it("親チェックポイントの完了数のみを対象にして経験値を算出し、子ステップの完了数を加算しない", async () => {
+    const parent1: Row = {
+      id: "parent-1",
+      quest_id: "quest-1",
+      parent_id: null,
+      title: "親1",
+      position: 1,
+      is_done: true,
+      done_at: date,
+    };
+    const parent2: Row = {
+      id: "parent-2",
+      quest_id: "quest-1",
+      parent_id: null,
+      title: "親2",
+      position: 2,
+      is_done: true,
+      done_at: date,
+    };
+    const parent3: Row = {
+      id: "parent-3",
+      quest_id: "quest-1",
+      parent_id: null,
+      title: "親3",
+      position: 3,
+      is_done: false,
+      done_at: null,
+    };
+    const child1: Row = {
+      id: "child-1",
+      quest_id: "quest-1",
+      parent_id: "parent-1",
+      title: "子1",
+      position: 1,
+      is_done: true,
+      done_at: date,
+    };
+    const child2: Row = {
+      id: "child-2",
+      quest_id: "quest-1",
+      parent_id: "parent-2",
+      title: "子2",
+      position: 1,
+      is_done: true,
+      done_at: date,
+    };
+    const child3: Row = {
+      id: "child-3",
+      quest_id: "quest-1",
+      parent_id: "parent-1",
+      title: "子3",
+      position: 2,
+      is_done: false,
+      done_at: null,
+    };
+    const child4: Row = {
+      id: "child-4",
+      quest_id: "quest-1",
+      parent_id: "parent-3",
+      title: "子4",
+      position: 1,
+      is_done: false,
+      done_at: null,
+    };
+
+    const { db, rpc } = fixture({
+      checkpoints: [parent1, parent2, parent3, child1, child2, child3, child4],
+    });
+
+    const result = await completeQuest(db, "quest-1", "owner");
+    expect(result.type).toBe("success");
+    if (result.type === "success") {
+      // 親チェックポイント完了 2 件分: 基本 20 XP + 2 * 10 XP = 40 XP
+      expect(result.data.xpGained).toBe(40);
+    }
+    expect(rpc).toHaveBeenCalledWith("complete_quest", {
+      p_quest_id: "quest-1",
+      p_xp_earned: 40,
       p_user_id: "owner",
     });
   });
@@ -308,5 +439,14 @@ describe("チェックポイント名の部分更新", () => {
     expect(await updateCheckpoint(db, "child-1", { title: "変更不可" }, "owner")).toBeNull();
     expect(child.title).toBe("ステップ");
     expect(updates).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateCheckpointStatus (後方互換)", () => {
+  it("updateCheckpoint を呼び出して isDone を更新する", async () => {
+    const { db, child } = fixture();
+    const result = await updateCheckpointStatus(db, "child-1", true, "owner");
+    expect(result?.isDone).toBe(true);
+    expect(child.is_done).toBe(true);
   });
 });
