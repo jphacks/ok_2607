@@ -662,25 +662,14 @@ export function QuestApp() {
         }`}
         tabIndex={-1}
       >
-        {tab === "quest" && (choicePending || taskPending || choiceError || taskError) && (
-          <div className="mb-6">
-            <OperationProgress
-              title={
-                choiceOperation === "record"
-                  ? "候補の提示を保存"
-                  : choiceOperation === "start"
-                    ? "クエストを開始"
-                    : "冒険の準備"
-              }
-              steps={
-                choiceOperation === "record"
-                  ? [
-                      {
-                        label: "表示した候補をサーバーに保存",
-                        status: choiceError ? "error" : choicePending ? "running" : "complete",
-                      },
-                    ]
-                  : choiceOperation === "start"
+        {tab === "quest" &&
+          (choiceOperation === "start" || (choiceOperation === "read" && !choices)) &&
+          (choicePending || taskPending || choiceError || taskError) && (
+            <div className="mb-6">
+              <OperationProgress
+                title={choiceOperation === "start" ? "クエストを開始" : "冒険の準備"}
+                steps={
+                  choiceOperation === "start"
                     ? [
                         { label: "DBで候補を検証してクエストを開始", status: "error" },
                         { label: "チェックポイント画面へ移動", status: "pending" },
@@ -708,10 +697,10 @@ export function QuestApp() {
                                 : "pending",
                         },
                       ]
-              }
-            />
-          </div>
-        )}
+                }
+              />
+            </div>
+          )}
         {tab === "quest" && (
           <QuestChoices
             choices={choices}

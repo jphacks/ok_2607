@@ -3,22 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { playSfx, vibrate } from "@/components/ui/sound";
 import type { QuestCandidatesResponse, Task } from "@/lib/schemas";
-import { getRarity, RARITY_LABEL, type Rarity } from "@/features/quest/rarity";
-
-/** レア度ごとのカードの枠と、表示中に続く演出（選択中・退場中は別の演出に置き換える） */
-const RARITY_CARD_CLASS: Record<Rarity, string> = {
-  common: "border-rarity-common",
-  rare: "border-2 border-rarity-rare text-rarity-rare animate-rare-glow",
-  mythic:
-    // background-size を別クラスにすると一括指定に上書きされるため、一括指定の中に書く
-    "border-2 border-transparent animate-holo [background:linear-gradient(var(--color-panel),var(--color-panel))_0_0/100%_100%_padding-box,linear-gradient(90deg,var(--color-rarity-mythic),var(--color-neon-pink),var(--color-neon-cyan),var(--color-rarity-mythic))_0_0/200%_100%_border-box]",
-  urgent: "border-2 border-urgent animate-urgent-pulse",
-};
-
-const RARITY_LABEL_CLASS: Partial<Record<Rarity, string>> = {
-  rare: "border-rarity-rare text-rarity-rare",
-  mythic: "border-rarity-mythic text-rarity-mythic",
-};
 
 /** カードを 1 枚ずつ配る間隔 */
 const DEAL_INTERVAL_MS = 80;
@@ -197,11 +181,10 @@ export function QuestChoices({
               const checked = selectedId === task.id;
               // 1つ選んだら、選ばれていないカードははっきり暗くする（タップで選び直せる）。
               const dimmed = selectedId !== null && !checked;
-              const rarity = getRarity(task.skippedCount, choices.isUrgent && index === 0);
-              const rarityLabelClass = RARITY_LABEL_CLASS[rarity];
+              const isUrgent = choices.isUrgent && index === 0;
               const dealDelay = `${index * DEAL_INTERVAL_MS}ms`;
               return (
-                // 外側でカードを配って表に返し、内側（label）でレア度・選択・退場の演出をする
+                // 外側でカードを配って表に返し、内側（label）で緊急・選択・退場の演出をする
                 <div
                   key={task.id}
                   className="animate-card-flip"
@@ -210,14 +193,13 @@ export function QuestChoices({
                   <label
                     data-selected={checked}
                     data-dimmed={dimmed}
-                    data-rarity={rarity}
                     style={{ animationDelay: checked || leaving ? undefined : dealDelay }}
                     className={`pixel-panel relative block cursor-pointer px-4 py-3 transition-all duration-200 motion-reduce:transition-none has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-gold-accent ${
                       leaving && !checked
                         ? "pointer-events-none animate-dissolve"
                         : checked
                           ? "z-10 animate-pop scale-[1.02] border-[3px] border-gold-accent bg-panel-active shadow-[0_0_16px_var(--color-gold-accent)] motion-reduce:scale-100"
-                          : `${RARITY_CARD_CLASS[rarity]} ${
+                          : `${isUrgent ? "border-2 border-urgent animate-urgent-pulse" : ""} ${
                               dimmed
                                 ? "opacity-40 grayscale hover:opacity-70"
                                 : "hover:bg-panel-active active:scale-[0.99]"
@@ -229,13 +211,7 @@ export function QuestChoices({
                         aria-hidden="true"
                         className="w-7 shrink-0 pt-0.5 text-center text-[26px] leading-none text-gold-accent"
                       >
-                        {choices.isUrgent && index === 0
-                          ? "♨"
-                          : index === 0
-                            ? "⚔"
-                            : index === 1
-                              ? "✦"
-                              : "✧"}
+                        {isUrgent ? "♨" : index === 0 ? "⚔" : index === 1 ? "✦" : "✧"}
                       </span>
                       <div className="min-w-0 flex-1">
                         {/* タイトルを中央に大きく太字で配置（直感ファースト） */}
@@ -245,14 +221,7 @@ export function QuestChoices({
                         </p>
                         {/* 詳細・メタ情報はトーンを抑えて配置 */}
                         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted/80">
-                          {choices.isUrgent && index === 0 && <span>緊急クエスト ・ 締切間近</span>}
-                          {rarityLabelClass && (
-                            <span
-                              className={`border px-1.5 font-dotgothic text-[11px] font-bold leading-4 ${rarityLabelClass}`}
-                            >
-                              {RARITY_LABEL[rarity]}
-                            </span>
-                          )}
+                          {isUrgent && <span>緊急クエスト ・ 締切間近</span>}
                           <span aria-label={`reject回数 ${task.skippedCount}回`}>
                             ❌{task.skippedCount}
                           </span>
