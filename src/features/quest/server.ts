@@ -99,12 +99,24 @@ export async function recordQuestCandidates(
   input: RecordQuestCandidatesRequest,
   userId: string,
 ): Promise<RecordQuestCandidatesResponse> {
-  const { data, error } = await supabaseServer().rpc("record_quest_candidates", {
+  const client = supabaseServer();
+  let rpcResult = await client.rpc("record_quest_candidates", {
     p_task_ids: input.shownTaskIds,
     p_user_id: userId,
   });
-  if (error) throwDatabaseError(error);
-  const tasks = z.array(z.unknown()).parse(data).map(taskFromRow);
+
+  // 2引数版RPCが存在しない環境（未適用のDB等）では既存の1引数版へフォールバック
+  if (
+    rpcResult.error &&
+    (rpcResult.error.code === "PGRST202" || rpcResult.error.code === "42883")
+  ) {
+    rpcResult = await client.rpc("record_quest_candidates", {
+      p_task_ids: input.shownTaskIds,
+    });
+  }
+
+  if (rpcResult.error) throwDatabaseError(rpcResult.error);
+  const tasks = z.array(z.unknown()).parse(rpcResult.data).map(taskFromRow);
   const byId = new Map(tasks.map((task) => [task.id, task]));
   if (
     tasks.length !== input.shownTaskIds.length ||
