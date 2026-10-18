@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DecorativeTileBar, PixelHeader } from "./PixelHeader";
@@ -36,8 +36,8 @@ export function QuestClearScreen({
   const chest = useRef<HTMLDivElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
 
-  // 宝箱とタイトルを軽くポップさせて登場させる
-  useEffect(() => {
+  // 宝箱とタイトルを軽くポップさせて登場させる（描画前に始めてちらつきを抑える）
+  useLayoutEffect(() => {
     if (prefersReducedMotion()) return;
     const pop = [
       { opacity: 0, transform: "scale(0.6)" },

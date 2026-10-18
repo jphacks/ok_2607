@@ -36,6 +36,7 @@ export function ConfettiBurst() {
     const elements = container.current?.querySelectorAll<HTMLElement>("[data-confetti-id]") ?? [];
     const animations: Animation[] = [];
     elements.forEach((element) => {
+      // id は createConfettiParticles が配列の添字と同じ値で振っている
       const particle = particles[Number(element.dataset.confettiId)];
       if (!particle || typeof element.animate !== "function") return;
       animations.push(
