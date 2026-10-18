@@ -46,7 +46,7 @@ Supabase Studio（DB を GUI で見る画面）は http://127.0.0.1:54323 で開
 
 **B. チームで共有する Supabase プロジェクト**
 
-PM (@lovemeasure) から `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を受け取って `.env.local` に書く。共有 DB なので、他のメンバーのデータも見える点に注意。
+PM (@lovemeasure) から `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を受け取って `.env.local` に書く。共有DBのservice_roleキーは全ユーザーのデータにアクセスできるため、サーバー専用として扱う。アプリではユーザーごとの分離が必要であり、認証・所有者検証はPR #72で対応済み。本番DB反映は#73で追跡する。
 
 ### 4. Gemini の API キーを設定する
 
@@ -58,8 +58,9 @@ https://aistudio.google.com/apikey でキーを発行し、`GEMINI_API_KEY` に�
 npm run dev
 ```
 
-- http://localhost:3000 で3択のクエスト画面が表示される。タスクがなければ「新しいタスクを追加」から登録する。
-- `curl -i http://localhost:3000/api/tasks` が `200` とタスク一覧を返す。
+- http://localhost:3000 は未ログイン時にログイン画面を表示する。既存のGoogle OAuthには公開用Supabase URL/anon keyとSupabase側のGoogleプロバイダー・コールバックURL設定が必要（`.env.example`参照）。認証設定がない環境はユニットテストとビルドで検証する。
+- ログイン後は3択のクエスト画面が表示される。タスクがなければ「新しいタスクを追加」から登録する。
+- ログイン済みブラウザでタスク一覧の取得を確認する。未認証のcurlで200を期待する確認方法は使わない。
 - 「タスク」タブでタスク名と任意の期限を登録し、再読み込みしても保存されていることを確認する。
 - ローカルDBがすでにある場合は `npx supabase migration up --local` で追加マイグレーションを適用する。リモートDBへの適用は担当者が行う。
 

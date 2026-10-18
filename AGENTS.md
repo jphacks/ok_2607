@@ -87,7 +87,7 @@ npm run db:reset       # ローカル DB の作り直し
 - 作業の最後に `npm run check` を実行し、結果をそのまま報告する。失敗したまま「完了」と言わない
 - `main` に直接コミット・push しない。ブランチ名は `<種類>/<内容>`、コミットは `<種類>: <内容>`（種類: `feat` / `fix` / `docs` / `test` / `refactor` / `chore`）
 - `git commit --no-verify` で pre-commit フックを飛ばさない
-- MVP の範囲（`docs/product.md` のユーザーストーリー）を超える機能は勝手に作らない。ログイン機能は作らない
+- MVP の範囲（`docs/product.md` のユーザーストーリー）を超える機能は勝手に作らない。Google OAuthは既存実装（#20 / #47）として維持し、認証方式の追加や変更はPMと合意してから行う
 
 ### 画面と UI
 
@@ -107,7 +107,7 @@ npm run db:reset       # ローカル DB の作り直し
 ### セキュリティ
 
 - `.env.local` やキーをコミット・ログ出力しない。キーを推測・生成しない。必要なら人間に頼む
-- Supabase と Gemini はサーバー（Route Handler）からだけ呼ぶ。クライアントコンポーネントから `src/lib/env.ts`、`src/lib/supabase/server.ts`、`src/lib/gemini.ts` を import しない
+- DB操作とGemini呼び出しはサーバー（Route Handler）からだけ行う。Supabase Authの公開クライアントによるGoogle OAuth・ログアウトは既存の例外とし、service_roleキーは公開しない。クライアントコンポーネントから `src/lib/env.ts`、`src/lib/supabase/server.ts`、`src/lib/gemini.ts` を import しない
 - `NEXT_PUBLIC_` 付きの環境変数に秘密の値を入れない
 - リモートの Supabase に対する `supabase db push`、`supabase db reset --linked` などの破壊的なコマンドは実行しない
 
@@ -124,7 +124,7 @@ npm run db:reset       # ローカル DB の作り直し
 
 ### Gemini（AI チェックポイント）
 
-- 出力は JSON スキーマ（`responseSchema`）を指定して構造化し、保存する前に zod で検証する。検証に失敗したら `502 ai_error` を返す
+- 出力は JSON スキーマ（`responseSchema`）を指定して構造化し、保存する前に zod で検証する。生成・検証に失敗した場合は検証済みの定型プランを保存し、`isFallback: true` として通知する（#17 / #19）。無検証のAI出力は保存しない
 - モデル名はハードコードせず `geminiModel()`（環境変数 `GEMINI_MODEL`）を使う
 - テストでは Gemini を呼ばない。呼び出し部分を関数の引数で差し替えられるようにしてモックする
 
