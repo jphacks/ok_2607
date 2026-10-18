@@ -110,7 +110,7 @@ export function QuestClearScreen({
                 <h2 className="line-clamp-2 text-base font-bold text-white">{taskTitle}</h2>
 
                 <p className="flex items-center gap-2 text-sm font-bold text-[#83d9b2]">
-                  <span>✓</span> チェックポイント {completedCheckpointsCount} /{" "}
+                  <span>✓</span> マイルストーン {completedCheckpointsCount} /{" "}
                   {totalCheckpointsCount}
                 </p>
 

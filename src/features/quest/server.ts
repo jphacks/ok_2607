@@ -1,7 +1,12 @@
 import "server-only";
 import { z } from "zod";
 import { Quest } from "@/lib/schemas";
-import type { QuestCandidatesResponse, StartQuestRequest } from "@/lib/schemas";
+import type {
+  QuestCandidatesResponse,
+  RecordQuestCandidatesRequest,
+  RecordQuestCandidatesResponse,
+  StartQuestRequest,
+} from "@/lib/schemas";
 import { supabaseServer } from "@/lib/supabase/server";
 import { listTasks, taskFromRow } from "@/features/task/server";
 import { recommendTasks } from "@/features/quest/recommend";
@@ -87,6 +92,28 @@ export async function getQuestCandidates(
       return saved;
     }),
   };
+}
+
+/** ローカル抽選の提示だけを保存し、一覧の再取得や再抽選はしない。 */
+export async function recordQuestCandidates(
+  input: RecordQuestCandidatesRequest,
+  userId: string,
+): Promise<RecordQuestCandidatesResponse> {
+  const { data, error } = await supabaseServer().rpc("record_quest_candidates", {
+    p_task_ids: input.shownTaskIds,
+    p_user_id: userId,
+  });
+  if (error) throwDatabaseError(error);
+  const tasks = z.array(z.unknown()).parse(data).map(taskFromRow);
+  const byId = new Map(tasks.map((task) => [task.id, task]));
+  if (
+    tasks.length !== input.shownTaskIds.length ||
+    byId.size !== tasks.length ||
+    input.shownTaskIds.some((id) => !byId.has(id))
+  ) {
+    throw new Error("提示したタスクの保存結果を確認できません");
+  }
+  return { tasks: input.shownTaskIds.map((id) => byId.get(id)!) };
 }
 
 export async function startQuest(input: StartQuestRequest, userId?: string | null): Promise<Quest> {
