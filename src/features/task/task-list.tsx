@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CreateTaskRequest, Task } from "@/lib/schemas";
 
 export function TaskList({
@@ -32,6 +32,10 @@ export function TaskList({
   const deleteDialog = useRef<HTMLDialogElement>(null);
   const positions = useRef(new Map<string, number>());
   const initialized = useRef(false);
+  const sortedTasks = useMemo(
+    () => [...tasks].sort((a, b) => a.skippedCount - b.skippedCount),
+    [tasks],
+  );
 
   useLayoutEffect(() => {
     if (openForm && !dialog.current?.open) dialog.current?.showModal();
@@ -284,7 +288,7 @@ export function TaskList({
         aria-live="polite"
         aria-relevant="additions"
       >
-        {tasks.map((task) => (
+        {sortedTasks.map((task) => (
           <li
             key={task.id}
             data-task-id={task.id}
@@ -300,6 +304,9 @@ export function TaskList({
                 {task.dueAt
                   ? `期限 ${new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric" }).format(new Date(task.dueAt))}`
                   : "期限なし"}
+                <span className="ml-3 text-muted" aria-label={`reject回数 ${task.skippedCount}回`}>
+                  ❌{task.skippedCount}
+                </span>
                 {task.status === "in_quest" && <span className="ml-3 text-[#a5d4be]">挑戦中</span>}
                 {task.status === "done" && <span className="ml-3 text-[#a5d4be]">完了</span>}
               </p>
