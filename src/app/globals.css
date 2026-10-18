@@ -113,10 +113,6 @@ button:disabled {
     line-height: 1.7;
     color: #a4a8bc;
   }
-  .quest-selected {
-    background-color: #292e47;
-    box-shadow: 0 0 0 1px #f3ca70;
-  }
   .pixel-wizard,
   .pixel-adventurer,
   .pixel-slime {
