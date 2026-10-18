@@ -151,7 +151,7 @@ export function QuestChoices({
                   data-dimmed={dimmed}
                   onClick={() => handleSelectTask(task.id)}
                   style={{ animationDelay: `${index * 80}ms` }}
-                  className={`pixel-panel animate-card-draw relative block cursor-pointer px-4 py-3 transition-all duration-200 motion-reduce:transition-none ${
+                  className={`pixel-panel animate-card-draw relative block cursor-pointer px-4 py-3 transition-all duration-200 motion-reduce:transition-none has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-gold-accent ${
                     checked
                       ? "z-10 scale-[1.02] border-[3px] border-gold-accent bg-panel-active shadow-[0_0_16px_var(--color-gold-accent)] motion-reduce:scale-100"
                       : dimmed
@@ -180,11 +180,7 @@ export function QuestChoices({
                       </p>
                       {/* 詳細・メタ情報はトーンを抑えて配置 */}
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted/80">
-                        <span>
-                          {choices.isUrgent && index === 0
-                            ? "緊急クエスト ・ 締切間近"
-                            : "今日のクエスト候補"}
-                        </span>
+                        {choices.isUrgent && index === 0 && <span>緊急クエスト ・ 締切間近</span>}
                         <span aria-label={`reject回数 ${task.skippedCount}回`}>
                           ❌{task.skippedCount}
                         </span>
@@ -198,29 +194,24 @@ export function QuestChoices({
                           </span>
                         )}
                       </div>
-                      <div className="mt-2 flex items-center justify-between text-xs">
-                        <span className="flex items-center gap-2 text-gold-text">
-                          <input
-                            type="radio"
-                            name="quest"
-                            value={task.id}
-                            checked={checked}
-                            onChange={() => handleSelectTask(task.id)}
-                            className="h-3.5 w-3.5 accent-gold-accent"
-                          />
-                          <span className={checked ? "font-bold text-gold-accent" : ""}>
-                            {checked ? "選択中" : "選択する"}
-                          </span>
-                        </span>
-                        {checked && isInstantChoice && (
+                      <input
+                        type="radio"
+                        name="quest"
+                        value={task.id}
+                        checked={checked}
+                        onChange={() => handleSelectTask(task.id)}
+                        className="sr-only"
+                      />
+                      {checked && isInstantChoice && (
+                        <div className="mt-2 flex justify-end text-xs">
                           <span
                             data-testid="instant-choice-badge"
                             className="animate-pulse font-dotgothic text-xs font-bold text-gold"
                           >
                             ⚡ 直感即決！
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </label>
