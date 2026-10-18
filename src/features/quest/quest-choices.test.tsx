@@ -318,7 +318,7 @@ describe("QuestChoices - 選択の強調と再抽選", () => {
   });
 });
 
-describe("QuestChoices - レア度と演出", () => {
+describe("QuestChoices - カードの演出", () => {
   beforeEach(() => {
     sound.playSfx.mockClear();
     sound.vibrate.mockClear();
@@ -342,7 +342,7 @@ describe("QuestChoices - レア度と演出", () => {
     return screen.getByRole("radio", { name: new RegExp(title) }).closest("label")!;
   }
 
-  it("reject回数 3 のカードに「レア」、5 に「幻」を表示し、0 には出さない", () => {
+  it("reject回数によらずレア表示や強調演出を付けず、回数は表示する", () => {
     const candidates = [
       { ...mockCandidates[0], skippedCount: 0 },
       { ...mockCandidates[1], skippedCount: 3 },
@@ -350,11 +350,18 @@ describe("QuestChoices - レア度と演出", () => {
     ];
     renderChoices({ ...mockChoices, candidates });
 
-    expect(within(cardOf("Webアプリ")).queryByText("レア")).not.toBeInTheDocument();
-    expect(within(cardOf("Webアプリ")).queryByText("幻")).not.toBeInTheDocument();
-    expect(within(cardOf("レポート")).getByText("レア")).toBeInTheDocument();
-    expect(within(cardOf("部屋を片付ける")).getByText("幻")).toBeInTheDocument();
-    expect(cardOf("部屋を片付ける")).toHaveAttribute("data-rarity", "mythic");
+    for (const task of candidates) {
+      const card = cardOf(task.title);
+      expect(within(card).queryByText("レア")).not.toBeInTheDocument();
+      expect(within(card).queryByText("幻")).not.toBeInTheDocument();
+      expect(card).not.toHaveAttribute("data-rarity");
+      expect(card.className).not.toMatch(/rarity|animate-rare-glow|animate-holo/);
+      expect(within(card).getByLabelText(`reject回数 ${task.skippedCount}回`)).toHaveTextContent(
+        `❌${task.skippedCount}`,
+      );
+    }
+    expect(cardOf(candidates[0].title).className).toBe(cardOf(candidates[1].title).className);
+    expect(cardOf(candidates[1].title).className).toBe(cardOf(candidates[2].title).className);
   });
 
   it("緊急クエストは reject回数が多くても「緊急」の見た目になる", () => {
@@ -364,9 +371,10 @@ describe("QuestChoices - レア度と演出", () => {
       candidates: [{ ...mockCandidates[0], skippedCount: 6 }],
     });
     const card = cardOf("Webアプリ");
-    expect(card).toHaveAttribute("data-rarity", "urgent");
+    expect(card).not.toHaveAttribute("data-rarity");
     expect(within(card).queryByText("幻")).not.toBeInTheDocument();
     expect(card.className).toContain("animate-urgent-pulse");
+    expect(card).toHaveClass("border-urgent");
   });
 
   it("カードを表示すると効果音を 1 回鳴らす", () => {
