@@ -305,7 +305,10 @@ export function QuestApp() {
       <div className="pixel-divider shrink-0" aria-hidden="true" />
       <main
         id="main-content"
-        className="flex-1 px-[22px] pb-32 pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pt-10"
+        className={`flex-1 px-[22px] pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pt-10 ${
+          // 3択はスクロールなしで収めたいので、ボトムナビの分だけ余白を取る
+          tab === "quest" ? "pb-24" : "pb-32"
+        }`}
         tabIndex={-1}
       >
         {tab === "quest" && (
