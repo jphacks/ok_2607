@@ -1,6 +1,6 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import type { Checkpoint } from "@/lib/schemas";
 import { CheckpointGenerationScreen } from "./CheckpointGenerationScreen";
 
@@ -94,7 +94,7 @@ describe("CheckpointGenerationScreen", () => {
   it("チェックポイントカードをクリックしてタイトルを編集できる", () => {
     render(
       <CheckpointGenerationScreen
-        questId="quest-1"
+        questId="demo"
         taskTitle="Webアプリを完成させる"
         initialCheckpoints={mockCheckpoints}
       />,
@@ -173,4 +173,106 @@ describe("CheckpointGenerationScreen", () => {
 
     fetchSpy.mockRestore();
   });
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+const editQuestId = "11111111-1111-4111-a111-111111111111";
+const editableCheckpoint: Checkpoint = {
+  ...mockCheckpoints[0],
+  id: "22222222-2222-4222-a222-222222222222",
+  questId: editQuestId,
+  isDone: true,
+  doneAt: "2026-10-18T00:00:00Z",
+};
+function renderEditor() {
+  render(
+    <CheckpointGenerationScreen
+      questId={editQuestId}
+      taskTitle="編集するタスク"
+      initialCheckpoints={[editableCheckpoint]}
+    />,
+  );
+  fireEvent.click(screen.getByText(editableCheckpoint.title));
+  return screen.getByRole("textbox", { name: "チェックポイント名" });
+}
+function savedResponse(title: string) {
+  return new Response(JSON.stringify({ checkpoint: { ...editableCheckpoint, title } }));
+}
+
+describe("チェックポイント名の保存", () => {
+  it("名前だけを保存し、サーバーの保存成功後に表示へ反映する", async () => {
+    let finish!: (response: Response) => void;
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const input = renderEditor();
+    fireEvent.change(input, { target: { value: "  保存済みの名前  " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.blur(input);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `/api/checkpoints/${editableCheckpoint.id}`,
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ title: "保存済みの名前" }),
+      }),
+    );
+    expect(input).toBeDisabled();
+    expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeDisabled();
+    finish(savedResponse("保存済みの名前"));
+    expect(await screen.findByText("保存済みの名前")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeEnabled();
+  });
+
+  it.each(["HTTP失敗", "通信失敗", "不正な成功応答"])(
+    "%sで入力を保持して再試行できる",
+    async (kind) => {
+      const fetchSpy = vi.spyOn(global, "fetch");
+      if (kind === "通信失敗") fetchSpy.mockRejectedValueOnce(new TypeError("offline"));
+      else
+        fetchSpy.mockResolvedValueOnce(
+          kind === "HTTP失敗" ? new Response("unavailable", { status: 500 }) : new Response("{}"),
+        );
+      fetchSpy.mockResolvedValueOnce(savedResponse("再試行する名前"));
+      const input = renderEditor();
+      fireEvent.change(input, { target: { value: "再試行する名前" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(await screen.findByRole("alert")).toBeVisible();
+      expect(input).toHaveValue("再試行する名前");
+      expect(input).toBeEnabled();
+      expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "もう一度保存する" }));
+      expect(await screen.findByText("再試行する名前")).toBeVisible();
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("空白だけの名前は保存せず、Escapeとその後のblurで変更しない", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch");
+    const input = renderEditor();
+    fireEvent.change(input, { target: { value: "  " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(await screen.findByRole("alert")).toHaveTextContent("1〜200文字");
+    fireEvent.change(input, { target: { value: "取り消す名前" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+    fireEvent.blur(input);
+    await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
+    expect(screen.getByText(editableCheckpoint.title)).toBeVisible();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+it("IME変換確定のEnterでは保存しない", () => {
+  const spy = vi.spyOn(global, "fetch");
+  const input = renderEditor();
+  fireEvent.change(input, { target: { value: "変換確定した名前" } });
+  fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+  expect(spy).not.toHaveBeenCalled();
+  expect(input).toHaveValue("変換確定した名前");
+  expect(input).toBeInTheDocument();
 });
