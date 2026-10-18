@@ -62,7 +62,10 @@ export const UpdateTaskRequest = z
     dueAt: z.iso.datetime({ offset: true }).nullable(),
     status: TaskStatus,
   })
-  .partial();
+  .partial()
+  .refine((input) => Object.values(input).some((value) => value !== undefined), {
+    message: "更新する項目を指定してください",
+  });
 export type UpdateTaskRequest = z.infer<typeof UpdateTaskRequest>;
 
 export const StartQuestRequest = z.object({
@@ -84,6 +87,9 @@ export type TasksResponse = z.infer<typeof TasksResponse>;
 
 export const CreateTaskResponse = z.object({ task: Task });
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponse>;
+
+export const UpdateTaskResponse = z.object({ task: Task });
+export type UpdateTaskResponse = z.infer<typeof UpdateTaskResponse>;
 
 export const StartQuestResponse = z.object({ quest: Quest });
 export type StartQuestResponse = z.infer<typeof StartQuestResponse>;
