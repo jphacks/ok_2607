@@ -27,6 +27,21 @@ export function HomeScreen({
         </div>
         <span className="pixel-adventurer" aria-hidden="true" />
       </div>
+      <button
+        className="gold-button mb-6 min-h-20 w-full text-xl font-bold"
+        onClick={() => {
+          if (current && inProgressQuestId && onResumeQuest) {
+            onResumeQuest(inProgressQuestId);
+          } else {
+            onQuest();
+          }
+        }}
+      >
+        <span className="mr-3" aria-hidden="true">
+          ⚔
+        </span>
+        {current && inProgressQuestId ? "進行中の冒険を再開する" : "今日の冒険を始める"}
+      </button>
       <div className="pixel-panel mb-4 p-4">
         <h2 className="text-sm">冒険の記録</h2>
         {stats ? (
@@ -94,21 +109,6 @@ export function HomeScreen({
           {error}
         </p>
       )}
-      <button
-        className="gold-button w-full text-left"
-        onClick={() => {
-          if (current && inProgressQuestId && onResumeQuest) {
-            onResumeQuest(inProgressQuestId);
-          } else {
-            onQuest();
-          }
-        }}
-      >
-        <span className="mr-3" aria-hidden="true">
-          ⚔
-        </span>
-        {current && inProgressQuestId ? "進行中の冒険を再開する" : "今日の冒険を始める"}
-      </button>
       <h2 className="mb-3 mt-9 text-base">クリアした冒険</h2>
       {completed.length > 0 ? (
         <ul className="space-y-3">

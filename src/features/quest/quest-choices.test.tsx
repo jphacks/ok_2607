@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { QuestChoices } from "./quest-choices";
+import { QuestChoices } from "@/features/quest/quest-choices";
 import type { QuestCandidatesResponse, Task } from "@/lib/schemas";
 
 const mockCandidates: Task[] = [
@@ -67,10 +67,10 @@ describe("QuestChoices - ファースト・インプレッション（直感チ�
     vi.useRealTimers();
   });
 
-  it("ガイド文言『直感を信じて、最初に目が留まったものをタップ！』が表示される", () => {
+  it("緊急表示は先頭候補だけに付け、別候補も直感チョイスで選択できる", () => {
     render(
       <QuestChoices
-        choices={mockChoices}
+        choices={{ ...mockChoices, isUrgent: true }}
         pending={false}
         error=""
         onAddTask={vi.fn()}
@@ -80,9 +80,15 @@ describe("QuestChoices - ファースト・インプレッション（直感チ�
       />,
     );
 
-    expect(screen.getByText("直感を信じて、最初に目が留まったものをタップ！")).toBeInTheDocument();
-    expect(screen.getByText("Webアプリを完成させる")).toBeInTheDocument();
-    expect(screen.getByText("レポートを提出する")).toBeInTheDocument();
+    expect(
+      screen.getByRole("radio", { name: /Webアプリを完成させる.*緊急クエスト/ }),
+    ).toBeInTheDocument();
+    const other = screen.getByRole("radio", { name: /レポートを提出する/ });
+    expect(other).not.toHaveAccessibleName(/緊急/);
+    vi.advanceTimersByTime(500);
+    fireEvent.click(other);
+    expect(other).toBeChecked();
+    expect(screen.getByTestId("instant-choice-badge")).toBeVisible();
   });
 
   it("先頭の候補を3秒以内に選択したときに『⚡ 直感即決！』バッジが表示される", () => {

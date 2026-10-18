@@ -453,10 +453,21 @@ describe("タスク登録と3択の画面遷移", () => {
     const urgentBtn = screen.getByRole("button", { name: "緊急クエストを発動" });
     fireEvent.click(urgentBtn);
 
-    expect(await screen.findByText(/期限が迫っています/)).toBeInTheDocument();
-    expect(screen.getByText("【緊急】魔王軍の斥候を撃退せよ")).toBeInTheDocument();
-    // クエスト画面へ切り替わったため、デバッグメニューは非表示になる
-    expect(screen.queryByText("🛠 デバッグ操作")).not.toBeInTheDocument();
+    const urgentCandidate = await screen.findByRole("radio", { name: /緊急クエスト/ });
+    await waitFor(() => expect(urgentCandidate).toBeEnabled());
+    const nav = screen.getByRole("navigation", { name: "メインメニュー" });
+    expect(within(nav).getByRole("button", { name: /クエスト/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    const startButton = screen.getByRole("button", { name: "このクエストに挑戦する" });
+    expect(startButton).toBeDisabled();
+    fireEvent.click(urgentCandidate);
+    expect(urgentCandidate).toBeChecked();
+    expect(startButton).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "緊急クエストを発動", hidden: true }),
+    ).not.toBeInTheDocument();
   });
 
   it("未ログイン時はタスクを表示せず、ログイン専用画面を表示する", async () => {

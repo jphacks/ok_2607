@@ -30,7 +30,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-[390px] flex-col justify-between bg-surface p-6 text-text shadow-2xl">
+    <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl flex-col justify-between bg-surface p-6 text-text shadow-2xl sm:px-8 sm:py-8 lg:px-12 lg:py-10">
       {/* 上部タイトル */}
       <header className="pt-8 text-center">
         <span className="font-mono text-xs text-gold-accent" aria-hidden="true">
