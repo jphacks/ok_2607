@@ -34,6 +34,10 @@ export function QuestChoices({
   }, [choices]);
 
   const selected = choices?.candidates.find((task) => task.id === selectedId) ?? null;
+  // 候補が並んでいるときだけ、見出しの右に再抽選アイコンを出す。
+  const canRetry = Boolean(
+    choices && !error && !choices.inProgressQuest && choices.candidates.length > 0,
+  );
 
   function handleSelectTask(taskId: string) {
     if (starting || pending) return;
@@ -57,8 +61,8 @@ export function QuestChoices({
 
   return (
     <section aria-labelledby="quest-heading" aria-busy={pending}>
-      <div className="screen-heading">
-        <div>
+      <div className="screen-heading mb-4 min-h-0">
+        <div className="min-w-0">
           <h1 id="quest-heading">
             {choices?.inProgressQuest ? "進行中の冒険" : "今日の冒険を選べ"}
           </h1>
@@ -70,11 +74,26 @@ export function QuestChoices({
                 : "直感を信じて、最初に目が留まったものをタップ！"}
           </p>
         </div>
-        <span className="pixel-slime" aria-hidden="true" />
+        {canRetry ? (
+          <button
+            type="button"
+            aria-label="候補を再抽選する"
+            title="候補を再抽選する"
+            onClick={onRetry}
+            disabled={pending || starting}
+            className="flex h-11 w-11 shrink-0 items-center justify-center border border-gold-border/60 bg-panel text-2xl leading-none text-gold-accent transition-colors hover:bg-panel-active disabled:cursor-wait disabled:opacity-60"
+          >
+            <span aria-hidden="true" className={pending ? "motion-safe:animate-spin" : ""}>
+              ↻
+            </span>
+          </button>
+        ) : (
+          <span className="pixel-slime" aria-hidden="true" />
+        )}
       </div>
       {error ? (
         <div className="pixel-panel p-5">
-          <p role="alert" className="text-sm leading-6 text-[#ffb5a9]">
+          <p role="alert" className="text-sm leading-6 text-danger">
             {error}
           </p>
           <button className="secondary-button mt-4 w-full" onClick={onRetry} disabled={pending}>
@@ -82,13 +101,13 @@ export function QuestChoices({
           </button>
         </div>
       ) : !choices ? (
-        <p role="status" className="pixel-panel p-6 text-sm text-[#a4a8bc]">
+        <p role="status" className="pixel-panel p-6 text-sm text-muted">
           冒険の候補を読み込んでいます…
         </p>
       ) : choices.inProgressQuest ? (
         <div className="pixel-panel p-6">
-          <h2 className="text-base text-[#f3ca70]">クエストに挑戦中</h2>
-          <p className="mb-6 mt-3 text-sm leading-7 text-[#a4a8bc]">
+          <h2 className="text-base text-gold-accent">クエストに挑戦中</h2>
+          <p className="mb-6 mt-3 text-sm leading-7 text-muted">
             進行中のクエストがあります。新しい冒険を選ぶ前に、今のクエストを進めましょう。
           </p>
           <div className="space-y-3">
@@ -107,8 +126,8 @@ export function QuestChoices({
         </div>
       ) : choices.candidates.length === 0 ? (
         <div className="pixel-panel p-6">
-          <h2 className="text-base text-[#f3ca70]">冒険の種を登録しよう</h2>
-          <p className="mb-6 mt-3 text-sm leading-7 text-[#a4a8bc]">
+          <h2 className="text-base text-gold-accent">冒険の種を登録しよう</h2>
+          <p className="mb-6 mt-3 text-sm leading-7 text-muted">
             選べるタスクがまだありません。
             <br />
             やりたいことを追加すると、ここに冒険の候補が現れます。
@@ -119,23 +138,31 @@ export function QuestChoices({
         </div>
       ) : (
         <>
-          <fieldset className="space-y-3.5" disabled={starting || pending}>
+          <fieldset className="space-y-2.5" disabled={starting || pending}>
             <legend className="sr-only">挑戦するタスクを1つ選ぶ</legend>
             {choices.candidates.map((task, index) => {
               const checked = selectedId === task.id;
+              // 1つ選んだら、選ばれていないカードははっきり暗くする（タップで選び直せる）。
+              const dimmed = selectedId !== null && !checked;
               return (
                 <label
                   key={task.id}
+                  data-selected={checked}
+                  data-dimmed={dimmed}
                   onClick={() => handleSelectTask(task.id)}
                   style={{ animationDelay: `${index * 80}ms` }}
-                  className={`pixel-panel animate-card-draw relative block min-h-[120px] cursor-pointer px-5 py-4 transition-all hover:bg-panel-active active:scale-[0.99] ${
-                    checked ? "quest-selected shadow-[0_0_12px_var(--color-gold-accent)]" : ""
+                  className={`pixel-panel animate-card-draw relative block cursor-pointer px-4 py-3 transition-all duration-200 motion-reduce:transition-none ${
+                    checked
+                      ? "z-10 scale-[1.02] border-[3px] border-gold-accent bg-panel-active shadow-[0_0_16px_var(--color-gold-accent)] motion-reduce:scale-100"
+                      : dimmed
+                        ? "opacity-40 grayscale hover:opacity-70"
+                        : "hover:bg-panel-active active:scale-[0.99]"
                   }`}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-3">
                     <span
                       aria-hidden="true"
-                      className="w-7 shrink-0 pt-0.5 text-center text-[28px] leading-none text-gold-accent"
+                      className="w-7 shrink-0 pt-0.5 text-center text-[26px] leading-none text-gold-accent"
                     >
                       {choices.isUrgent && index === 0
                         ? "♨"
@@ -147,11 +174,12 @@ export function QuestChoices({
                     </span>
                     <div className="min-w-0 flex-1">
                       {/* タイトルを中央に大きく太字で配置（直感ファースト） */}
-                      <p className="break-words font-dotgothic text-base font-bold leading-6 text-text">
+                      {/* 長いタイトルでも画面に収まるよう 2 行で切る */}
+                      <p className="line-clamp-2 break-words font-dotgothic text-base font-bold leading-6 text-text">
                         {task.title}
                       </p>
                       {/* 詳細・メタ情報はトーンを抑えて配置 */}
-                      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted/80">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted/80">
                         <span>
                           {choices.isUrgent && index === 0
                             ? "緊急クエスト ・ 締切間近"
@@ -170,7 +198,7 @@ export function QuestChoices({
                           </span>
                         )}
                       </div>
-                      <div className="mt-3 flex items-center justify-between text-xs">
+                      <div className="mt-2 flex items-center justify-between text-xs">
                         <span className="flex items-center gap-2 text-gold-text">
                           <input
                             type="radio"
@@ -180,7 +208,9 @@ export function QuestChoices({
                             onChange={() => handleSelectTask(task.id)}
                             className="h-3.5 w-3.5 accent-gold-accent"
                           />
-                          {checked ? "選択中" : "選択する"}
+                          <span className={checked ? "font-bold text-gold-accent" : ""}>
+                            {checked ? "選択中" : "選択する"}
+                          </span>
                         </span>
                         {checked && isInstantChoice && (
                           <span
@@ -198,23 +228,16 @@ export function QuestChoices({
             })}
           </fieldset>
           {startError && (
-            <p role="alert" className="mt-4 text-sm text-[#ffb5a9]">
+            <p role="alert" className="mt-3 text-sm text-danger">
               {startError}
             </p>
           )}
           <button
-            className="gold-button mt-8 w-full text-left"
+            className="gold-button mt-4 w-full text-left"
             disabled={starting || pending || !selected}
             onClick={start}
           >
             {starting ? "クエストを開始中…" : "このクエストに挑戦する"}
-          </button>
-          <button
-            className="mt-4 w-full py-1 text-xs text-[#a4a8bc] hover:text-[#f3ca70] disabled:opacity-50"
-            onClick={onRetry}
-            disabled={pending || starting}
-          >
-            ↻　{pending ? "抽選中…" : "再抽選する"}
           </button>
         </>
       )}
