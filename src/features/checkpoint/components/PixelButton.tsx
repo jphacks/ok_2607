@@ -19,9 +19,9 @@ export function PixelButton({
 
   const variants = {
     primary:
-      "bg-[#f2c36b] text-[#101727] border-2 border-[#fff1c6] shadow-[0_4px_0_#b88a38] active:shadow-[0_1px_0_#b88a38] active:translate-y-1 hover:brightness-105",
+      "bg-gold text-gold-ink border-2 border-gold-border shadow-[0_4px_0_var(--color-gold-ink)] active:shadow-[0_1px_0_var(--color-gold-ink)] active:translate-y-1 hover:bg-gold-hover",
     secondary:
-      "bg-[#22273d] text-[#f2c36b] border-2 border-[#d9b96f] shadow-[0_4px_0_#151824] active:shadow-[0_1px_0_#151824] active:translate-y-1 hover:brightness-110",
+      "bg-panel text-gold-text border-2 border-gold-border shadow-[0_4px_0_var(--color-surface)] active:shadow-[0_1px_0_var(--color-surface)] active:translate-y-1 hover:bg-panel-active",
   };
 
   const disabledStyles =
