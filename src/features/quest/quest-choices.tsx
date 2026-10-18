@@ -146,10 +146,13 @@ export function QuestChoices({
             もう一度読み込む
           </button>
         </div>
-      ) : !choices ? (
-        <p role="status" className="pixel-panel p-6 text-sm text-muted">
-          クエストの候補を読み込んでいます…
-        </p>
+      )}
+      {!choices ? (
+        error ? null : (
+          <p role="status" className="pixel-panel p-6 text-sm text-muted">
+            クエストの候補を読み込んでいます…
+          </p>
+        )
       ) : choices.inProgressQuest ? (
         <div className="pixel-panel p-6">
           <h2 className="text-base text-gold-accent">クエストに挑戦中</h2>

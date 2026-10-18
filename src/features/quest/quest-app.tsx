@@ -230,21 +230,15 @@ export function QuestApp() {
         if (!signal?.aborted && version === choiceVersion.current) {
           clearCache();
           setChoiceError(
-            cause instanceof Error ? cause.message : "冒険の候補を取得できませんでした。",
+            cause instanceof Error ? cause.message : "クエストの候補を取得できませんでした。",
           );
         }
       } finally {
         if (!signal?.aborted && version === choiceVersion.current) markPresentationPending(false);
       }
-    } catch (cause) {
-      if (!signal?.aborted && version === choiceVersion.current)
-        setChoiceError(
-          cause instanceof Error ? cause.message : "クエストの候補を取得できませんでした。",
-        );
-    } finally {
-      if (!signal?.aborted && version === choiceVersion.current) setChoicePending(false);
-    }
-  }, []);
+    },
+    [applyChoices, applyTasks, clearCache, confirmPresentation, loadTasks, markPresentationPending],
+  );
 
   const loadStats = useCallback(async () => {
     const version = ++statsVersion.current;
@@ -644,8 +638,11 @@ export function QuestApp() {
           <span aria-hidden="true">✦</span>
           <span className="font-mono text-sm tracking-[-1px]">TriOne</span>
         </span>
-        <span className="font-mono text-[10px] text-[#a4a8bc]">
-          ●　{stats ? `${stats.completedQuests} CLEAR` : "クエストのはじまり"}
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-muted">
+            ●　{stats ? `${stats.completedQuests} CLEAR` : "クエストのはじまり"}
+          </span>
+          <SoundToggle />
         </span>
       </header>
       <AuthStatus />
@@ -666,7 +663,7 @@ export function QuestApp() {
                   ? "候補の提示を保存"
                   : choiceOperation === "start"
                     ? "クエストを開始"
-                    : "冒険の準備"
+                    : "クエストの準備"
               }
               steps={
                 choiceOperation === "record"
