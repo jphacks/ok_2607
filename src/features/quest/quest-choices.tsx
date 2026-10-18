@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { playSfx, vibrate } from "@/components/ui/sound";
 import type { QuestCandidatesResponse, Task } from "@/lib/schemas";
-import { getRarity, RARITY_LABEL, type Rarity } from "./rarity";
+import { getRarity, RARITY_LABEL, type Rarity } from "@/features/quest/rarity";
 
 /** レア度ごとのカードの枠と、表示中に続く演出（選択中・退場中は別の演出に置き換える） */
 const RARITY_CARD_CLASS: Record<Rarity, string> = {
@@ -26,15 +26,23 @@ export function QuestChoices({
   choices,
   pending,
   error,
+  startReady = !pending && !error,
+  rerollDisabled = false,
+  presentationId,
   onAddTask,
   onHome,
   onRetry,
   onStart,
   onResumeQuest,
+  onReroll = onRetry,
 }: {
   choices: QuestCandidatesResponse | null;
   pending: boolean;
   error: string;
+  startReady?: boolean;
+  rerollDisabled?: boolean;
+  presentationId?: number;
+  onReroll?: () => void;
   onAddTask: () => void;
   onHome: () => void;
   onRetry: () => void;
@@ -48,14 +56,20 @@ export function QuestChoices({
   // 挑戦を決めた後、選ばなかったカードを崩して消す
   const [leaving, setLeaving] = useState(false);
   const renderTimeRef = useRef<number>(Date.now());
+  // 提示の保存応答によるメタ情報更新では、直前の選択を解除しない。
+  const presentation = presentationId ?? choices;
+  const hasCandidates = Boolean(
+    choices && !choices.inProgressQuest && choices.candidates.length > 0,
+  );
 
   useEffect(() => {
     renderTimeRef.current = Date.now();
     setIsInstantChoice(false);
     setSelectedId(null);
     setLeaving(false);
-    if (choices && !choices.inProgressQuest && choices.candidates.length > 0) playSfx("flip");
-  }, [choices]);
+    setStartError("");
+    if (hasCandidates) playSfx("flip");
+  }, [presentation, hasCandidates]);
 
   const selected = choices?.candidates.find((task) => task.id === selectedId) ?? null;
   // 候補が並んでいるときだけ、見出しの右に再抽選アイコンを出す。
@@ -64,7 +78,7 @@ export function QuestChoices({
   );
 
   function handleSelectTask(taskId: string) {
-    if (starting || pending) return;
+    if (starting) return;
     const elapsed = Date.now() - renderTimeRef.current;
     setIsInstantChoice(elapsed <= 3000);
     setSelectedId(taskId);
@@ -73,7 +87,7 @@ export function QuestChoices({
     vibrate(20);
   }
   async function start() {
-    if (!selected || starting) return;
+    if (!selected || starting || pending || !startReady || error) return;
     setStarting(true);
     setStartError("");
     setLeaving(true);
@@ -107,8 +121,8 @@ export function QuestChoices({
             type="button"
             aria-label="候補を再抽選する"
             title="候補を再抽選する"
-            onClick={onRetry}
-            disabled={pending || starting}
+            onClick={onReroll}
+            disabled={pending || starting || rerollDisabled || Boolean(error)}
             className="flex h-11 w-11 shrink-0 items-center justify-center border border-gold-border/60 bg-panel text-2xl leading-none text-gold-accent transition-colors hover:bg-panel-active disabled:cursor-wait disabled:opacity-60"
           >
             <span aria-hidden="true" className={pending ? "motion-safe:animate-spin" : ""}>
@@ -119,19 +133,26 @@ export function QuestChoices({
           <span className="pixel-slime" aria-hidden="true" />
         )}
       </div>
-      {error ? (
+      {error && (
         <div className="pixel-panel p-5">
           <p role="alert" className="text-sm leading-6 text-danger">
             {error}
           </p>
-          <button className="secondary-button mt-4 w-full" onClick={onRetry} disabled={pending}>
+          <button
+            className="secondary-button mt-4 w-full"
+            onClick={onRetry}
+            disabled={pending || starting}
+          >
             もう一度読み込む
           </button>
         </div>
-      ) : !choices ? (
-        <p role="status" className="pixel-panel p-6 text-sm text-muted">
-          冒険の候補を読み込んでいます…
-        </p>
+      )}
+      {!choices ? (
+        error ? null : (
+          <p role="status" className="pixel-panel p-6 text-sm text-muted">
+            冒険の候補を読み込んでいます…
+          </p>
+        )
       ) : choices.inProgressQuest ? (
         <div className="pixel-panel p-6">
           <h2 className="text-base text-gold-accent">クエストに挑戦中</h2>
@@ -142,6 +163,7 @@ export function QuestChoices({
             {onResumeQuest && (
               <button
                 className="gold-button w-full"
+                disabled={pending || starting}
                 onClick={() => onResumeQuest(choices.inProgressQuest!.id)}
               >
                 進行中のクエスト画面を開く
@@ -168,7 +190,7 @@ export function QuestChoices({
         <>
           <fieldset
             className={`space-y-2.5 ${isInstantChoice && selected ? "animate-shake" : ""}`}
-            disabled={starting || pending}
+            disabled={starting}
           >
             <legend className="sr-only">挑戦するタスクを1つ選ぶ</legend>
             {choices.candidates.map((task, index) => {
@@ -285,7 +307,7 @@ export function QuestChoices({
           )}
           <button
             className="gold-button mt-4 w-full text-left"
-            disabled={starting || pending || !selected}
+            disabled={starting || pending || !startReady || Boolean(error) || !selected}
             onClick={start}
           >
             {starting ? "クエストを開始中…" : "このクエストに挑戦する"}

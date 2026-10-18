@@ -361,3 +361,41 @@ describe("QuestChoices - レア度と演出", () => {
     expect(cardOf("Webアプリ").className).not.toContain("animate-dissolve");
   });
 });
+
+describe("QuestChoices - 提示保存と演出の両立", () => {
+  it("提示保存中に選んだカードは保存応答後も選択と即決表示を保持する", () => {
+    const props = {
+      presentationId: 1,
+      error: "",
+      onAddTask: vi.fn(),
+      onHome: vi.fn(),
+      onRetry: vi.fn(),
+      onStart: vi.fn(),
+    };
+    sound.playSfx.mockClear();
+    const { rerender } = render(
+      <QuestChoices {...props} choices={mockChoices} pending startReady={false} />,
+    );
+    const radio = screen.getByRole("radio", { name: /Webアプリ/ });
+    expect(radio).not.toBeDisabled();
+    fireEvent.click(radio);
+    expect(radio).toBeChecked();
+    expect(screen.getByText("即決!!")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "このクエストに挑戦する" })).toBeDisabled();
+
+    const saved = {
+      ...mockChoices,
+      candidates: mockCandidates.map((task) => ({ ...task, shownCount: task.shownCount + 1 })),
+    };
+    rerender(<QuestChoices {...props} choices={saved} pending={false} startReady />);
+    expect(screen.getByRole("radio", { name: /Webアプリ/ })).toBeChecked();
+    expect(screen.getByText("即決!!")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "このクエストに挑戦する" })).not.toBeDisabled();
+    expect(sound.playSfx.mock.calls.filter(([name]) => name === "flip")).toHaveLength(1);
+
+    rerender(<QuestChoices {...props} presentationId={2} choices={saved} pending={false} />);
+    expect(screen.getByRole("radio", { name: /Webアプリ/ })).not.toBeChecked();
+    expect(screen.queryByText("即決!!")).not.toBeInTheDocument();
+    expect(sound.playSfx.mock.calls.filter(([name]) => name === "flip")).toHaveLength(2);
+  });
+});

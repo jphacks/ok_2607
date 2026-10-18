@@ -1,6 +1,6 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Checkpoint } from "@/lib/schemas";
 import { CheckpointGenerationScreen } from "./CheckpointGenerationScreen";
 
@@ -45,7 +45,17 @@ const mockCheckpoints: Checkpoint[] = [
   },
 ];
 
+const generatedCheckpoint: Checkpoint = {
+  ...mockCheckpoints[0],
+  id: "11111111-1111-4111-8111-111111111111",
+  questId: "22222222-2222-4222-8222-222222222222",
+};
+
 describe("CheckpointGenerationScreen", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("タスク名、タイトル、チェックポイント一覧が正しく表示される", () => {
     render(
       <CheckpointGenerationScreen
@@ -117,9 +127,7 @@ describe("CheckpointGenerationScreen", () => {
   it("自動生成時に isFallback: true が返された場合、基本ステップ作成の案内バナーが表示される", async () => {
     const mockFallbackCheckpoints = [
       {
-        id: "cp-fb-1",
-        questId: "quest-1",
-        parentId: null,
+        ...generatedCheckpoint,
         title: "準備と整理",
         description: "作業環境や必要な情報を整える",
         position: 0,
@@ -139,7 +147,7 @@ describe("CheckpointGenerationScreen", () => {
     render(<CheckpointGenerationScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
 
     // 最初はローディング表示
-    expect(screen.getByText("魔道士がクエストを分解中...")).toBeInTheDocument();
+    expect(screen.getByText("完了した処理: 1 / 2 件")).toBeInTheDocument();
 
     // fetch 完了後にバナーとチェックポイントが表示される
     expect(await screen.findByTestId("fallback-banner")).toBeInTheDocument();
@@ -148,6 +156,8 @@ describe("CheckpointGenerationScreen", () => {
     expect(
       screen.getByText(/基本のマイルストーンはタップして自由に編集できます/),
     ).toBeInTheDocument();
+    expect(screen.getByText("すべての処理が完了しました")).toBeInTheDocument();
+    expect(screen.getByText("完了した処理: 2 / 2 件")).toBeInTheDocument();
 
     // クエスト開始ボタンが押せること
     const startButton = screen.getByRole("button", { name: "クエストを開始する" });
@@ -169,9 +179,194 @@ describe("CheckpointGenerationScreen", () => {
     expect(await screen.findByText("生成に失敗しました")).toBeInTheDocument();
     expect(screen.getByText("DB障害が発生しました")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "再試行する" })).toBeInTheDocument();
+    expect(screen.getByText("エラーがあります")).toBeInTheDocument();
+    expect(screen.getByText("完了した処理: 1 / 2 件")).toBeInTheDocument();
+    expect(screen.queryByText("すべての処理が完了しました")).not.toBeInTheDocument();
 
     const startButton = screen.getByRole("button", { name: "クエストを開始する" });
     expect(startButton).toBeDisabled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("レスポンスと本文の取得中は生成・保存を完了にせず、有効な結果の確認後に完了する", async () => {
+    let resolveResponse!: (response: Response) => void;
+    let resolveJson!: (body: unknown) => void;
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const body = new Promise<unknown>((resolve) => {
+      resolveJson = resolve;
+    });
+    vi.spyOn(global, "fetch").mockReturnValueOnce(response);
+
+    render(
+      <CheckpointGenerationScreen
+        questId={generatedCheckpoint.questId}
+        taskTitle="Webアプリを完成させる"
+      />,
+    );
+
+    const startButton = screen.getByRole("button", { name: "クエストを開始する" });
+    expect(startButton).toBeDisabled();
+    expect(screen.getByText("完了した処理: 1 / 2 件")).toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: "AIによる道筋の生成・保存：処理中" }),
+    ).not.toHaveAttribute("aria-valuenow");
+    expect(screen.queryByText("すべての処理が完了しました")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveResponse({ ok: true, json: () => body } as Response);
+    });
+
+    expect(startButton).toBeDisabled();
+    expect(screen.getByText("完了した処理: 1 / 2 件")).toBeInTheDocument();
+    expect(screen.queryByText("すべての処理が完了しました")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveJson({ checkpoints: [generatedCheckpoint] });
+    });
+
+    expect(screen.getByText(generatedCheckpoint.title)).toBeInTheDocument();
+    expect(screen.getByText("完了した処理: 2 / 2 件")).toBeInTheDocument();
+    expect(screen.getByText("すべての処理が完了しました")).toBeInTheDocument();
+    expect(startButton).not.toBeDisabled();
+  });
+
+  it("通信が拒否された場合は生成・保存をエラーとし、完了にはしない", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("通信が切断されました"));
+
+    render(
+      <CheckpointGenerationScreen
+        questId={generatedCheckpoint.questId}
+        taskTitle="Webアプリを完成させる"
+      />,
+    );
+
+    expect(await screen.findByText("通信が切断されました")).toBeInTheDocument();
+    expect(screen.getByText("エラーがあります")).toBeInTheDocument();
+    expect(screen.getByText("完了した処理: 1 / 2 件")).toBeInTheDocument();
+    expect(screen.queryByText("すべての処理が完了しました")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeDisabled();
+  });
+
+  it.each([
+    ["nullの本文", null],
+    ["チェックポイントがない本文", {}],
+    ["空のチェックポイント", { checkpoints: [] }],
+    ["スキーマに違反するチェックポイント", { checkpoints: [{ title: "準備" }] }],
+    [
+      "親のないチェックポイント",
+      { checkpoints: [{ ...generatedCheckpoint, parentId: generatedCheckpoint.id }] },
+    ],
+    ["空白の親タイトル", { checkpoints: [{ ...generatedCheckpoint, title: " \n " }] }],
+  ])("HTTP成功でも%sは完了とみなさない", async (_label, body) => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => body,
+    } as Response);
+
+    render(
+      <CheckpointGenerationScreen
+        questId={generatedCheckpoint.questId}
+        taskTitle="Webアプリを完成させる"
+      />,
+    );
+
+    expect(await screen.findByText("チェックポイントの生成結果が不正です")).toBeInTheDocument();
+    expect(screen.getByText("エラーがあります")).toBeInTheDocument();
+    expect(screen.getByText("完了した処理: 1 / 2 件")).toBeInTheDocument();
+    expect(screen.queryByText("すべての処理が完了しました")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeDisabled();
+  });
+
+  it("エラー表示時に「再試行する」をクリックするとインラインで再試行され、成功するとチェックポイントが表示される", async () => {
+    let resolveRetry!: (res: Response) => void;
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "通信エラーが発生しました" },
+        }),
+      } as Response)
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRetry = resolve;
+          }),
+      );
+
+    render(
+      <CheckpointGenerationScreen
+        questId={generatedCheckpoint.questId}
+        taskTitle="Webアプリを完成させる"
+      />,
+    );
+
+    // 1回目のエラー
+    expect(await screen.findByText("生成に失敗しました")).toBeInTheDocument();
+    expect(screen.getByText("通信エラーが発生しました")).toBeInTheDocument();
+
+    const retryButton = screen.getByRole("button", { name: "再試行する" });
+    fireEvent.click(retryButton);
+
+    // インラインで再試行が走り、エラーが消えてローディングが表示される
+    expect(screen.queryByText("生成に失敗しました")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: "AIによる道筋の生成・保存：処理中" }),
+    ).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenLastCalledWith(
+      `/api/quests/${generatedCheckpoint.questId}/checkpoints/generate`,
+      {
+        method: "POST",
+      },
+    );
+
+    // 成功レスポンスを返す
+    resolveRetry({
+      ok: true,
+      json: async () => ({
+        checkpoints: [generatedCheckpoint],
+        isFallback: false,
+      }),
+    } as Response);
+
+    // 生成されたチェックポイントが表示され、クエスト開始ボタンが有効になる
+    expect(await screen.findByText(generatedCheckpoint.title)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("progressbar", { name: "AIによる道筋の生成・保存：処理中" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "クエストを開始する" })).toBeEnabled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("再試行が再び失敗した場合、新しいエラーメッセージが表示されて再度再試行可能", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "初回エラー" },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: { code: "internal_error", message: "2回目のエラー" },
+        }),
+      } as Response);
+
+    render(<CheckpointGenerationScreen questId="quest-1" taskTitle="Webアプリを完成させる" />);
+
+    expect(await screen.findByText("初回エラー")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "再試行する" }));
+
+    expect(await screen.findByText("2回目のエラー")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行する" })).toBeInTheDocument();
 
     fetchSpy.mockRestore();
   });
@@ -266,6 +461,28 @@ describe("チェックポイント名の保存", () => {
     await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
     expect(screen.getByText(editableCheckpoint.title)).toBeVisible();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("ヘッダーに指定した level が表示され、省略時はデフォルト Lv. 1 が表示される", () => {
+    const { unmount } = render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+        level={3}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*03/)).toBeInTheDocument();
+    unmount();
+
+    render(
+      <CheckpointGenerationScreen
+        questId="quest-1"
+        taskTitle="Webアプリを完成させる"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+    expect(screen.getByText(/LV\.\s*01/)).toBeInTheDocument();
   });
 });
 

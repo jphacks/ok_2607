@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getRarity, RARITY_LABEL } from "./rarity";
+import { getRarity, RARITY_LABEL } from "@/features/quest/rarity";
 
 describe("getRarity", () => {
   it.each([

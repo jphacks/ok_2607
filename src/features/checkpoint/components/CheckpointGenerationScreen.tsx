@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { ApiError, Checkpoint, UpdateCheckpointFieldsRequest } from "@/lib/schemas";
+import { OperationProgress } from "@/components/ui/OperationProgress";
 import { DecorativeTileBar, PixelHeader } from "./PixelHeader";
 import { MagePixelArt } from "./MagePixelArt";
 import { PixelButton } from "./PixelButton";
@@ -21,10 +22,11 @@ export function CheckpointGenerationScreen({
   questId,
   taskTitle,
   initialCheckpoints = [],
-  level = 4,
+  level = 1,
   onStartQuest,
 }: CheckpointGenerationScreenProps) {
   const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>(initialCheckpoints);
   const [isLoading, setIsLoading] = useState(initialCheckpoints.length === 0);
   const [error, setError] = useState<string | null>(null);
@@ -41,52 +43,68 @@ export function CheckpointGenerationScreen({
     .filter((cp) => cp.parentId === null)
     .sort((a, b) => a.position - b.position);
 
+  const isMountedRef = useRef(true);
+  const isGeneratingRef = useRef(false);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const generate = React.useCallback(async () => {
+    if (isGeneratingRef.current) return;
+    isGeneratingRef.current = true;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/quests/${questId}/checkpoints/generate`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error?.message || "ロードマップの生成に失敗しました");
+      }
+      const parsed = Checkpoint.array().nonempty().safeParse(data?.checkpoints);
+      if (
+        !parsed.success ||
+        !parsed.data.some((cp) => cp.parentId === null) ||
+        parsed.data.some((cp) => cp.parentId === null && !cp.title.trim())
+      ) {
+        throw new Error("チェックポイントの生成結果が不正です");
+      }
+      if (isMountedRef.current) {
+        setCheckpoints(parsed.data);
+        setIsFallback(data.isFallback === true);
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        setError(err instanceof Error ? err.message : "予期せぬエラーが発生しました");
+      }
+    } finally {
+      isGeneratingRef.current = false;
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [questId]);
+
   // 初期チェックポイントがない場合は自動生成
   React.useEffect(() => {
     if (initialCheckpoints.length > 0) return;
-
-    let isMounted = true;
-    async function generate() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/quests/${questId}/checkpoints/generate`, {
-          method: "POST",
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error?.message || "ロードマップの生成に失敗しました");
-        }
-        if (isMounted) {
-          setCheckpoints(data.checkpoints || []);
-          if (data.isFallback) {
-            setIsFallback(true);
-          }
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "予期せぬエラーが発生しました");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    generate();
-    return () => {
-      isMounted = false;
-    };
-  }, [questId, initialCheckpoints.length]);
+    void generate();
+  }, [generate, initialCheckpoints.length]);
 
   const handleStart = () => {
     if (activeEdit.current !== null || savingEdit.current) return;
-    if (onStartQuest) {
-      onStartQuest();
-    } else {
-      router.push(`/quests/${questId}`);
-    }
+    startNavigation(() => {
+      if (onStartQuest) {
+        onStartQuest();
+      } else {
+        router.push(`/quests/${questId}`);
+      }
+    });
   };
 
   const handleEditStart = (cp: Checkpoint) => {
@@ -201,11 +219,17 @@ export function CheckpointGenerationScreen({
 
           {/* チェックポイントリスト */}
           <div className="mt-4 space-y-3">
-            {isLoading && (
-              <div className="flex flex-col items-center justify-center space-y-3 py-12 text-[#f2c36b]">
-                <div className="h-6 w-6 animate-spin border-2 border-[#f2c36b] border-t-transparent" />
-                <p className="animate-pulse text-sm">魔道士がクエストを分解中...</p>
-              </div>
+            {initialCheckpoints.length === 0 && (
+              <OperationProgress
+                title="冒険の道筋を準備中"
+                steps={[
+                  { label: "クエスト詳細の読み込み", status: "complete" },
+                  {
+                    label: "AIによる道筋の生成・保存",
+                    status: error ? "error" : isLoading ? "running" : "complete",
+                  },
+                ]}
+              />
             )}
 
             {error && (
@@ -213,7 +237,8 @@ export function CheckpointGenerationScreen({
                 <p className="font-bold">生成に失敗しました</p>
                 <p className="mt-1 text-xs opacity-90">{error}</p>
                 <button
-                  onClick={() => window.location.reload()}
+                  type="button"
+                  onClick={() => void generate()}
                   className="mt-3 border border-red-400 px-3 py-1 text-xs hover:bg-red-900/50"
                 >
                   再試行する
@@ -303,10 +328,19 @@ export function CheckpointGenerationScreen({
 
         {/* 下部アクションボタン & 装飾バー */}
         <div className="mt-6 pb-2">
+          {isNavigating && (
+            <div className="mb-4">
+              <OperationProgress
+                title="クエストへ移動中"
+                steps={[{ label: "移動先のデータの読み込み", status: "running" }]}
+              />
+            </div>
+          )}
           <PixelButton
             onClick={handleStart}
             disabled={
               isLoading ||
+              isNavigating ||
               Boolean(error) ||
               editingId !== null ||
               isSavingEdit ||

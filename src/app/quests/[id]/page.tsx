@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { getQuestDetail } from "@/features/checkpoint/service";
+import { calculateLevel } from "@/features/checkpoint/xp";
 import { QuestProgressScreen } from "@/features/checkpoint/components/QuestProgressScreen";
+import { getStats } from "@/features/task/server";
 import { getCurrentUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -91,11 +93,21 @@ export default async function QuestPage({ params }: PageProps) {
     notFound();
   }
 
+  let totalXp = 0;
+  try {
+    const stats = await getStats(user.id);
+    totalXp = stats?.totalXp ?? 0;
+  } catch {
+    totalXp = 0;
+  }
+  const { level } = calculateLevel(totalXp);
+
   return (
     <QuestProgressScreen
       questId={id}
       taskTitle={questDetail.task.title}
       initialCheckpoints={questDetail.checkpoints}
+      level={level}
     />
   );
 }
