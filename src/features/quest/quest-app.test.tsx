@@ -358,6 +358,58 @@ describe("タスク登録と3択の画面遷移", () => {
     });
   });
 
+  it("クエスト開始時に /api/tasks や /api/stats への不要なリクエストを行わずに速やかに遷移する", async () => {
+    storedTasks = [existing];
+    render(<QuestApp />);
+    const radio = await screen.findByRole("radio", { name: new RegExp(existing.title) });
+    await waitFor(() => expect(radio).toBeEnabled());
+    fireEvent.click(radio);
+    const startButton = screen.getByRole("button", { name: "このクエストに挑戦する" });
+    await waitFor(() => expect(startButton).toBeEnabled());
+
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockClear();
+
+    fireEvent.click(startButton);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(
+        "/quests/10000000-0000-4000-8000-000000000099/checkpoints",
+      );
+    });
+
+    const calledUrls = fetchMock.mock.calls.map(([url]) => url);
+    expect(calledUrls).toContain("/api/quests");
+    expect(calledUrls).not.toContain("/api/tasks");
+    expect(calledUrls).not.toContain("/api/stats");
+  });
+
+  it("ステータスやタスクタブを開いた際に最新の統計・タスク一覧を再取得する", async () => {
+    storedTasks = [existing];
+    render(<QuestApp />);
+    await screen.findByRole("radio");
+
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockClear();
+
+    // ステータスタブを開くと、最新の統計(/api/stats)とタスク(/api/tasks)が再取得される
+    fireEvent.click(screen.getByRole("button", { name: "ステータス" }));
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.map(([url]) => url);
+      expect(calls).toContain("/api/stats");
+      expect(calls).toContain("/api/tasks");
+    });
+
+    fetchMock.mockClear();
+
+    // タスクタブを開くと、最新のタスク(/api/tasks)が再取得される
+    fireEvent.click(screen.getByRole("button", { name: "タスク" }));
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.map(([url]) => url);
+      expect(calls).toContain("/api/tasks");
+    });
+  });
+
   it("進行中クエストがあるとき「進行中のクエスト画面を開く」ボタンで画面05へ遷移する", async () => {
     storedTasks = [{ ...existing, status: "in_quest" }];
     inProgressQuest = {
