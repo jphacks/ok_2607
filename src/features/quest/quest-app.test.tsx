@@ -55,17 +55,23 @@ beforeEach(() => {
             { status: 500 },
           );
         const input: { title: string; dueAt: string | null } = JSON.parse(String(init.body));
-        const task = { ...existing, ...input, id: "10000000-0000-4000-8000-000000000002" };
+        const task = {
+          ...existing,
+          ...input,
+          id: `10000000-0000-4000-8000-${String(storedTasks.length + 2).padStart(12, "0")}`,
+        };
         storedTasks = [task, ...storedTasks];
         return Response.json({ task }, { status: 201 });
       }
       if (url === "/api/tasks") return Response.json({ tasks: storedTasks });
-      if (url === "/api/quests/candidates")
+      if (url === "/api/quests/candidates") {
+        const urgent = storedTasks.find((t) => Boolean(t.dueAt));
         return Response.json({
-          isUrgent: false,
-          candidates: inProgressQuest ? [] : storedTasks.slice(0, 3),
+          isUrgent: Boolean(urgent),
+          candidates: inProgressQuest ? [] : urgent ? [urgent] : storedTasks.slice(0, 3),
           inProgressQuest,
         });
+      }
       if (url === "/api/quests" && init?.method === "POST") {
         const body = JSON.parse(String(init.body));
         const newQuest: Quest = {
@@ -154,7 +160,7 @@ describe("タスク登録と3択の画面遷移", () => {
     );
     expect(rows[0]).toHaveTextContent("新しい冒険");
     expect(rows[1]).toHaveTextContent("以前のタスク");
-    fireEvent.click(screen.getByRole("button", { name: /クエスト/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^クエスト/ }));
     expect(await screen.findByRole("radio", { name: /新しい冒険/ })).toBeVisible();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
@@ -253,5 +259,30 @@ describe("タスク登録と3択の画面遷移", () => {
 
     // 初期表示はクエストタブがアクティブ
     expect(buttons[1]).toHaveAttribute("aria-current", "page");
+  });
+
+  it("デバッグメニューからダミータスク追加を実行できる", async () => {
+    render(<QuestApp />);
+
+    const dummyBtn = screen.getByRole("button", { name: "ダミータスクを追加" });
+    fireEvent.click(dummyBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("ダミータスクを追加しました")).toBeInTheDocument();
+    });
+    expect(storedTasks.length).toBe(3);
+  });
+
+  it("デバッグメニューから緊急クエスト発動を実行するとクエスト画面に緊急クエストが表示される", async () => {
+    render(<QuestApp />);
+
+    const urgentBtn = screen.getByRole("button", { name: "緊急クエストを発動" });
+    fireEvent.click(urgentBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("緊急クエストを発動しました")).toBeInTheDocument();
+    });
+    expect(await screen.findByText(/期限が迫っています/)).toBeInTheDocument();
+    expect(screen.getByText("【緊急】魔王軍の斥候を撃退せよ")).toBeInTheDocument();
   });
 });
