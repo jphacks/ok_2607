@@ -6,10 +6,10 @@
  */
 @theme {
   /* 背景・面 */
-  --color-surface: #0b0d17; /* 画面の背景 */
-  --color-panel: #22273e; /* パネル・カード */
-  --color-panel-active: #292e47; /* 選択中のパネル */
-  --color-field: #111321; /* 入力欄 */
+  --color-surface: #120e22; /* 画面の背景（紫寄りの黒） */
+  --color-panel: #1f1838; /* パネル・カード */
+  --color-panel-active: #2a2150; /* 選択中のパネル */
+  --color-field: #0d0a1a; /* 入力欄 */
 
   /* 文字 */
   --color-text: #ededf4;
@@ -32,4 +32,130 @@
   /* 状態 */
   --color-success: #a5d4be; /* 成功・フォーカスリング */
   --color-danger: #ffb5a9; /* エラー・警告 */
+
+  /* ネオン（一瞬の強調・進捗） */
+  --color-neon-pink: #ff4fd8; /* 即決・コンボ・レベルアップ */
+  --color-neon-cyan: #3ee8ff; /* 進捗・チェック完了 */
+  --color-urgent: #ff6a3d; /* 緊急クエストの枠 */
+
+  /* カードのレア度（reject 回数で決まる。src/features/quest/rarity.ts） */
+  --color-rarity-common: #3ee8ff;
+  --color-rarity-rare: #a46bff;
+  --color-rarity-mythic: #ffd36b; /* ホロ枠は neon-pink・neon-cyan とのグラデーション */
+
+  /*
+   * アニメーション。animate-card-flip のように Tailwind のクラスで使う。
+   * 1 つの演出は 0.5 秒以内（無限ループの装飾を除く）。
+   * prefers-reduced-motion では globals.css の全体ルールで止まる。
+   */
+  --animate-card-flip: card-flip 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  --animate-rare-glow: rare-glow 0.4s ease-out;
+  --animate-holo: holo 3s linear infinite;
+  --animate-urgent-pulse: urgent-pulse 1.2s ease-in-out infinite;
+  --animate-shake: shake 0.3s ease-in-out;
+  --animate-stamp: stamp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-dissolve: dissolve 0.4s ease-in forwards;
+  --animate-float-up: float-up 0.5s ease-out forwards;
+  --animate-flash: flash 0.3s ease-out forwards;
+  --animate-pop: pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  @keyframes card-flip {
+    0% {
+      opacity: 0;
+      transform: perspective(600px) rotateY(90deg);
+    }
+    100% {
+      opacity: 1;
+      transform: perspective(600px) rotateY(0);
+    }
+  }
+  @keyframes rare-glow {
+    0% {
+      box-shadow: 0 0 0 currentColor;
+    }
+    50% {
+      box-shadow: 0 0 24px currentColor;
+    }
+    100% {
+      box-shadow: 0 0 8px currentColor;
+    }
+  }
+  @keyframes holo {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+  @keyframes urgent-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 var(--color-urgent);
+    }
+    50% {
+      box-shadow: 0 0 12px 2px var(--color-urgent);
+    }
+  }
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    16%,
+    50%,
+    83% {
+      transform: translateX(-4px);
+    }
+    33%,
+    66% {
+      transform: translateX(4px);
+    }
+  }
+  @keyframes stamp {
+    0% {
+      opacity: 0;
+      transform: scale(2) rotate(0);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(-8deg);
+    }
+  }
+  @keyframes dissolve {
+    100% {
+      opacity: 0;
+      filter: grayscale(1);
+      transform: translateY(8px);
+    }
+  }
+  @keyframes float-up {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-32px);
+    }
+  }
+  @keyframes flash {
+    0% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes pop {
+    0% {
+      transform: scale(0.8);
+    }
+    60% {
+      transform: scale(1.05);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
 }

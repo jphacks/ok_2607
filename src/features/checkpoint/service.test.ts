@@ -159,6 +159,19 @@ describe("checkpoint service の所有者境界", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("他ユーザーのクエストではチェックポイントを取得しない", async () => {
+    const { db, from } = fixture({ questOwner: "other" });
+
+    expect(await getQuestDetail(db, "quest-1", "owner")).toBeNull();
+    expect(from).not.toHaveBeenCalledWith("checkpoints");
+  });
+
+  it("元タスクの所有者が異なる場合は並行取得のチェックポイントエラーも公開しない", async () => {
+    const { db } = fixture({ taskOwner: "other", fail: "checkpoints" });
+
+    expect(await getQuestDetail(db, "quest-1", "owner")).toBeNull();
+  });
+
   it("存在しない対象は取得・更新・完了できない", async () => {
     const { db, rpc, updates } = fixture();
     expect(await getQuestWithTask(db, "missing", "owner")).toBeNull();
