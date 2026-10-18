@@ -56,17 +56,17 @@
 
 ### まとめ先
 
-| 共通部品（`src/components/ui/`） | 元になるもの                                        |
-| -------------------------------- | --------------------------------------------------- |
-| `PixelPanel`                     | `.pixel-panel`、`PixelCard`                         |
-| `PixelButton`                    | `.gold-button` / `.secondary-button`、`PixelButton` |
-| `PixelInput`                     | `.pixel-input`                                      |
-| `ScreenHeading`                  | `.screen-heading`、`PixelHeader`                    |
-| `PixelDivider`                   | `.pixel-divider`                                    |
-| `PixelCheckbox`                  | `PixelCheckbox`                                     |
-| `PixelProgressBar`               | `PixelProgressBar`                                  |
-
-ドット絵（`HeroPixelArt`、`MagePixelArt`、`TreasureChestPixelArt`、`.pixel-wizard` など）は機能固有なので、各機能のフォルダに残してよい。ドット絵の中の色はトークンにしなくてよい。
+| 共通部品（`src/components/ui/`）                                                                                                                                                    | 元になるもの                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `PixelBottomNav`                                                                                                                                                                    | ボトムナビゲーション（タスク / クエスト / ステータス） |
+| `PixelPanel`                                                                                                                                                                        | `.pixel-panel`、`PixelCard`                            |
+| `PixelButton`                                                                                                                                                                       | `.gold-button` / `.secondary-button`、`PixelButton`    |
+| `PixelInput`                                                                                                                                                                        | `.pixel-input`                                         |
+| `ScreenHeading`                                                                                                                                                                     | `.screen-heading`、`PixelHeader`                       |
+| `PixelDivider`                                                                                                                                                                      | `.pixel-divider`                                       |
+| `PixelCheckbox`                                                                                                                                                                     | `PixelCheckbox`                                        |
+| `PixelProgressBar`                                                                                                                                                                  | `PixelProgressBar`                                     |
+| ドット絵（`HeroPixelArt`、`MagePixelArt`、`TreasureChestPixelArt`、`.pixel-wizard` など）は機能固有なので、各機能のフォルダに残してよい。ドット絵の中の色はトークンにしなくてよい。 |
 
 ### 移行の手順
 

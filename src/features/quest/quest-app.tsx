@@ -6,6 +6,7 @@ import type { z } from "zod";
 import { HomeScreen } from "@/features/title/home-screen";
 import { TaskList } from "@/features/task/task-list";
 import { QuestChoices } from "@/features/quest/quest-choices";
+import { PixelBottomNav, type NavTabId } from "@/components/ui/PixelBottomNav";
 import {
   ApiError,
   CreateTaskResponse,
@@ -17,12 +18,7 @@ import {
   type CreateTaskRequest,
 } from "@/lib/schemas";
 
-type Tab = "home" | "tasks" | "quest";
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: "home", label: "ホーム", icon: "⌂" },
-  { id: "tasks", label: "タスク", icon: "☷" },
-  { id: "quest", label: "クエスト", icon: "⚑" },
-];
+type Tab = NavTabId;
 
 async function requestJson<S extends z.ZodType>(
   url: string,
@@ -113,7 +109,7 @@ export function QuestApp() {
   function switchTab(next: Tab) {
     setTab(next);
     if (next === "quest" && needsChoices.current) void loadChoices();
-    if (next === "home" && !stats) void loadStats();
+    if (next === "status" && !stats) void loadStats();
   }
 
   async function createTask(input: CreateTaskRequest) {
@@ -172,14 +168,14 @@ export function QuestApp() {
         </span>
       </header>
       <div className="pixel-divider shrink-0" aria-hidden="true" />
-      <main id="main-content" className="flex-1 px-[22px] pb-28 pt-6" tabIndex={-1}>
+      <main id="main-content" className="flex-1 px-[22px] pb-32 pt-6" tabIndex={-1}>
         {tab === "quest" && (
           <QuestChoices
             choices={choices}
             pending={choicePending}
             error={choiceError}
             onAddTask={addTask}
-            onHome={() => switchTab("home")}
+            onHome={() => switchTab("status")}
             onRetry={() => void loadChoices()}
             onStart={startQuest}
             onResumeQuest={handleResumeQuest}
@@ -208,7 +204,7 @@ export function QuestApp() {
               タスクを読み込んでいます…
             </p>
           ))}
-        {tab === "home" && (
+        {tab === "status" && (
           <HomeScreen
             tasks={tasks ?? []}
             stats={stats}
@@ -219,25 +215,7 @@ export function QuestApp() {
           />
         )}
       </main>
-      <nav
-        aria-label="メインメニュー"
-        className="fixed bottom-0 left-1/2 z-10 w-full max-w-[390px] -translate-x-1/2 bg-[#1c293b] pb-[env(safe-area-inset-bottom)]"
-      >
-        <div className="pixel-divider" aria-hidden="true" />
-        <div className="flex h-[64px]">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => switchTab(item.id)}
-              aria-current={tab === item.id ? "page" : undefined}
-              className={`flex min-w-0 flex-1 items-center justify-center gap-2 text-xs transition-colors hover:bg-[#26354a] ${tab === item.id ? "text-[#f3ca70]" : "text-[#a4a8bc]"}`}
-            >
-              <span aria-hidden="true">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+      <PixelBottomNav currentTab={tab} onSelectTab={switchTab} />
     </div>
   );
 }
