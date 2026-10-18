@@ -87,24 +87,37 @@ describe("recommendTasks", () => {
     expect(tasks).toHaveLength(2);
   });
 
-  it("重みに対応する抽選区間から最大3件を重複なく選ぶ", () => {
-    const tasks = [task(1), task(2, { weight: 3 }), task(3), task(4)];
-    const result = recommendTasks(tasks, { now, random: () => 0.3 });
+  it.each([
+    [0, 0],
+    [4 / 7 - 0.000001, 0],
+    [4 / 7, 1],
+    [6 / 7 - 0.000001, 1],
+    [6 / 7, 2],
+    [0.999999, 2],
+  ])("reject回数[0,1,3]を正規化し、乱数%sで候補%sを選ぶ", (random, index) => {
+    const tasks = [task(1), task(2, { skippedCount: 1 }), task(3, { skippedCount: 3 })];
+    expect(recommendTasks(tasks, { now, random: () => random }).candidates[0].id).toBe(
+      tasks[index].id,
+    );
+  });
+
+  it("選択済みを除いたスコアで再抽選し、最大3件を重複なく返す", () => {
+    const tasks = [
+      task(1),
+      task(2, { skippedCount: 1 }),
+      task(3, { skippedCount: 3 }),
+      task(4, { skippedCount: 3 }),
+    ];
+    const result = recommendTasks(tasks, { now, random: () => 0.6 });
     expect(result.candidates.map((candidate) => candidate.id)).toEqual([
       tasks[1].id,
       tasks[0].id,
-      tasks[2].id,
+      tasks[3].id,
     ]);
-    expect(new Set(result.candidates.map((candidate) => candidate.id)).size).toBe(3);
   });
 
-  it("重みの区間の境界では次のタスクを選ぶ", () => {
-    const tasks = [task(1), task(2, { weight: 3 }), task(3)];
-    expect(recommendTasks(tasks, { now, random: () => 0.2 }).candidates[0].id).toBe(tasks[1].id);
-  });
-
-  it("全ての重みが0でも等確率の抽選で重複なく選ぶ", () => {
-    const tasks = [task(1, { weight: 0 }), task(2, { weight: 0 }), task(3, { weight: 0 })];
+  it.each([0, 5])("reject回数が全て%sなら等確率で抽選する", (skippedCount) => {
+    const tasks = [task(1, { skippedCount }), task(2, { skippedCount }), task(3, { skippedCount })];
     expect(
       recommendTasks(tasks, { now, random: () => 0.99 }).candidates.map(
         (candidate) => candidate.id,
@@ -112,8 +125,10 @@ describe("recommendTasks", () => {
     ).toEqual([tasks[2].id, tasks[1].id, tasks[0].id]);
   });
 
-  it("正の重みが残っていれば重み0のタスクを先には選ばない", () => {
-    const tasks = [task(1, { weight: 0 }), task(2, { weight: 2 }), task(3, { weight: 0 })];
-    expect(recommendTasks(tasks, { now, random: () => 0 }).candidates[0].id).toBe(tasks[1].id);
+  it("reject回数がDB整数の上限でも候補から消えない", () => {
+    const tasks = [task(1), task(2, { skippedCount: 2147483647 })];
+    expect(recommendTasks(tasks, { now, random: () => 0.9999999999 }).candidates[0].id).toBe(
+      tasks[1].id,
+    );
   });
 });
