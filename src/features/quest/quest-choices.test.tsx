@@ -283,6 +283,39 @@ describe("QuestChoices - 選択の強調と再抽選", () => {
       "line-clamp-2",
     );
   });
+  it("「今日のクエスト候補」や視覚的な「選択する/選択中」ラベルを表示しない", () => {
+    renderChoices();
+    expect(screen.queryByText("今日のクエスト候補")).not.toBeInTheDocument();
+    expect(screen.queryByText("選択する")).not.toBeInTheDocument();
+    expect(screen.queryByText("選択中")).not.toBeInTheDocument();
+
+    // カード選択後も「選択中」テキストは現れない
+    fireEvent.click(screen.getByRole("radio", { name: /Webアプリ/ }));
+    expect(screen.queryByText("選択中")).not.toBeInTheDocument();
+
+    // ラジオボタン入力自体はスクリーンリーダー・キーボード操作用に sr-only で存在する
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(3);
+    for (const radio of radios) {
+      expect(radio).toHaveClass("sr-only");
+    }
+  });
+
+  it("緊急クエスト時のみ「緊急クエスト ・ 締切間近」を表示する", () => {
+    render(
+      <QuestChoices
+        choices={{ ...mockChoices, isUrgent: true }}
+        pending={false}
+        error=""
+        onAddTask={vi.fn()}
+        onHome={vi.fn()}
+        onRetry={vi.fn()}
+        onStart={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("緊急クエスト ・ 締切間近")).toBeInTheDocument();
+    expect(screen.queryByText("今日のクエスト候補")).not.toBeInTheDocument();
+  });
 });
 
 describe("QuestChoices - レア度と演出", () => {
