@@ -32,13 +32,13 @@ export function PixelCheckbox({
       onClick={handleClick}
       className={`relative flex h-6 w-6 flex-shrink-0 items-center justify-center transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-accent ${
         checked
-          ? "border border-[#8892b0] bg-gradient-to-b from-[#4a5568] to-[#2d3748] shadow-inner"
-          : "border-2 border-[#d9b96f] bg-[#1a1f33] hover:border-[#ffe18d]"
+          ? "border border-line bg-panel shadow-inner"
+          : "border-2 border-gold-border bg-field hover:border-gold-accent"
       } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer active:scale-95"} ${className}`}
     >
       {checked && (
         <svg
-          className="h-4 w-4 text-white drop-shadow"
+          className="h-4 w-4 text-neon-cyan drop-shadow"
           viewBox="0 0 16 16"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
