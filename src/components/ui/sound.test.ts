@@ -67,6 +67,18 @@ describe("isSoundEnabled / setSoundEnabled", () => {
     });
     expect(() => setSoundEnabled(false)).not.toThrow();
   });
+  it("localStorage が使えなくても、切り替えた設定はこの画面の間は反映する", async () => {
+    const { isSoundEnabled, setSoundEnabled } = await loadSound();
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(isSoundEnabled()).toBe(false);
+    setSoundEnabled(true);
+    expect(isSoundEnabled()).toBe(true);
+  });
 });
 
 describe("playSfx", () => {

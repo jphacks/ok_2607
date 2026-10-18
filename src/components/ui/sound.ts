@@ -36,20 +36,23 @@ const VOLUME = 0.08;
 
 const listeners = new Set<() => void>();
 let audioContext: AudioContext | null = null;
+// localStorage が使えない環境で、切り替えた設定をこの画面の間だけ覚えておく
+let memoryEnabled: boolean | null = null;
 
 export function isSoundEnabled(): boolean {
   try {
     return window.localStorage.getItem(STORAGE_KEY) !== "off";
   } catch {
-    return false;
+    return memoryEnabled ?? false;
   }
 }
 
 export function setSoundEnabled(enabled: boolean): void {
+  memoryEnabled = enabled;
   try {
     window.localStorage.setItem(STORAGE_KEY, enabled ? "on" : "off");
   } catch {
-    // 保存できない環境では何もしない（音なしとして動く）
+    // 保存できない環境では、この画面の間だけ memoryEnabled で覚えておく
   }
   listeners.forEach((listener) => listener());
 }
