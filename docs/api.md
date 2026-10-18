@@ -42,6 +42,7 @@ Issue #20 の残るデータ分離対応は、この共通契約の先行PRと�
 | PATCH    | `/api/tasks/{id}`                       | タスク編集                     | @lovemeasure      |
 | DELETE   | `/api/tasks/{id}`                       | タスク削除                     | @lovemeasure      |
 | GET      | `/api/quests/candidates`                | 3択の候補取得                  | @ki-mutaku        |
+| POST     | `/api/quests/candidates`                | キャッシュ抽選の提示記録       | @ki-mutaku        |
 | POST     | `/api/quests`                           | クエスト開始                   | @ki-mutaku        |
 | GET      | `/api/quests/{id}`                      | クエスト詳細（追加）           | @miyagunimikihiro |
 | POST     | `/api/quests/{id}/checkpoints/generate` | AI チェックポイント生成        | @miyagunimikihiro |
@@ -118,6 +119,16 @@ Issue #20 の残るデータ分離対応は、この共通契約の先行PRと�
 - 提示回数はDB内で原子的に加算する。抽選中に候補の状態が変わった場合は `409 conflict`
 - 抽選前に進行中クエストを確認する。存在する場合は `inProgressQuest` を返し、`candidates` は空、`isUrgent` は `false`。抽選・`record_quest_candidates`・提示回数加算は行わない
 - 画面は進行中の案内と「ホームで確認する」を表示し、新規開始・再抽選ボタンは表示しない
+
+### POST /api/quests/candidates
+
+読み込み済みタスクから端末で抽選した候補の提示を記録する。GETと異なりタスク一覧の再取得・再抽選は行わない。
+
+- 入力: `{ "shownTaskIds": ["uuid"] }`。重複なしの1〜3件。型は `RecordQuestCandidatesRequest`。
+- 成功: `200 { "tasks": [Task] }`。提示回数加算後のタスク。型は `RecordQuestCandidatesResponse`。
+- 認証必須。本人のactiveな未期限切れタスクだけを対象とし、進行中クエストがある場合や緊急候補と矛盾する場合は `409 conflict`。
+- DBの `record_quest_candidates(uuid[], uuid)` で検証と提示回数更新を原子的に行う。実行権限はservice_roleのみ。
+- 画面はローカル抽選を即時表示できるが、提示の保存成功までは開始できない。失敗を完了扱いせず、再取得を案内する。
 
 ### POST /api/quests
 

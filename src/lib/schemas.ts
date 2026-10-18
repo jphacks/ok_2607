@@ -79,6 +79,17 @@ export const StartQuestRequest = z.object({
 });
 export type StartQuestRequest = z.infer<typeof StartQuestRequest>;
 
+export const RecordQuestCandidatesRequest = z.object({
+  shownTaskIds: z
+    .array(z.uuid())
+    .min(1)
+    .max(3)
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: "提示するタスクIDを重複なく指定してください",
+    }),
+});
+export type RecordQuestCandidatesRequest = z.infer<typeof RecordQuestCandidatesRequest>;
+
 export const UpdateCheckpointRequest = z.object({
   isDone: z.boolean(),
 });
@@ -88,6 +99,9 @@ export type UpdateCheckpointRequest = z.infer<typeof UpdateCheckpointRequest>;
 
 export const TasksResponse = z.object({ tasks: z.array(Task) });
 export type TasksResponse = z.infer<typeof TasksResponse>;
+
+export const RecordQuestCandidatesResponse = TasksResponse;
+export type RecordQuestCandidatesResponse = z.infer<typeof RecordQuestCandidatesResponse>;
 
 export const CreateTaskResponse = z.object({ task: Task });
 export type CreateTaskResponse = z.infer<typeof CreateTaskResponse>;
