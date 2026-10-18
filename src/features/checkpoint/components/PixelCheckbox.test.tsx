@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PixelCheckbox } from "./PixelCheckbox";
 
 describe("PixelCheckbox", () => {
-  it("チェック状態とアクセシブルネームが正しく反映される", () => {
+  it("チェック状態とアクセシブルネームが正しく反映され、トークンクラスが適用される", () => {
     const handleChange = vi.fn();
     const { rerender } = render(
       <PixelCheckbox
@@ -19,6 +19,7 @@ describe("PixelCheckbox", () => {
     });
     expect(checkbox).toBeInTheDocument();
     expect(checkbox).toHaveAttribute("aria-checked", "false");
+    expect(checkbox).toHaveClass("border-gold-border", "bg-field");
     expect(checkbox).not.toBeDisabled();
 
     fireEvent.click(checkbox);
@@ -32,6 +33,8 @@ describe("PixelCheckbox", () => {
       />,
     );
     expect(checkbox).toHaveAttribute("aria-checked", "true");
+    expect(checkbox).toHaveClass("border-line", "bg-panel");
+    expect(checkbox.querySelector("svg")).toBeInTheDocument();
   });
 
   it("disabled のときはクリックしても onChange が呼ばれない", () => {

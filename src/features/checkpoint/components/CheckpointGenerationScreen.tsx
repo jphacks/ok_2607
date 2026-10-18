@@ -261,12 +261,12 @@ export function CheckpointGenerationScreen({
           {/* 見出し & 魔道士キャラクター */}
           <div className="mt-4 flex items-start justify-between">
             <div className="flex-1 pr-2">
-              <h1 className="text-xl font-bold tracking-wide text-white">AIが冒険の道筋を描く</h1>
+              <h1 className="text-xl font-bold tracking-wide text-text">AIが冒険の道筋を描く</h1>
               <div className="mt-2">
                 <span className="text-[11px] font-bold tracking-wider text-gold-accent">
                   MAIN QUEST
                 </span>
-                <p className="mt-0.5 text-base font-bold text-white">{taskTitle}</p>
+                <p className="mt-0.5 text-base font-bold text-text">{taskTitle}</p>
               </div>
             </div>
             <div className="flex-shrink-0 pt-1">
@@ -305,13 +305,13 @@ export function CheckpointGenerationScreen({
             )}
 
             {error && (
-              <div className="rounded border border-red-500 bg-red-950/40 p-4 text-center text-sm text-red-200">
+              <div className="rounded border border-danger/60 bg-panel p-4 text-center text-sm text-danger">
                 <p className="font-bold">生成に失敗しました</p>
-                <p className="mt-1 text-xs opacity-90">{error}</p>
+                <p className="mt-1 text-xs text-muted">{error}</p>
                 <button
                   type="button"
                   onClick={() => void generate()}
-                  className="mt-3 border border-red-400 px-3 py-1 text-xs hover:bg-red-900/50"
+                  className="mt-3 border border-danger/80 px-3 py-1 text-xs text-danger hover:bg-panel-active"
                 >
                   再試行する
                 </button>
@@ -377,7 +377,7 @@ export function CheckpointGenerationScreen({
                         ) : (
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <h2 className="truncate text-sm font-bold text-white">{cp.title}</h2>
+                              <h2 className="truncate text-sm font-bold text-text">{cp.title}</h2>
                               <p className="text-[11px] text-muted">
                                 {cp.description || "到達すべき状態"}
                               </p>
