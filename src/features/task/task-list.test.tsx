@@ -70,6 +70,52 @@ afterEach(() => {
   Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
 });
 
+describe("TaskList のreject回数", () => {
+  it("回数の昇順に並べ、同数の順序を保ち、回数の更新で並べ直す", () => {
+    const tasks: Task[] = [
+      { ...task, id: "many", title: "何度か見送ったタスク", skippedCount: 12 },
+      { ...task, id: "zero", title: "まだ見送っていないタスク", skippedCount: 0 },
+      { ...task, id: "two-first", title: "同数の新しいタスク", skippedCount: 2 },
+      { ...task, id: "two-second", title: "同数の古いタスク", skippedCount: 2 },
+    ];
+    const props = {
+      openForm: false,
+      onFormChange: vi.fn(),
+      onCreate: vi.fn(),
+      onUpdate: vi.fn(),
+      onDelete: vi.fn(),
+    };
+    const { rerender } = render(<TaskList {...props} tasks={tasks} />);
+    const rows = screen.getAllByRole("listitem");
+    expect(rows.map((row) => row.dataset.taskId)).toEqual([
+      "zero",
+      "two-first",
+      "two-second",
+      "many",
+    ]);
+    for (const [index, count] of [0, 2, 2, 12].entries()) {
+      expect(within(rows[index]).getByLabelText(`reject回数 ${count}回`)).toHaveTextContent(
+        `❌${count}`,
+      );
+    }
+    expect(tasks.map((item) => item.id)).toEqual(["many", "zero", "two-first", "two-second"]);
+
+    rerender(
+      <TaskList
+        {...props}
+        tasks={tasks.map((item) => (item.id === "zero" ? { ...item, skippedCount: 3 } : item))}
+      />,
+    );
+    expect(screen.getAllByRole("listitem").map((row) => row.dataset.taskId)).toEqual([
+      "two-first",
+      "two-second",
+      "zero",
+      "many",
+    ]);
+    expect(screen.getByLabelText("reject回数 3回")).toHaveTextContent("❌3");
+  });
+});
+
 describe("TaskList の編集と削除", () => {
   it("タイトルだけの編集では元の期限の時刻と精度を保持する", async () => {
     const { onUpdate, onCreate } = renderTaskList();
