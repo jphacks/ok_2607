@@ -28,7 +28,7 @@ export function QuestProgressScreen({
   questId,
   taskTitle,
   initialCheckpoints,
-  level = 4,
+  level = 1,
   onCompleteQuest,
 }: QuestProgressScreenProps) {
   const router = useRouter();

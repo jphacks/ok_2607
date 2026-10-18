@@ -21,7 +21,7 @@ export function CheckpointGenerationScreen({
   questId,
   taskTitle,
   initialCheckpoints = [],
-  level = 4,
+  level = 1,
   onStartQuest,
 }: CheckpointGenerationScreenProps) {
   const router = useRouter();
