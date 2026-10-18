@@ -3,7 +3,7 @@ import type { Task } from "@/lib/schemas";
 import type * as TaskServer from "@/features/task/server";
 import { getQuestCandidates, questFromRow, startQuest } from "@/features/quest/server";
 import { POST } from "@/app/api/quests/route";
-import { GET } from "@/app/api/quests/candidates/route";
+import { GET, POST as recordPresentation } from "@/app/api/quests/candidates/route";
 
 const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
@@ -74,6 +74,68 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.getCurrentUser.mockResolvedValue({ id: "test-user-id", email: "test@example.com" });
   mocks.questLookup.mockResolvedValue({ data: null, error: null });
+});
+
+describe("ローカル抽選の提示記録API", () => {
+  const savedRow = {
+    id: firstId,
+    title: firstTask.title,
+    due_at: null,
+    status: "active",
+    shown_count: 1,
+    skipped_count: 0,
+    created_at: now.toISOString(),
+    updated_at: now.toISOString(),
+  };
+
+  it("保存した候補を表示順に返し、抽選用のDB読み取りを繰り返さない", async () => {
+    mocks.rpc.mockResolvedValue({
+      data: [{ ...savedRow, id: secondId }, savedRow],
+      error: null,
+    });
+    const response = await recordPresentation(request({ shownTaskIds: [firstId, secondId] }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      tasks: [
+        { id: firstId, shownCount: 1 },
+        { id: secondId, shownCount: 1 },
+      ],
+    });
+    expect(mocks.listTasks).not.toHaveBeenCalled();
+    expect(mocks.questLookup).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { code: "P0001", status: 409, message: "conflict" },
+    { code: "XX000", status: 500, message: "internal_error" },
+  ])("保存失敗を成功応答にしない: $code", async ({ code, status, message }) => {
+    mocks.rpc.mockResolvedValue({ data: null, error: { code } });
+    const response = await recordPresentation(request({ shownTaskIds: [firstId] }));
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ error: { code: message } });
+  });
+
+  it.each([[], [savedRow, savedRow], [{ ...savedRow, id: secondId }]])(
+    "欠落・重複・別候補の保存結果を完了扱いにしない",
+    async (...rows) => {
+      mocks.rpc.mockResolvedValue({ data: rows, error: null });
+      const response = await recordPresentation(request({ shownTaskIds: [firstId] }));
+      expect(response.status).toBe(500);
+    },
+  );
+
+  it("未認証は保存せず、不正入力と壊れたJSONも拒否する", async () => {
+    mocks.getCurrentUser.mockResolvedValueOnce(null);
+    expect((await recordPresentation(request({ shownTaskIds: [firstId] }))).status).toBe(401);
+    expect((await recordPresentation(request({ shownTaskIds: [firstId, firstId] }))).status).toBe(
+      400,
+    );
+    const invalid = await recordPresentation(
+      new Request("http://localhost/api/quests/candidates", { method: "POST", body: "{" }),
+    );
+    expect(await invalid.json()).toMatchObject({ error: { code: "invalid_json" } });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
 });
 
 describe("クエスト候補の保存と応答", () => {
