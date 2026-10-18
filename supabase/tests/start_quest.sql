@@ -25,7 +25,6 @@ begin
   assert (select count(*) = 1 from public.selection_logs
     where selected_task_id = '00000000-0000-4000-8000-000000000001'), '選択を記録する';
 
-  assert (select bool_and(weight = 1) from public.tasks), '選択・未選択による旧重み更新は行わない';
   begin
     perform public.start_quest(
       '00000000-0000-4000-8000-000000000002',

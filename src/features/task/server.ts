@@ -8,7 +8,6 @@ const TaskRow = z
     id: Task.shape.id,
     title: Task.shape.title,
     due_at: Task.shape.dueAt,
-    weight: Task.shape.weight,
     status: Task.shape.status,
     shown_count: Task.shape.shownCount,
     skipped_count: Task.shape.skippedCount,
@@ -19,7 +18,6 @@ const TaskRow = z
     id: data.id,
     title: data.title,
     dueAt: data.due_at,
-    weight: data.weight,
     status: data.status,
     shownCount: data.shown_count,
     skippedCount: data.skipped_count,
@@ -27,7 +25,7 @@ const TaskRow = z
     updatedAt: data.updated_at,
   }));
 
-const taskColumns = "id,title,due_at,weight,status,shown_count,skipped_count,created_at,updated_at";
+const taskColumns = "id,title,due_at,status,shown_count,skipped_count,created_at,updated_at";
 const pageSize = 1000;
 
 export function taskFromRow(row: unknown): Task {

@@ -57,7 +57,6 @@ describe("GET /api/quests/[id]", () => {
         id: "task-1",
         title: "本を読む",
         dueAt: null,
-        weight: 1.0,
         status: "in_quest" as const,
         shownCount: 1,
         skippedCount: 0,
