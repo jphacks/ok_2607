@@ -60,7 +60,9 @@ beforeEach(() => {
             { error: { code: "internal_error", message: "保存できませんでした" } },
             { status: 500 },
           );
-        const input: { title: string; dueAt: string | null } = JSON.parse(String(init.body));
+        const input: { title: string; dueAt: string | null; skippedCount?: number } = JSON.parse(
+          String(init.body),
+        );
         const task = {
           ...existing,
           ...input,
@@ -422,7 +424,7 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(screen.queryByRole("button", { name: "ダミータスクを追加" })).not.toBeInTheDocument();
   });
 
-  it("ダミータスク追加で仕事・学校・私生活の6件を期限なしで追加し、既存タスクを保持する", async () => {
+  it("ダミータスク6件を異なるreject回数・期限なしで追加し、既存タスクを保持する", async () => {
     storedTasks = [existing];
     render(<QuestApp />);
     fireEvent.click(await screen.findByRole("button", { name: /^タスク/ }));
@@ -438,6 +440,9 @@ describe("タスク登録と3択の画面遷移", () => {
     expect(storedTasks).toContainEqual(existing);
     const addedTasks = storedTasks.filter((task) => task.id !== existing.id);
     expect(addedTasks.every((task) => task.dueAt === null)).toBe(true);
+    expect(addedTasks.map((task) => task.skippedCount).sort((a, b) => a - b)).toEqual([
+      0, 1, 2, 3, 5, 10,
+    ]);
     for (const category of [/会議|プレゼン/, /課題|英単語/, /買い|掃除/]) {
       expect(addedTasks.filter((task) => category.test(task.title))).toHaveLength(2);
     }
