@@ -2,7 +2,7 @@ import { useState } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskList } from "@/features/task/task-list";
-import type { CreateTaskRequest, Task } from "@/lib/schemas";
+import { TASK_TITLE_MAX_LENGTH, type CreateTaskRequest, type Task } from "@/lib/schemas";
 
 const task: Task = {
   id: "task-1",
@@ -378,5 +378,32 @@ describe("TaskList の編集と削除", () => {
       expect(onCreate).toHaveBeenCalledWith({ title: "別のタスク", dueAt: null });
     });
     expect(onUpdate).toHaveBeenCalledTimes(action === "保存する" ? 1 : 0);
+  });
+});
+
+describe("タスク名の文字数上限", () => {
+  it("入力欄の上限を30文字にし、入力中の文字数を表示する", () => {
+    renderTaskList({ tasks: [] });
+    fireEvent.click(screen.getByRole("button", { name: "新しいタスクを追加" }));
+    const form = screen.getByRole("form", { name: "タスク作成" });
+    const input = within(form).getByLabelText(/タスク名/);
+    expect(TASK_TITLE_MAX_LENGTH).toBe(30);
+    expect(input).toHaveAttribute("maxLength", "30");
+    expect(input).toHaveAccessibleDescription("0/30");
+
+    fireEvent.change(input, { target: { value: "レポートの参考文献を探す" } });
+    expect(input).toHaveAccessibleDescription("12/30");
+    expect(within(form).getByText("12/30")).toHaveClass("text-muted");
+
+    fireEvent.change(input, { target: { value: "あ".repeat(30) } });
+    expect(within(form).getByText("30/30")).toHaveClass("text-gold-accent");
+  });
+
+  it("編集時は既存のタスク名の文字数を表示する", () => {
+    renderTaskList();
+    openAction("編集");
+    const form = screen.getByRole("form", { name: "タスク編集" });
+    expect(within(form).getByLabelText(/タスク名/)).toHaveAttribute("maxLength", "30");
+    expect(within(form).getByText(`${task.title.length}/30`)).toBeInTheDocument();
   });
 });
