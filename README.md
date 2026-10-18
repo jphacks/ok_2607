@@ -1,8 +1,6 @@
-# タスク3択クエスト（仮）
+# TriOne
 
 [![IMAGE ALT TEXT HERE](https://jphacks.com/wp-content/uploads/2026/07/IMG_5316.png)](https://www.youtube.com/watch?v=piaNsc6ilBI)
-
-<!-- TODO: プロダクト名を決めたらタイトルを変更し、画像とデモ動画のリンクを差し替える -->
 
 ## 製品概要
 

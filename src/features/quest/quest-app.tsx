@@ -165,7 +165,7 @@ export function QuestApp() {
       <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px]">
         <span className="flex items-center gap-2 text-[#f3ca70]">
           <span aria-hidden="true">✦</span>
-          <span className="font-mono text-sm tracking-[-1px]">TODO ROGUE</span>
+          <span className="font-mono text-sm tracking-[-1px]">TriOne</span>
         </span>
         <span className="font-mono text-[10px] text-[#a4a8bc]">
           ●　{stats ? `${stats.completedQuests} CLEAR` : "冒険のはじまり"}
