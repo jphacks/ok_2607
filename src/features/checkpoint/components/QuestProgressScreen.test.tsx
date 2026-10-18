@@ -285,7 +285,7 @@ describe("QuestProgressScreen", () => {
     it("全部終わると完了メッセージを表示する", () => {
       renderFive(fiveCheckpoints.map((cp) => ({ ...cp, isDone: true })));
       expect(screen.queryByRole("group", { name: "今やること" })).not.toBeInTheDocument();
-      expect(screen.getByText("すべてのチェックポイントを達成！")).toBeInTheDocument();
+      expect(screen.getByText("すべてのマイルストーンを達成！")).toBeInTheDocument();
     });
 
     it("7 件以上あるときは完了済みと先の項目を畳む", () => {
@@ -408,5 +408,25 @@ describe("クエスト完了の保存", () => {
     expect(screen.getByRole("button", { name: "完了処理中..." })).toBeDisabled();
     fireEvent.click(screen.getByText("データを保存・読み込みできる"));
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("QuestProgressScreen のロードマップ", () => {
+  it("「ロードマップを見る」で全体を開き、閉じると今やること表示に戻る", () => {
+    render(
+      <QuestProgressScreen
+        questId="quest-1"
+        taskTitle="アプリ"
+        initialCheckpoints={mockCheckpoints}
+      />,
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /ロードマップを見る/ }));
+    expect(screen.getByRole("dialog", { name: "ロードマップ" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "ロードマップを閉じる" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "今やること" })).toBeInTheDocument();
   });
 });
