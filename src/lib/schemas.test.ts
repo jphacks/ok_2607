@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { CreateTaskRequest, RecordQuestCandidatesRequest, UpdateTaskRequest } from "@/lib/schemas";
+import {
+  CreateTaskRequest,
+  RecordQuestCandidatesRequest,
+  TASK_TITLE_MAX_LENGTH,
+  UpdateTaskRequest,
+} from "@/lib/schemas";
 
 describe("タスク更新の入力", () => {
   it.each([{}, { unknown: "値" }, { title: undefined }])(
@@ -48,5 +53,20 @@ describe("キャッシュから提示した候補の記録", () => {
     });
     const ids = [id, id.replace(/1$/, "2"), id.replace(/1$/, "3")];
     expect(RecordQuestCandidatesRequest.parse({ shownTaskIds: ids }).shownTaskIds).toEqual(ids);
+  });
+});
+
+describe("タスク名の文字数上限", () => {
+  it("上限は30文字", () => {
+    expect(TASK_TITLE_MAX_LENGTH).toBe(30);
+  });
+
+  it.each([CreateTaskRequest, UpdateTaskRequest])("30文字を受け付け31文字を拒否する", (schema) => {
+    expect(schema.safeParse({ title: "あ".repeat(30) }).success).toBe(true);
+    expect(schema.safeParse({ title: "あ".repeat(31) }).success).toBe(false);
+  });
+
+  it("前後の空白を除いて30文字なら受け付ける", () => {
+    expect(CreateTaskRequest.parse({ title: ` ${"あ".repeat(30)} ` }).title).toBe("あ".repeat(30));
   });
 });
