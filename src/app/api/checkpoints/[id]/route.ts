@@ -4,6 +4,7 @@ import { z } from "zod";
 import { updateCheckpointStatus } from "@/features/checkpoint/service";
 import { apiError, ok, parseJson } from "@/lib/api-response";
 import { UpdateCheckpointRequest } from "@/lib/schemas";
+import { getCurrentUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const ParamsSchema = z.object({
@@ -11,6 +12,11 @@ const ParamsSchema = z.object({
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return apiError(401, "unauthorized", "ログインが必要です");
+  }
+
   const resolvedParams = await params;
   const parsedParams = ParamsSchema.safeParse(resolvedParams);
 
@@ -31,7 +37,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const supabase = supabaseServer();
 
   try {
-    const updated = await updateCheckpointStatus(supabase, checkpointId, parsedBody.data.isDone);
+    const updated = await updateCheckpointStatus(
+      supabase,
+      checkpointId,
+      parsedBody.data.isDone,
+      user.id,
+    );
 
     if (!updated) {
       return apiError(404, "not_found", "指定されたチェックポイントが見つかりません");
