@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Checkpoint, CompleteQuestResponse, QuestDetailResponse } from "@/lib/schemas";
+import type {
+  Checkpoint,
+  CompleteQuestResponse,
+  QuestDetailResponse,
+  UpdateCheckpointFieldsRequest,
+} from "@/lib/schemas";
 import type { CheckpointPlan } from "./generate";
 import {
   type DbCheckpointRow,
@@ -163,12 +168,12 @@ export async function getQuestDetail(
 }
 
 /**
- * チェックポイントの達成状態（isDone / doneAt）を更新する。
+ * チェックポイント名・達成状態を、指定された項目だけ更新する。
  */
-export async function updateCheckpointStatus(
+export async function updateCheckpoint(
   supabase: SupabaseClient,
   checkpointId: string,
-  isDone: boolean,
+  updates: UpdateCheckpointFieldsRequest,
   userId: string,
 ): Promise<Checkpoint | null> {
   const { data: checkpointRow, error: checkpointError } = await supabase
@@ -187,8 +192,13 @@ export async function updateCheckpointStatus(
   const { data: updatedRow, error } = await supabase
     .from("checkpoints")
     .update({
-      is_done: isDone,
-      done_at: isDone ? new Date().toISOString() : null,
+      ...(updates.title !== undefined ? { title: updates.title } : {}),
+      ...(updates.isDone !== undefined
+        ? {
+            is_done: updates.isDone,
+            done_at: updates.isDone ? new Date().toISOString() : null,
+          }
+        : {}),
     })
     .eq("id", checkpointId)
     .eq("quest_id", checkpointRow.quest_id)
