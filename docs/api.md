@@ -115,10 +115,10 @@
 { "quest": Quest }
 ```
 
-- 選ばれたタスクの重みを上げ、`status` を `in_quest` にする
-- 選ばれなかったタスクの重みを下げ、`skippedCount` を増やす
+- 選ばれたタスクの `status` を `in_quest` にする。選択したタスクの `skippedCount` は変更しない
+- 提示された未選択タスクのみ `skippedCount`（reject回数）を1増やす
 - `selection_logs` に記録する
-- 重みの更新式は、選択したタスクが `+1`、未選択タスクが `×0.8`
+- 旧重みの加算・減衰は停止。抽選方式と `weight` 項目の廃止は #36 の段階的な移行で行う
 - `shownTaskIds` は重複不可で、`selectedTaskId` を含める。不正な入力は `400 validation_error`
 - 全件が `active` であることをロック後に検証する。進行中クエストがある場合や状態変更との競合は `409 conflict`
 - タスク更新・クエスト作成・ログ保存は `start_quest` RPC の1トランザクション。同時開始も直列化する
