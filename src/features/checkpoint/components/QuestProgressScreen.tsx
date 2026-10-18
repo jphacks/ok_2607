@@ -112,8 +112,7 @@ export function QuestProgressScreen({
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-[#101320] text-white">
-      {/* スマホ画面サイズのコンテナ (max-w-md: ~390px-448px) */}
-      <main className="flex min-h-screen w-full max-w-md flex-col justify-between px-5 py-4 font-dotgothic">
+      <main className="flex min-h-screen w-full max-w-3xl flex-col justify-between px-5 py-4 font-dotgothic sm:px-8 sm:py-8 lg:px-12 lg:py-10">
         {/* 上部ヘッダー & 見出し */}
         <div>
           <PixelHeader level={level} />
