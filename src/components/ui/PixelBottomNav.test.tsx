@@ -25,8 +25,12 @@ describe("PixelBottomNav", () => {
     // ステータス
     const statusBtn = screen.getByRole("button", { name: "ステータス" });
     expect(statusBtn).toBeInTheDocument();
-  });
 
+    // 各タブにSVGアイコンが存在すること
+    expect(screen.getByTestId("tasks-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("quest-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("status-icon")).toBeInTheDocument();
+  });
   it("現在のタブに aria-current='page' が設定される", () => {
     const handleSelect = vi.fn();
     const { rerender } = render(<PixelBottomNav currentTab="quest" onSelectTab={handleSelect} />);
