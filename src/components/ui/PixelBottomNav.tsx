@@ -13,7 +13,6 @@ export interface PixelBottomNavProps {
 interface TabItem {
   id: NavTabId;
   label: string;
-  subLabel?: string;
   icon: string;
 }
 
@@ -26,7 +25,6 @@ const TABS: TabItem[] = [
   {
     id: "quest",
     label: "クエスト",
-    subLabel: "クエストを開始",
     icon: "⚔",
   },
   {
@@ -55,7 +53,7 @@ export function PixelBottomNav({ currentTab, onSelectTab, className = "" }: Pixe
                 type="button"
                 onClick={() => onSelectTab("quest")}
                 aria-current={isActive ? "page" : undefined}
-                aria-label={`${item.label}（${item.subLabel}）`}
+                aria-label={item.label}
                 className="relative -top-3 flex flex-1 flex-col items-center justify-center focus:outline-none"
               >
                 <span
@@ -80,15 +78,6 @@ export function PixelBottomNav({ currentTab, onSelectTab, className = "" }: Pixe
                   >
                     {item.label}
                   </span>
-                  {item.subLabel && (
-                    <span
-                      className={`text-[10px] font-medium leading-none tracking-tight ${
-                        isActive ? "text-gold" : "text-muted"
-                      }`}
-                    >
-                      {item.subLabel}
-                    </span>
-                  )}
                 </span>
               </button>
             );
