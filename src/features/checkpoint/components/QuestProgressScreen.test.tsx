@@ -225,23 +225,29 @@ describe("QuestProgressScreen", () => {
       renderFive();
       const locked = screen.getByRole("checkbox", { name: /見直す/ });
       expect(locked).toHaveAttribute("aria-disabled", "true");
+      expect(locked).toBeDisabled();
+      expect(locked).toHaveAttribute("tabindex", "-1");
       fireEvent.click(locked);
       expect(global.fetch).not.toHaveBeenCalled();
       expect(locked).toHaveAttribute("aria-checked", "false");
     });
 
-    it("最後に完了したもの以外の完了済みは外せない", () => {
+    it("最後に完了したもの以外の完了済みは外せず、フォーカス対象からも除外される", () => {
       renderFive();
       const first = screen.getByRole("checkbox", { name: /資料を集める/ });
       expect(first).toHaveAttribute("aria-disabled", "true");
+      expect(first).toBeDisabled();
+      expect(first).toHaveAttribute("tabindex", "-1");
       fireEvent.click(first);
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    it("最後に完了したものは外せて、今やることがそれに戻る", async () => {
+    it("直前の完了済み（戻す可能）項目はフォーカス可能で、外すと今やることがそれに戻る", async () => {
       renderFive();
       const last = screen.getByRole("checkbox", { name: /構成を決める/ });
       expect(last).toHaveAttribute("aria-disabled", "false");
+      expect(last).not.toBeDisabled();
+      expect(last).toHaveAttribute("tabindex", "0");
       fireEvent.click(last);
 
       await waitFor(() => {
@@ -251,6 +257,16 @@ describe("QuestProgressScreen", () => {
         "/api/checkpoints/cp-2",
         expect.objectContaining({ body: JSON.stringify({ isDone: false }) }),
       );
+    });
+
+    it("「今やること」のチェックボックスにタイトルを含むアクセシブルネームが指定され、操作可能である", () => {
+      renderFive();
+      const checkbox = screen.getByRole("checkbox", {
+        name: "本文を書くを完了にする",
+      });
+      expect(checkbox).toBeInTheDocument();
+      expect(checkbox).not.toBeDisabled();
+      expect(checkbox).toHaveAttribute("aria-checked", "false");
     });
 
     it("更新に失敗したら元に戻してエラーを表示する", async () => {
