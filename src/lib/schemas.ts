@@ -98,6 +98,18 @@ export const UpdateCheckpointRequest = z.object({
 });
 export type UpdateCheckpointRequest = z.infer<typeof UpdateCheckpointRequest>;
 
+// チェックポイント名編集の先行契約。Route Handlerへの適用は機能PRで行う。
+export const UpdateCheckpointFieldsRequest = z
+  .object({
+    title: z.string().trim().min(1).max(200).optional(),
+    isDone: z.boolean().optional(),
+  })
+  .strict()
+  .refine((value) => value.title !== undefined || value.isDone !== undefined, {
+    message: "更新項目を1つ以上指定してください",
+  });
+export type UpdateCheckpointFieldsRequest = z.infer<typeof UpdateCheckpointFieldsRequest>;
+
 // ---- レスポンス ----
 
 export const TasksResponse = z.object({ tasks: z.array(Task) });
