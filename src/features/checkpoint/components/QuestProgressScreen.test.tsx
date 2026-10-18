@@ -185,4 +185,129 @@ describe("QuestProgressScreen", () => {
 
     expect(global.fetch).not.toHaveBeenCalled();
   });
+
+  describe("順番どおりに 1 つずつ進める", () => {
+    const fiveCheckpoints: Checkpoint[] = [
+      "資料を集める",
+      "構成を決める",
+      "本文を書く",
+      "見直す",
+      "提出する",
+    ].map((title, i) => ({
+      id: `cp-${i + 1}`,
+      questId: "quest-1",
+      parentId: null,
+      title,
+      description: null,
+      position: i,
+      isDone: i < 2,
+      doneAt: i < 2 ? "2026-10-17T00:00:00Z" : null,
+    }));
+
+    function renderFive(checkpoints: Checkpoint[] = fiveCheckpoints) {
+      render(
+        <QuestProgressScreen
+          questId="quest-1"
+          taskTitle="レポートを書く"
+          initialCheckpoints={checkpoints}
+        />,
+      );
+    }
+
+    it("最初の未完了を「今やること」として強調表示する", () => {
+      renderFive();
+      const group = screen.getByRole("group", { name: "今やること" });
+      expect(group).toHaveTextContent("本文を書く");
+      expect(group).toHaveTextContent("▶ 今やること");
+    });
+
+    it("先の項目はロックされ、クリックしても API を呼ばない", () => {
+      renderFive();
+      const locked = screen.getByRole("checkbox", { name: /見直す/ });
+      expect(locked).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(locked);
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(locked).toHaveAttribute("aria-checked", "false");
+    });
+
+    it("最後に完了したもの以外の完了済みは外せない", () => {
+      renderFive();
+      const first = screen.getByRole("checkbox", { name: /資料を集める/ });
+      expect(first).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(first);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("最後に完了したものは外せて、今やることがそれに戻る", async () => {
+      renderFive();
+      const last = screen.getByRole("checkbox", { name: /構成を決める/ });
+      expect(last).toHaveAttribute("aria-disabled", "false");
+      fireEvent.click(last);
+
+      await waitFor(() => {
+        expect(screen.getByRole("group", { name: "今やること" })).toHaveTextContent("構成を決める");
+      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/checkpoints/cp-2",
+        expect.objectContaining({ body: JSON.stringify({ isDone: false }) }),
+      );
+    });
+
+    it("更新に失敗したら元に戻してエラーを表示する", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: { code: "internal_error", message: "失敗しました" } }),
+      });
+      renderFive();
+      fireEvent.click(screen.getByText("本文を書く"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("失敗しました");
+      expect(screen.getByRole("group", { name: "今やること" })).toHaveTextContent("本文を書く");
+    });
+
+    it("今やるものの子チェックポイントをカードの中に表示する", () => {
+      renderFive([
+        ...fiveCheckpoints,
+        {
+          id: "child-1",
+          questId: "quest-1",
+          parentId: "cp-3",
+          title: "序論を書く",
+          description: null,
+          position: 0,
+          isDone: false,
+          doneAt: null,
+        },
+      ]);
+      expect(screen.getByRole("group", { name: "今やること" })).toHaveTextContent("序論を書く");
+    });
+
+    it("全部終わると完了メッセージを表示する", () => {
+      renderFive(fiveCheckpoints.map((cp) => ({ ...cp, isDone: true })));
+      expect(screen.queryByRole("group", { name: "今やること" })).not.toBeInTheDocument();
+      expect(screen.getByText("すべてのチェックポイントを達成！")).toBeInTheDocument();
+    });
+
+    it("7 件以上あるときは完了済みと先の項目を畳む", () => {
+      const many: Checkpoint[] = Array.from({ length: 8 }, (_, i) => ({
+        id: `m-${i}`,
+        questId: "quest-1",
+        parentId: null,
+        title: `項目${i}`,
+        description: null,
+        position: i,
+        isDone: i < 3,
+        doneAt: null,
+      }));
+      renderFive(many);
+
+      expect(screen.getByText("✓ 2 件完了")).toBeInTheDocument();
+      expect(screen.queryByText("項目0")).not.toBeInTheDocument();
+      expect(screen.getByText("項目2")).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "今やること" })).toHaveTextContent("項目3");
+      expect(screen.getByText("項目5")).toBeInTheDocument();
+      expect(screen.queryByText("項目6")).not.toBeInTheDocument();
+      expect(screen.getByText("🔒 ほか 2 件")).toBeInTheDocument();
+    });
+  });
 });
