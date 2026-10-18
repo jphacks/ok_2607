@@ -1,7 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { playSfx, vibrate } from "@/components/ui/sound";
 import type { QuestCandidatesResponse, Task } from "@/lib/schemas";
+import { getRarity, RARITY_LABEL, type Rarity } from "@/features/quest/rarity";
+
+/** レア度ごとのカードの枠と、表示中に続く演出（選択中・退場中は別の演出に置き換える） */
+const RARITY_CARD_CLASS: Record<Rarity, string> = {
+  common: "border-rarity-common",
+  rare: "border-2 border-rarity-rare text-rarity-rare animate-rare-glow",
+  mythic:
+    // background-size を別クラスにすると一括指定に上書きされるため、一括指定の中に書く
+    "border-2 border-transparent animate-holo [background:linear-gradient(var(--color-panel),var(--color-panel))_0_0/100%_100%_padding-box,linear-gradient(90deg,var(--color-rarity-mythic),var(--color-neon-pink),var(--color-neon-cyan),var(--color-rarity-mythic))_0_0/200%_100%_border-box]",
+  urgent: "border-2 border-urgent animate-urgent-pulse",
+};
+
+const RARITY_LABEL_CLASS: Partial<Record<Rarity, string>> = {
+  rare: "border-rarity-rare text-rarity-rare",
+  mythic: "border-rarity-mythic text-rarity-mythic",
+};
+
+/** カードを 1 枚ずつ配る間隔 */
+const DEAL_INTERVAL_MS = 80;
 export function QuestChoices({
   choices,
   pending,
@@ -33,16 +53,23 @@ export function QuestChoices({
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
   const [isInstantChoice, setIsInstantChoice] = useState(false);
+  // 挑戦を決めた後、選ばなかったカードを崩して消す
+  const [leaving, setLeaving] = useState(false);
   const renderTimeRef = useRef<number>(Date.now());
   // 提示の保存応答によるメタ情報更新では、直前の選択を解除しない。
   const presentation = presentationId ?? choices;
+  const hasCandidates = Boolean(
+    choices && !choices.inProgressQuest && choices.candidates.length > 0,
+  );
 
   useEffect(() => {
     renderTimeRef.current = Date.now();
     setIsInstantChoice(false);
     setSelectedId(null);
+    setLeaving(false);
     setStartError("");
-  }, [presentation]);
+    if (hasCandidates) playSfx("flip");
+  }, [presentation, hasCandidates]);
 
   const selected = choices?.candidates.find((task) => task.id === selectedId) ?? null;
   // 候補が並んでいるときだけ、見出しの右に再抽選アイコンを出す。
@@ -56,14 +83,18 @@ export function QuestChoices({
     setIsInstantChoice(elapsed <= 3000);
     setSelectedId(taskId);
     setStartError("");
+    playSfx("select");
+    vibrate(20);
   }
   async function start() {
     if (!selected || starting || pending || !startReady || error) return;
     setStarting(true);
     setStartError("");
+    setLeaving(true);
     try {
       await onStart(selected);
     } catch (cause) {
+      setLeaving(false);
       setStartError(cause instanceof Error ? cause.message : "クエストを開始できませんでした。");
     } finally {
       setStarting(false);
@@ -157,92 +188,115 @@ export function QuestChoices({
         </div>
       ) : (
         <>
-          <fieldset className="space-y-2.5" disabled={starting}>
+          <fieldset
+            className={`space-y-2.5 ${isInstantChoice && selected ? "animate-shake" : ""}`}
+            disabled={starting}
+          >
             <legend className="sr-only">挑戦するタスクを1つ選ぶ</legend>
             {choices.candidates.map((task, index) => {
               const checked = selectedId === task.id;
               // 1つ選んだら、選ばれていないカードははっきり暗くする（タップで選び直せる）。
               const dimmed = selectedId !== null && !checked;
+              const rarity = getRarity(task.skippedCount, choices.isUrgent && index === 0);
+              const rarityLabelClass = RARITY_LABEL_CLASS[rarity];
+              const dealDelay = `${index * DEAL_INTERVAL_MS}ms`;
               return (
-                <label
+                // 外側でカードを配って表に返し、内側（label）でレア度・選択・退場の演出をする
+                <div
                   key={task.id}
-                  data-selected={checked}
-                  data-dimmed={dimmed}
-                  onClick={() => handleSelectTask(task.id)}
-                  style={{ animationDelay: `${index * 80}ms` }}
-                  className={`pixel-panel animate-card-draw relative block cursor-pointer px-4 py-3 transition-all duration-200 motion-reduce:transition-none ${
-                    checked
-                      ? "z-10 scale-[1.02] border-[3px] border-gold-accent bg-panel-active shadow-[0_0_16px_var(--color-gold-accent)] motion-reduce:scale-100"
-                      : dimmed
-                        ? "opacity-40 grayscale hover:opacity-70"
-                        : "hover:bg-panel-active active:scale-[0.99]"
-                  }`}
+                  className="animate-card-flip"
+                  style={{ animationDelay: dealDelay }}
                 >
-                  <div className="flex items-start gap-3">
-                    <span
-                      aria-hidden="true"
-                      className="w-7 shrink-0 pt-0.5 text-center text-[26px] leading-none text-gold-accent"
-                    >
-                      {choices.isUrgent && index === 0
-                        ? "♨"
-                        : index === 0
-                          ? "⚔"
-                          : index === 1
-                            ? "✦"
-                            : "✧"}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      {/* タイトルを中央に大きく太字で配置（直感ファースト） */}
-                      {/* 長いタイトルでも画面に収まるよう 2 行で切る */}
-                      <p className="line-clamp-2 break-words font-dotgothic text-base font-bold leading-6 text-text">
-                        {task.title}
-                      </p>
-                      {/* 詳細・メタ情報はトーンを抑えて配置 */}
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted/80">
-                        <span>
-                          {choices.isUrgent && index === 0
-                            ? "緊急クエスト ・ 締切間近"
-                            : "今日のクエスト候補"}
-                        </span>
-                        <span aria-label={`reject回数 ${task.skippedCount}回`}>
-                          ❌{task.skippedCount}
-                        </span>
-                        {task.dueAt && (
-                          <span className="text-success/90">
-                            期限{" "}
-                            {new Intl.DateTimeFormat("ja-JP", {
-                              month: "numeric",
-                              day: "numeric",
-                            }).format(new Date(task.dueAt))}
+                  <label
+                    data-selected={checked}
+                    data-dimmed={dimmed}
+                    data-rarity={rarity}
+                    style={{ animationDelay: checked || leaving ? undefined : dealDelay }}
+                    className={`pixel-panel relative block cursor-pointer px-4 py-3 transition-all duration-200 motion-reduce:transition-none ${
+                      leaving && !checked
+                        ? "pointer-events-none animate-dissolve"
+                        : checked
+                          ? "z-10 animate-pop scale-[1.02] border-[3px] border-gold-accent bg-panel-active shadow-[0_0_16px_var(--color-gold-accent)] motion-reduce:scale-100"
+                          : `${RARITY_CARD_CLASS[rarity]} ${
+                              dimmed
+                                ? "opacity-40 grayscale hover:opacity-70"
+                                : "hover:bg-panel-active active:scale-[0.99]"
+                            }`
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="w-7 shrink-0 pt-0.5 text-center text-[26px] leading-none text-gold-accent"
+                      >
+                        {choices.isUrgent && index === 0
+                          ? "♨"
+                          : index === 0
+                            ? "⚔"
+                            : index === 1
+                              ? "✦"
+                              : "✧"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        {/* タイトルを中央に大きく太字で配置（直感ファースト） */}
+                        {/* 長いタイトルでも画面に収まるよう 2 行で切る */}
+                        <p className="line-clamp-2 break-words font-dotgothic text-base font-bold leading-6 text-text">
+                          {task.title}
+                        </p>
+                        {/* 詳細・メタ情報はトーンを抑えて配置 */}
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted/80">
+                          <span>
+                            {choices.isUrgent && index === 0
+                              ? "緊急クエスト ・ 締切間近"
+                              : "今日のクエスト候補"}
                           </span>
-                        )}
-                      </div>
-                      <div className="mt-2 flex items-center justify-between text-xs">
-                        <span className="flex items-center gap-2 text-gold-text">
-                          <input
-                            type="radio"
-                            name="quest"
-                            value={task.id}
-                            checked={checked}
-                            onChange={() => handleSelectTask(task.id)}
-                            className="h-3.5 w-3.5 accent-gold-accent"
-                          />
-                          <span className={checked ? "font-bold text-gold-accent" : ""}>
-                            {checked ? "選択中" : "選択する"}
+                          {rarityLabelClass && (
+                            <span
+                              className={`border px-1.5 font-dotgothic text-[11px] font-bold leading-4 ${rarityLabelClass}`}
+                            >
+                              {RARITY_LABEL[rarity]}
+                            </span>
+                          )}
+                          <span aria-label={`reject回数 ${task.skippedCount}回`}>
+                            ❌{task.skippedCount}
                           </span>
-                        </span>
-                        {checked && isInstantChoice && (
-                          <span
-                            data-testid="instant-choice-badge"
-                            className="animate-pulse font-dotgothic text-xs font-bold text-gold"
-                          >
-                            ⚡ 直感即決！
+                          {task.dueAt && (
+                            <span className="text-success/90">
+                              期限{" "}
+                              {new Intl.DateTimeFormat("ja-JP", {
+                                month: "numeric",
+                                day: "numeric",
+                              }).format(new Date(task.dueAt))}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 flex items-center justify-between text-xs">
+                          <span className="flex items-center gap-2 text-gold-text">
+                            <input
+                              type="radio"
+                              name="quest"
+                              value={task.id}
+                              checked={checked}
+                              onChange={() => handleSelectTask(task.id)}
+                              className="h-3.5 w-3.5 accent-gold-accent"
+                            />
+                            <span className={checked ? "font-bold text-gold-accent" : ""}>
+                              {checked ? "選択中" : "選択する"}
+                            </span>
                           </span>
-                        )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </label>
+                    {checked && isInstantChoice && (
+                      <span
+                        data-testid="instant-choice-badge"
+                        className="absolute -top-2 right-3 animate-stamp border-2 border-neon-pink bg-surface px-2 font-dotgothic text-sm font-bold text-neon-pink"
+                      >
+                        即決!!
+                      </span>
+                    )}
+                  </label>
+                </div>
               );
             })}
           </fieldset>
