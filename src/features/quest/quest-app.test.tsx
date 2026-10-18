@@ -14,7 +14,6 @@ const existing: Task = {
   id: "10000000-0000-4000-8000-000000000001",
   title: "以前のタスク",
   dueAt: null,
-  weight: 1,
   status: "active",
   shownCount: 0,
   skippedCount: 0,

@@ -126,7 +126,7 @@ export async function getQuestDetail(
 
   const { data: taskRow, error: taskError } = await supabase
     .from("tasks")
-    .select("id, title, due_at, weight, status, shown_count, skipped_count, created_at, updated_at")
+    .select("id, title, due_at, status, shown_count, skipped_count, created_at, updated_at")
     .eq("id", questRow.task_id)
     .maybeSingle();
 

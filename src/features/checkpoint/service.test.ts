@@ -183,7 +183,6 @@ describe("checkpoint service", () => {
                   id: "task-1",
                   title: "本を読む",
                   due_at: null,
-                  weight: 1.0,
                   status: "in_quest",
                   shown_count: 1,
                   skipped_count: 0,

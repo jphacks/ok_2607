@@ -35,7 +35,6 @@ const firstTask: Task = {
   id: firstId,
   title: "本を読む",
   dueAt: null,
-  weight: 1,
   status: "active",
   shownCount: 0,
   skippedCount: 0,
@@ -128,7 +127,7 @@ describe("クエスト開始の入力と状態", () => {
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
-  it("提示IDの重複による重みの二重更新を拒否する", async () => {
+  it("提示IDの重複によるreject回数の二重更新を拒否する", async () => {
     const response = await POST(
       request({ selectedTaskId: firstId, shownTaskIds: [firstId, firstId] }),
     );

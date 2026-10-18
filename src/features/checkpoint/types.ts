@@ -26,7 +26,6 @@ export interface DbTaskRow {
   id: string;
   title: string;
   due_at: string | null;
-  weight: number;
   status: "active" | "in_quest" | "done" | "discarded";
   shown_count: number;
   skipped_count: number;
@@ -73,7 +72,6 @@ export function mapDbTaskToSchema(row: DbTaskRow): Task {
     id: row.id,
     title: row.title,
     dueAt: row.due_at,
-    weight: row.weight,
     status: row.status,
     shownCount: row.shown_count,
     skippedCount: row.skipped_count,
