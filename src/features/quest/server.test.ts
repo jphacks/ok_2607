@@ -105,6 +105,28 @@ describe("ローカル抽選の提示記録API", () => {
     expect(mocks.questLookup).not.toHaveBeenCalled();
   });
 
+  it.each(["PGRST202", "42883"])(
+    "2引数版RPCが未定義（%s）の環境では1引数版RPCへフォールバックして保存する",
+    async (code) => {
+      mocks.rpc
+        .mockResolvedValueOnce({ data: null, error: { code } })
+        .mockResolvedValueOnce({ data: [savedRow], error: null });
+      const response = await recordPresentation(request({ shownTaskIds: [firstId] }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        tasks: [{ id: firstId, shownCount: 1 }],
+      });
+      expect(mocks.rpc).toHaveBeenCalledTimes(2);
+      expect(mocks.rpc).toHaveBeenNthCalledWith(1, "record_quest_candidates", {
+        p_task_ids: [firstId],
+        p_user_id: "test-user-id",
+      });
+      expect(mocks.rpc).toHaveBeenNthCalledWith(2, "record_quest_candidates", {
+        p_task_ids: [firstId],
+      });
+    },
+  );
+
   it.each([
     { code: "P0001", status: 409, message: "conflict" },
     { code: "XX000", status: 500, message: "internal_error" },
