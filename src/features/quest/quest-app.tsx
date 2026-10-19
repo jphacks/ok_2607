@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { z } from "zod";
 import { HomeScreen } from "@/features/title/home-screen";
@@ -635,7 +636,14 @@ export function QuestApp() {
     <div className="rogue-shell relative mx-auto flex min-h-dvh w-full max-w-3xl flex-col bg-surface text-text shadow-2xl">
       <header className="flex h-[60px] shrink-0 items-center justify-between px-[22px] sm:px-8 lg:px-12">
         <span className="flex items-center gap-2 text-gold-accent">
-          <span aria-hidden="true">✦</span>
+          <Image
+            src="/icon.png"
+            alt="TriOne"
+            width={28}
+            height={28}
+            className="h-7 w-7 shrink-0 rounded object-contain"
+            priority
+          />
           <span className="font-mono text-sm tracking-[-1px]">TriOne</span>
         </span>
         <span className="flex items-center gap-2">

@@ -30,7 +30,7 @@
 - 部品は Props で見た目の種類を切り替える（例: `variant="primary" | "secondary"`）。機能固有のロジックや API 呼び出しを入れない
 - 機能固有の見た目（キャラクターのドット絵など）は `src/features/<機能>/` に置いてよい
 - `globals.css` には全体に効く最小限のもの（`body`、フォーカスリング、`prefers-reduced-motion`）だけを書く。部品のスタイルは部品のファイルに Tailwind で書く。`globals.css` に部品のクラスを新しく足さない
-- アプリアイコンは `public/icon.png` を正とし、favicon および apple-touch-icon に設定する
+- アプリアイコンは `public/icon.png` を正とし、favicon、apple-touch-icon、およびヘッダー左上のアプリアイコン（28px、角丸）に設定する
 - ナビゲーション等のアイコンはピクセル調のSVGアイコンを用い、タップ・視認が容易な大きさ（24〜32px）を基準とする
 - ステータスタブは家ではなく、人の頭と肩・胸元を表した上半身のピクセル調ピクトアイコンを使う。サイズは28pxで、色はナビの選択状態を継承する。
 - 文言は日本語
